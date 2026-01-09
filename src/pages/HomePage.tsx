@@ -1,31 +1,56 @@
 import { useAuth } from "@/contexts/AuthContext"
-import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 export function HomePage() {
-  const { user, logout } = useAuth()
+  const { user } = useAuth()
+
+  const firstName = user?.name?.split(" ")[0] || "there"
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <Card className="w-full max-w-sm">
-        <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Corporate Mental Fitness</CardTitle>
-          <CardDescription>
-            Welcome back, {user?.name || "User"}!
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <p className="text-sm text-muted-foreground text-center">
-            You are logged in as {user?.email}
-          </p>
-          <p className="text-sm text-muted-foreground text-center">
-            Next: App shell with bottom navigation
-          </p>
-          <Button onClick={logout} variant="outline" className="w-full">
-            Sign Out
-          </Button>
-        </CardContent>
-      </Card>
+    <div className="px-4 py-6 space-y-6">
+      <section>
+        <h2 className="text-2xl font-bold mb-1">
+          Hello, {firstName}!
+        </h2>
+        <p className="text-muted-foreground">
+          Welcome to your mental fitness journey.
+        </p>
+      </section>
+
+      <section className="grid gap-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Today's Focus</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Your daily activities will appear here.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Progress</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Track your progress over time.
+            </p>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Resources</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-sm text-muted-foreground">
+              Access helpful resources and guides.
+            </p>
+          </CardContent>
+        </Card>
+      </section>
     </div>
   )
 }
