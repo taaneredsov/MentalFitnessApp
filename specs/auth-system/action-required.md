@@ -4,7 +4,7 @@ Manual steps that must be completed by a human. These cannot be automated.
 
 ## Before Implementation
 
-- [ ] **Set JWT_SECRET environment variable** - Add a strong random secret to `.env.local` (at least 32 characters). Generate with: `openssl rand -base64 32`
+- [x] **Set JWT_SECRET environment variable** - Add a strong random secret to `.env.local` (at least 32 characters). Generate with: `openssl rand -base64 32`
 
 ## During Implementation
 

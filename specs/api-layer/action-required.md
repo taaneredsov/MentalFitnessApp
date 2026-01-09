@@ -4,7 +4,12 @@ Manual steps that must be completed by a human. These cannot be automated.
 
 ## Before Implementation
 
-- [ ] **Add new fields to Airtable User table** - Add `password_hash` (Single line text), `created_at` (Date with time), `last_login` (Date with time) fields to the Users table in Airtable
+- [x] **Add new fields to Airtable User table** - Add `password_hash` (Single line text), `created_at` (Date with time), `last_login` (Date with time) fields to the Users table in Airtable
+
+The fields are:
+'Paswoord Hash'
+'Aangemaakt op'
+'Laatste login'
 
 ## During Implementation
 
