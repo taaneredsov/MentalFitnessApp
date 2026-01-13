@@ -74,6 +74,36 @@ export interface MethodUsage {
 
 export type ProgramStatus = "planned" | "running" | "finished"
 
+// AI Program Generation Types
+export interface AIGenerateRequest {
+  userId: string
+  goals: string[]
+  startDate: string
+  duration: string
+  daysOfWeek: string[]
+}
+
+export interface AIScheduleMethod {
+  methodId: string
+  methodName: string
+  duration: number
+  order: number
+}
+
+export interface AIScheduleDay {
+  dayId: string
+  dayName: string
+  methods: AIScheduleMethod[]
+}
+
+export interface AIGenerateResponse {
+  program: Program
+  aiSchedule: AIScheduleDay[]
+  totalSessionTime: number
+  weeklySessionTime: number
+  recommendations: string[]
+}
+
 /**
  * Calculate program status based on dates
  */

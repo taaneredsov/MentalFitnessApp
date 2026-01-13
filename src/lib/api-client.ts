@@ -1,5 +1,5 @@
 import type { User } from "@/types/user"
-import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData } from "@/types/program"
+import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse } from "@/types/program"
 
 const API_BASE = "/api"
 
@@ -136,6 +136,15 @@ export const api = {
     update: (id: string, data: { goals?: string[]; daysOfWeek?: string[]; methods?: string[]; notes?: string }, accessToken: string) =>
       request<Program>(`/programs/${encodeURIComponent(id)}`, {
         method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    generate: (data: AIGenerateRequest, accessToken: string) =>
+      request<AIGenerateResponse>("/programs/generate", {
+        method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`
         },
