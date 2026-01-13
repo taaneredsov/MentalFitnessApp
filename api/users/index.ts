@@ -50,7 +50,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendSuccess(res, user, 201)
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return sendError(res, error.errors[0].message, 400)
+      return sendError(res, error.issues[0].message, 400)
     }
     return handleApiError(res, error)
   }
