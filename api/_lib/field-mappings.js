@@ -112,6 +112,13 @@ export const METHOD_USAGE_FIELDS = {
   goals: "fldYrzWJeMcyf4kNi"              // Doelstellingen (link to Goals)
 }
 
+// Program Prompts table field IDs (Programma opbouw prompts - tblHmI6cSujof3KHu)
+export const PROGRAM_PROMPT_FIELDS = {
+  name: "fld54jyMhPH0Cesl7",              // Name
+  goals: "fldDo7u9EeWNyXENj",             // Doelstellingen (link to Goals)
+  prompt: "fld7nmlwZoO2QFqMj"             // Prompt (multiline text)
+}
+
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs)
 export const FIELD_NAMES = {
   user: {
@@ -299,5 +306,18 @@ export function transformMethodUsage(record) {
     programId: fields[METHOD_USAGE_FIELDS.program]?.[0],
     usedAt: fields[METHOD_USAGE_FIELDS.usedAt],
     remark: fields[METHOD_USAGE_FIELDS.remark]
+  }
+}
+
+/**
+ * Transform Airtable program prompt record to clean ProgramPrompt object
+ */
+export function transformProgramPrompt(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    name: fields[PROGRAM_PROMPT_FIELDS.name],
+    prompt: fields[PROGRAM_PROMPT_FIELDS.prompt],
+    goals: fields[PROGRAM_PROMPT_FIELDS.goals] || []
   }
 }
