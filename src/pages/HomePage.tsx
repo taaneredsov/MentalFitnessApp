@@ -17,6 +17,7 @@ import {
   ChevronRight,
   Sparkles
 } from "lucide-react"
+import { InstallPrompt } from "@/components/InstallPrompt"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -74,20 +75,22 @@ export function HomePage() {
     : null
 
   return (
-    <div className="px-4 py-6 space-y-6">
-      <section>
+    <div className="py-6 space-y-6">
+      <section className="px-4">
         <h2 className="text-2xl font-bold mb-1">Hello, {firstName}!</h2>
         <p className="text-muted-foreground">
           Welcome to your mental fitness journey.
         </p>
       </section>
 
+      <InstallPrompt />
+
       {isLoading ? (
-        <div className="flex items-center justify-center h-32">
+        <div className="flex items-center justify-center h-32 px-4">
           <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
         </div>
       ) : runningProgram ? (
-        <section className="grid gap-4">
+        <section className="grid gap-4 px-4">
           {/* Current Program Card */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
@@ -187,7 +190,7 @@ export function HomePage() {
           )}
         </section>
       ) : (
-        <section className="grid gap-4">
+        <section className="grid gap-4 px-4">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-base">Geen Actief Programma</CardTitle>
@@ -202,7 +205,7 @@ export function HomePage() {
         </section>
       )}
 
-      <section className="grid gap-4">
+      <section className="grid gap-4 px-4">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base">Resources</CardTitle>
