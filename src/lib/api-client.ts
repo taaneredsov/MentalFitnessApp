@@ -1,4 +1,5 @@
 import type { User } from "@/types/user"
+import type { Program, ProgramDetail } from "@/types/program"
 
 const API_BASE = "/api"
 
@@ -69,6 +70,18 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(data)
       })
+  },
+
+  companies: {
+    lookup: (ids: string[]) =>
+      request<Record<string, string>>(`/companies/lookup?ids=${ids.join(",")}`)
+  },
+
+  programs: {
+    list: (userId: string) =>
+      request<Program[]>(`/programs?userId=${encodeURIComponent(userId)}`),
+
+    get: (id: string) => request<ProgramDetail>(`/programs/${encodeURIComponent(id)}`)
   }
 }
 

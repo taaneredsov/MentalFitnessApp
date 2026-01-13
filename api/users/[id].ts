@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
-import { base, tables } from "../../src/lib/airtable"
-import { sendSuccess, sendError, handleApiError } from "../../src/lib/api-utils"
-import { transformUser, AIRTABLE_FIELDS, type AirtableUser } from "../../src/types/user"
+import { base, tables } from "../_lib/airtable.js"
+import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { transformUser, USER_FIELDS } from "../_lib/field-mappings.js"
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
@@ -25,15 +25,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = updateUserSchema.parse(req.body)
 
-    // Map to Dutch field names
+    // Map to field IDs
     const fields: Record<string, unknown> = {}
-    if (body.name) fields[AIRTABLE_FIELDS.name] = body.name
-    if (body.role) fields[AIRTABLE_FIELDS.role] = body.role
-    if (body.languageCode) fields[AIRTABLE_FIELDS.languageCode] = body.languageCode
-    if (body.lastLogin) fields[AIRTABLE_FIELDS.lastLogin] = body.lastLogin
+    if (body.name) fields[USER_FIELDS.name] = body.name
+    if (body.role) fields[USER_FIELDS.role] = body.role
+    if (body.languageCode) fields[USER_FIELDS.languageCode] = body.languageCode
+    if (body.lastLogin) fields[USER_FIELDS.lastLogin] = body.lastLogin
 
     const record = await base(tables.users).update(id, fields)
-    const user = transformUser(record as unknown as AirtableUser)
+    const user = transformUser(record as any)
 
     return sendSuccess(res, user)
   } catch (error) {

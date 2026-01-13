@@ -3,9 +3,10 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { AppLayout } from "@/components/AppLayout"
 import { LoginPage } from "@/pages/LoginPage"
 import { HomePage } from "@/pages/HomePage"
-import { Tab1Page } from "@/pages/Tab1Page"
+import { ProgramsPage } from "@/pages/ProgramsPage"
+import { ProgramDetailPage } from "@/pages/ProgramDetailPage"
 import { Tab2Page } from "@/pages/Tab2Page"
-import { Tab3Page } from "@/pages/Tab3Page"
+import { AccountPage } from "@/pages/AccountPage"
 
 function App() {
   return (
@@ -19,9 +20,10 @@ function App() {
         }
       >
         <Route path="/" element={<HomePage />} />
-        <Route path="/tab1" element={<Tab1Page />} />
+        <Route path="/programs" element={<ProgramsPage />} />
+        <Route path="/programs/:id" element={<ProgramDetailPage />} />
         <Route path="/tab2" element={<Tab2Page />} />
-        <Route path="/tab3" element={<Tab3Page />} />
+        <Route path="/account" element={<AccountPage />} />
       </Route>
     </Routes>
   )

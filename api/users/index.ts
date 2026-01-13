@@ -1,9 +1,9 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
-import { base, tables } from "../../src/lib/airtable"
-import { sendSuccess, sendError, handleApiError } from "../../src/lib/api-utils"
-import { hashPassword } from "../../src/lib/password"
-import { transformUser, AIRTABLE_FIELDS, type AirtableUser } from "../../src/types/user"
+import { base, tables } from "../_lib/airtable.js"
+import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { hashPassword } from "../_lib/password.js"
+import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
 
 const createUserSchema = z.object({
   name: z.string().min(1),
@@ -21,11 +21,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const body = createUserSchema.parse(req.body)
 
-    // Check if user already exists
+    // Check if user already exists (filterByFormula requires field names)
     const existing = await base(tables.users)
       .select({
-        filterByFormula: `{${AIRTABLE_FIELDS.email}} = "${body.email}"`,
-        maxRecords: 1
+        filterByFormula: `{${FIELD_NAMES.user.email}} = "${body.email}"`,
+        maxRecords: 1,
+        returnFieldsByFieldId: true
       })
       .firstPage()
 
@@ -36,17 +37,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Hash password
     const passwordHash = await hashPassword(body.password)
 
-    // Create user with Dutch field names
+    // Create user with field IDs
     const record = await base(tables.users).create({
-      [AIRTABLE_FIELDS.name]: body.name,
-      [AIRTABLE_FIELDS.email]: body.email,
-      [AIRTABLE_FIELDS.passwordHash]: passwordHash,
-      [AIRTABLE_FIELDS.role]: body.role,
-      [AIRTABLE_FIELDS.languageCode]: body.languageCode,
-      [AIRTABLE_FIELDS.createdAt]: new Date().toISOString()
+      [USER_FIELDS.name]: body.name,
+      [USER_FIELDS.email]: body.email,
+      [USER_FIELDS.passwordHash]: passwordHash,
+      [USER_FIELDS.role]: body.role,
+      [USER_FIELDS.languageCode]: body.languageCode
     })
 
-    const user = transformUser(record as unknown as AirtableUser)
+    const user = transformUser(record as any)
     return sendSuccess(res, user, 201)
   } catch (error) {
     if (error instanceof z.ZodError) {

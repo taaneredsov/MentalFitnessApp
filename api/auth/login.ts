@@ -1,10 +1,10 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
-import { base, tables } from "../../src/lib/airtable"
-import { sendSuccess, sendError, handleApiError } from "../../src/lib/api-utils"
-import { verifyPassword } from "../../src/lib/password"
-import { signAccessToken, signRefreshToken } from "../../src/lib/jwt"
-import { transformUser, AIRTABLE_FIELDS, type AirtableUser } from "../../src/types/user"
+import { base, tables } from "../_lib/airtable.js"
+import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { verifyPassword } from "../_lib/password.js"
+import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
+import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -19,11 +19,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const { email, password } = loginSchema.parse(req.body)
 
-    // Find user by email
+    // Find user by email (filterByFormula requires field names, not IDs)
     const records = await base(tables.users)
       .select({
-        filterByFormula: `{${AIRTABLE_FIELDS.email}} = "${email}"`,
-        maxRecords: 1
+        filterByFormula: `{${FIELD_NAMES.user.email}} = "${email}"`,
+        maxRecords: 1,
+        returnFieldsByFieldId: true
       })
       .firstPage()
 
@@ -31,8 +32,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Invalid email or password", 401)
     }
 
-    const record = records[0] as unknown as AirtableUser
-    const passwordHash = record.fields[AIRTABLE_FIELDS.passwordHash]
+    const record = records[0] as any
+    const passwordHash = record.fields[USER_FIELDS.passwordHash]
 
     if (!passwordHash) {
       return sendError(res, "Account not set up for password login", 401)
@@ -44,20 +45,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Invalid email or password", 401)
     }
 
-    // Update last login
+    // Update last login (Airtable date format: YYYY-MM-DD)
     await base(tables.users).update(record.id, {
-      [AIRTABLE_FIELDS.lastLogin]: new Date().toISOString()
+      [USER_FIELDS.lastLogin]: new Date().toISOString().split("T")[0]
     })
 
     // Generate tokens
     const accessToken = await signAccessToken({
       userId: record.id,
-      email: record.fields[AIRTABLE_FIELDS.email]
+      email: record.fields[USER_FIELDS.email]
     })
 
     const refreshToken = await signRefreshToken({
       userId: record.id,
-      email: record.fields[AIRTABLE_FIELDS.email]
+      email: record.fields[USER_FIELDS.email]
     })
 
     // Set refresh token as httpOnly cookie

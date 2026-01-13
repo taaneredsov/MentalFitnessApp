@@ -1,0 +1,22 @@
+{
+  "version": "1.0",
+  "lastUpdated": "2026-01-13T12:00:00Z",
+  "bullets": [
+    {
+      "id": "airtable-linked-filter-1",
+      "text": "Airtable linked record fields cannot be filtered by record ID using filterByFormula with ARRAYJOIN - it returns display values (primary field), not record IDs. Fetch all records and filter client-side by checking if the linked field array includes the target record ID.",
+      "helpful": 1,
+      "harmful": 0,
+      "tags": ["airtable", "api", "gotcha", "filtering"],
+      "created": "2026-01-13T12:00:00Z"
+    },
+    {
+      "id": "airtable-euro-date-2",
+      "text": "Airtable formula fields may return dates in European DD/MM/YYYY format. Parse and convert to ISO YYYY-MM-DD in the API transform layer to avoid JavaScript Date parsing issues (JS interprets slashes as MM/DD/YYYY).",
+      "helpful": 1,
+      "harmful": 0,
+      "tags": ["airtable", "api", "gotcha", "date"],
+      "created": "2026-01-13T12:00:00Z"
+    }
+  ]
+}

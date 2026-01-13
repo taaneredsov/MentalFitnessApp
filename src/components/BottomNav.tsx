@@ -4,9 +4,9 @@ import { cn } from "@/lib/utils"
 
 const tabs = [
   { path: "/", icon: Home, label: "Home" },
-  { path: "/tab1", icon: Calendar, label: "Tab 1" },
+  { path: "/programs", icon: Calendar, label: "Programs" },
   { path: "/tab2", icon: BookOpen, label: "Tab 2" },
-  { path: "/tab3", icon: User, label: "Tab 3" }
+  { path: "/account", icon: User, label: "Account" }
 ]
 
 export function BottomNav() {

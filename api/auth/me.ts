@@ -1,8 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { base, tables } from "../../src/lib/airtable"
-import { sendSuccess, sendError, handleApiError } from "../../src/lib/api-utils"
-import { verifyToken } from "../../src/lib/jwt"
-import { transformUser, type AirtableUser } from "../../src/types/user"
+import { base, tables } from "../_lib/airtable.js"
+import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { verifyToken } from "../_lib/jwt.js"
+import { transformUser } from "../_lib/field-mappings.js"
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
@@ -22,8 +22,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Invalid token", 401)
     }
 
-    const record = await base(tables.users).find(payload.userId)
-    const user = transformUser(record as unknown as AirtableUser)
+    const records = await base(tables.users)
+      .select({
+        filterByFormula: `RECORD_ID() = "${payload.userId}"`,
+        maxRecords: 1,
+        returnFieldsByFieldId: true
+      })
+      .firstPage()
+
+    if (records.length === 0) {
+      return sendError(res, "User not found", 404)
+    }
+
+    const user = transformUser(records[0] as any)
 
     return sendSuccess(res, user)
   } catch (error) {

@@ -1,5 +1,6 @@
 export { LoginPage } from "./LoginPage"
 export { HomePage } from "./HomePage"
-export { Tab1Page } from "./Tab1Page"
+export { ProgramsPage } from "./ProgramsPage"
+export { ProgramDetailPage } from "./ProgramDetailPage"
 export { Tab2Page } from "./Tab2Page"
-export { Tab3Page } from "./Tab3Page"
+export { AccountPage } from "./AccountPage"

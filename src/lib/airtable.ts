@@ -1,7 +1,7 @@
 import Airtable from "airtable"
 
-if (!process.env.AIRTABLE_API_KEY) {
-  throw new Error("AIRTABLE_API_KEY is not defined")
+if (!process.env.AIRTABLE_ACCESS_TOKEN) {
+  throw new Error("AIRTABLE_ACCESS_TOKEN is not defined")
 }
 
 if (!process.env.AIRTABLE_BASE_ID) {
@@ -9,11 +9,11 @@ if (!process.env.AIRTABLE_BASE_ID) {
 }
 
 const airtable = new Airtable({
-  apiKey: process.env.AIRTABLE_API_KEY
+  apiKey: process.env.AIRTABLE_ACCESS_TOKEN
 })
 
 export const base = airtable.base(process.env.AIRTABLE_BASE_ID)
 
 export const tables = {
-  users: process.env.AIRTABLE_TABLE_ID || "Users"
+  users: process.env.AIRTABLE_USER_TABLE_ID || "Users"
 }
