@@ -8,7 +8,7 @@ import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.
 
 const loginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(1)
+  password: z.string().min(1).optional()
 })
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -35,8 +35,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const record = records[0] as any
     const passwordHash = record.fields[USER_FIELDS.passwordHash]
 
+    // If no password hash, user needs to set up password (onboarding)
     if (!passwordHash) {
-      return sendError(res, "Account not set up for password login", 401)
+      return sendSuccess(res, {
+        needsPasswordSetup: true,
+        userId: record.id,
+        email: record.fields[USER_FIELDS.email]
+      })
+    }
+
+    // Password is required for users with existing password
+    if (!password) {
+      return sendError(res, "Password is required", 400)
     }
 
     // Verify password

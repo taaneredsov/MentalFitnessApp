@@ -40,7 +40,28 @@ async function request<T>(
   return json.data as T
 }
 
+export interface SetPasswordResponse {
+  user: User
+  accessToken: string
+}
+
+export interface LoginResponse {
+  user?: User
+  accessToken?: string
+  needsPasswordSetup?: boolean
+  userId?: string
+  email?: string
+}
+
 export const api = {
+  auth: {
+    setPassword: (userId: string, email: string, password: string) =>
+      request<SetPasswordResponse>("/auth/set-password", {
+        method: "POST",
+        body: JSON.stringify({ userId, email, password })
+      })
+  },
+
   users: {
     lookup: (email: string) =>
       request<User>(`/users/lookup?email=${encodeURIComponent(email)}`),
@@ -69,6 +90,15 @@ export const api = {
       request<User>(`/users/${id}`, {
         method: "PATCH",
         body: JSON.stringify(data)
+      }),
+
+    changePassword: (password: string, accessToken: string) =>
+      request<{ success: boolean }>("/users/change-password", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ password })
       })
   },
 

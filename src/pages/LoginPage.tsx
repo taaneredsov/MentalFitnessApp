@@ -33,7 +33,16 @@ export function LoginPage() {
   const onSubmit = async (data: LoginFormData) => {
     try {
       setError(null)
-      await login(data.email, data.password)
+      const result = await login(data.email, data.password)
+
+      // Check if user needs to set up password (onboarding flow)
+      if (result.needsPasswordSetup) {
+        navigate("/set-password", {
+          replace: true,
+          state: { userId: result.userId, email: result.email }
+        })
+        return
+      }
 
       const from = location.state?.from?.pathname || "/"
       navigate(from, { replace: true })

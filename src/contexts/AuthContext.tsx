@@ -8,13 +8,29 @@ import {
 } from "react"
 import type { User } from "@/types/user"
 
+interface LoginResult {
+  success: true
+  needsPasswordSetup?: false
+}
+
+interface NeedsPasswordSetupResult {
+  success: false
+  needsPasswordSetup: true
+  userId: string
+  email: string
+}
+
+type LoginResponse = LoginResult | NeedsPasswordSetupResult
+
 interface AuthContextType {
   user: User | null
+  accessToken: string | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<void>
+  login: (email: string, password: string) => Promise<LoginResponse>
   logout: () => Promise<void>
   refreshAuth: () => Promise<void>
+  setAuthFromResponse: (user: User, accessToken: string) => void
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
@@ -23,9 +39,18 @@ const TOKEN_KEY = "accessToken"
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
+  const [accessToken, setAccessToken] = useState<string | null>(
+    () => localStorage.getItem(TOKEN_KEY)
+  )
   const [isLoading, setIsLoading] = useState(true)
 
-  const login = useCallback(async (email: string, password: string) => {
+  const setAuthFromResponse = useCallback((user: User, token: string) => {
+    localStorage.setItem(TOKEN_KEY, token)
+    setAccessToken(token)
+    setUser(user)
+  }, [])
+
+  const login = useCallback(async (email: string, password: string): Promise<LoginResponse> => {
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -38,13 +63,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error(data.error || "Login failed")
     }
 
+    // Check if user needs to set up password
+    if (data.data.needsPasswordSetup) {
+      return {
+        success: false,
+        needsPasswordSetup: true,
+        userId: data.data.userId,
+        email: data.data.email
+      }
+    }
+
     localStorage.setItem(TOKEN_KEY, data.data.accessToken)
+    setAccessToken(data.data.accessToken)
     setUser(data.data.user)
+
+    return { success: true }
   }, [])
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" })
     localStorage.removeItem(TOKEN_KEY)
+    setAccessToken(null)
     setUser(null)
   }, [])
 
@@ -59,6 +98,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (data.success) {
         localStorage.setItem(TOKEN_KEY, data.data.accessToken)
+        setAccessToken(data.data.accessToken)
         setUser(data.data.user)
         return
       }
@@ -67,6 +107,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     localStorage.removeItem(TOKEN_KEY)
+    setAccessToken(null)
     setUser(null)
   }, [])
 
@@ -115,11 +156,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider
       value={{
         user,
+        accessToken,
         isLoading,
         isAuthenticated: !!user,
         login,
         logout,
-        refreshAuth
+        refreshAuth,
+        setAuthFromResponse
       }}
     >
       {children}

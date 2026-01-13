@@ -1,4 +1,5 @@
 export { LoginPage } from "./LoginPage"
+export { SetPasswordPage } from "./SetPasswordPage"
 export { HomePage } from "./HomePage"
 export { ProgramsPage } from "./ProgramsPage"
 export { ProgramDetailPage } from "./ProgramDetailPage"

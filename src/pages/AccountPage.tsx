@@ -4,7 +4,8 @@ import { useAuth } from "@/contexts/AuthContext"
 import { api } from "@/lib/api-client"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { LogOut, User, Mail, Building2 } from "lucide-react"
+import { ChangePasswordForm } from "@/components/ChangePasswordForm"
+import { LogOut, User, Mail, Building2, KeyRound } from "lucide-react"
 
 export function AccountPage() {
   const { user, logout } = useAuth()
@@ -78,6 +79,18 @@ export function AccountPage() {
               )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <KeyRound className="h-5 w-5" />
+            Wachtwoord wijzigen
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <ChangePasswordForm />
         </CardContent>
       </Card>
 
