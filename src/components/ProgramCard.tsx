@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card"
 import type { Program, ProgramStatus } from "@/types/program"
+import { getActivityProgress } from "@/types/program"
 import { Calendar, Clock, Target } from "lucide-react"
 
 interface ProgramCardProps {
@@ -39,26 +40,18 @@ function formatDate(dateStr: string): string {
   })
 }
 
-function getProgress(program: Program): number {
-  const start = new Date(program.startDate).getTime()
-  const end = new Date(program.endDate).getTime()
-  const now = Date.now()
-
-  if (now <= start) return 0
-  if (now >= end) return 100
-
-  return Math.round(((now - start) / (end - start)) * 100)
-}
-
 export function ProgramCard({ program, status, onClick }: ProgramCardProps) {
-  const progress = status === "running" ? getProgress(program) : null
+  const progress = status === "running" ? getActivityProgress(program) : null
 
   return (
     <Card
-      className="cursor-pointer hover:shadow-md transition-shadow"
+      className="cursor-pointer hover:shadow-md transition-shadow py-3"
       onClick={onClick}
     >
-      <CardContent className="pt-4">
+      <CardContent>
+        {program.name && (
+          <h3 className="font-semibold mb-2">{program.name}</h3>
+        )}
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Calendar className="h-4 w-4" />

@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { verifyPassword } from "../_lib/password.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { email, password } = loginSchema.parse(req.body)
+    const { email, password } = loginSchema.parse(parseBody(req))
 
     // Find user by email (filterByFormula requires field names, not IDs)
     const records = await base(tables.users)
@@ -34,14 +34,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const record = records[0] as any
     const passwordHash = record.fields[USER_FIELDS.passwordHash]
+    const lastLogin = record.fields[USER_FIELDS.lastLogin]
 
-    // If no password hash, user needs to set up password (onboarding)
-    if (!passwordHash) {
+    // First-time user: no password hash AND no last login
+    // This indicates a newly created user who needs to set up their password
+    if (!passwordHash && !lastLogin) {
       return sendSuccess(res, {
         needsPasswordSetup: true,
         userId: record.id,
         email: record.fields[USER_FIELDS.email]
       })
+    }
+
+    // User has last login but no password - account is in invalid state
+    // This shouldn't happen in normal operation, so show an error
+    if (!passwordHash && lastLogin) {
+      return sendError(res, "Account niet correct geconfigureerd. Neem contact op met beheerder.", 400)
     }
 
     // Password is required for users with existing password

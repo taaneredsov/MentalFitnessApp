@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { useNavigate, useLocation } from "react-router-dom"
+import { useNavigate, useLocation, Link } from "react-router-dom"
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
@@ -10,8 +10,8 @@ import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const loginSchema = z.object({
-  email: z.string().email("Please enter a valid email"),
-  password: z.string().min(1, "Password is required")
+  email: z.string().email("Voer een geldig e-mailadres in"),
+  password: z.string().min(1, "Wachtwoord is verplicht")
 })
 
 type LoginFormData = z.infer<typeof loginSchema>
@@ -47,7 +47,7 @@ export function LoginPage() {
       const from = location.state?.from?.pathname || "/"
       navigate(from, { replace: true })
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Login failed")
+      setError(err instanceof Error ? err.message : "Inloggen mislukt")
     }
   }
 
@@ -55,7 +55,7 @@ export function LoginPage() {
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <Card className="w-full max-w-sm">
         <CardHeader className="text-center">
-          <CardTitle className="text-2xl">Welcome Back</CardTitle>
+          <CardTitle className="text-2xl">Welkom Terug</CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
@@ -66,11 +66,11 @@ export function LoginPage() {
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">E-mailadres</Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="your@email.com"
+                placeholder="jouw@email.com"
                 autoComplete="email"
                 {...register("email")}
               />
@@ -80,7 +80,7 @@ export function LoginPage() {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Wachtwoord</Label>
               <Input
                 id="password"
                 type="password"
@@ -93,8 +93,15 @@ export function LoginPage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={isSubmitting}>
-              {isSubmitting ? "Signing in..." : "Sign In"}
+              {isSubmitting ? "Inloggen..." : "Inloggen"}
             </Button>
+
+            <p className="text-center text-sm text-muted-foreground">
+              Eerste keer?{" "}
+              <Link to="/first-time" className="text-primary hover:underline">
+                Account activeren
+              </Link>
+            </p>
           </form>
         </CardContent>
       </Card>

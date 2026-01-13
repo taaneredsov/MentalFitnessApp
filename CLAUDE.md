@@ -12,12 +12,12 @@ A Progressive Web App for corporate mental fitness programs. Users can install i
 
 ## Running Locally
 
-Always kill the running app on port 3333 and restart (if required)
-
 ```bash
 # Start the dev server (includes both frontend and API)
 vercel dev --yes --listen 3333
 ```
+
+The user will run the dev server, never run the dev server yourself unless explicitly asked to do.
 
 **Note**: Don't use `npm run dev` alone - it won't include the serverless API functions.
 

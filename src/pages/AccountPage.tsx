@@ -1,7 +1,7 @@
-import { useState, useEffect } from "react"
+import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
-import { api } from "@/lib/api-client"
+import { useCompanies } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChangePasswordForm } from "@/components/ChangePasswordForm"
@@ -10,29 +10,14 @@ import { LogOut, User, Mail, Building2, KeyRound } from "lucide-react"
 export function AccountPage() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
-  const [companyNames, setCompanyNames] = useState<string[]>([])
-  const [isLoadingCompanies, setIsLoadingCompanies] = useState(false)
 
-  useEffect(() => {
-    async function fetchCompanyNames() {
-      if (!user?.company?.length) return
+  // Use React Query for company names (cached)
+  const { data: companyMap, isLoading: isLoadingCompanies } = useCompanies(user?.company)
 
-      setIsLoadingCompanies(true)
-      try {
-        const companyMap = await api.companies.lookup(user.company)
-        const names = user.company
-          .map(id => companyMap[id])
-          .filter(Boolean)
-        setCompanyNames(names)
-      } catch (error) {
-        console.error("Failed to fetch company names:", error)
-      } finally {
-        setIsLoadingCompanies(false)
-      }
-    }
-
-    fetchCompanyNames()
-  }, [user?.company])
+  const companyNames = useMemo(() => {
+    if (!companyMap || !user?.company) return []
+    return user.company.map(id => companyMap[id]).filter(Boolean)
+  }, [companyMap, user?.company])
 
   const handleLogout = async () => {
     await logout()

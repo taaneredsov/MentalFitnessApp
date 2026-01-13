@@ -1,6 +1,6 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import {
   transformProgram,
   transformGoal,
@@ -13,10 +13,14 @@ import {
 } from "../_lib/field-mappings.js"
 
 /**
- * GET /api/programs/[id]
- * Returns a single program with expanded relations (goals, methods, days)
+ * GET /api/programs/[id] - Returns a single program with expanded relations
+ * PATCH /api/programs/[id] - Updates a program
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  if (req.method === "PATCH") {
+    return handlePatch(req, res)
+  }
+
   if (req.method !== "GET") {
     return sendError(res, "Method not allowed", 405)
   }
@@ -87,6 +91,49 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       methodDetails,
       dayNames
     })
+  } catch (error) {
+    return handleApiError(res, error)
+  }
+}
+
+/**
+ * PATCH /api/programs/[id] - Update a program
+ * Body: { methods?, notes? }
+ */
+async function handlePatch(req: VercelRequest, res: VercelResponse) {
+  try {
+    const { id } = req.query
+    if (!id || typeof id !== "string") {
+      return sendError(res, "Program ID is required", 400)
+    }
+
+    const body = parseBody(req)
+    const fields: Record<string, unknown> = {}
+
+    // Allow updating goals, daysOfWeek, methods, and notes
+    if (body.goals !== undefined) {
+      fields[PROGRAM_FIELDS.goals] = body.goals
+    }
+    if (body.daysOfWeek !== undefined) {
+      fields[PROGRAM_FIELDS.daysOfWeek] = body.daysOfWeek
+    }
+    if (body.methods !== undefined) {
+      fields[PROGRAM_FIELDS.methods] = body.methods
+    }
+    if (body.notes !== undefined) {
+      fields[PROGRAM_FIELDS.notes] = body.notes
+    }
+
+    if (Object.keys(fields).length === 0) {
+      return sendError(res, "No valid fields to update", 400)
+    }
+
+    // Update the program
+    const record = await base(tables.programs).update(id, fields, { typecast: true })
+
+    const program = transformProgram(record as any)
+
+    return sendSuccess(res, program)
   } catch (error) {
     return handleApiError(res, error)
   }

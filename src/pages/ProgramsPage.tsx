@@ -1,11 +1,20 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
-import { api } from "@/lib/api-client"
+import { usePrograms } from "@/hooks/queries"
 import { ProgramCard } from "@/components/ProgramCard"
+import { Button } from "@/components/ui/button"
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription
+} from "@/components/ui/dialog"
+import { ProgramWizard } from "@/components/ProgramWizard"
 import type { Program, ProgramStatus } from "@/types/program"
 import { getProgramStatus } from "@/types/program"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus } from "lucide-react"
 
 interface GroupedPrograms {
   running: Program[]
@@ -61,30 +70,19 @@ function ProgramSection({
 export function ProgramsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [programs, setPrograms] = useState<Program[]>([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [showWizard, setShowWizard] = useState(false)
 
-  useEffect(() => {
-    async function fetchPrograms() {
-      if (!user?.id) return
-
-      try {
-        const data = await api.programs.list(user.id)
-        setPrograms(data)
-      } catch (err) {
-        setError("Kon programma's niet laden")
-        console.error("Failed to fetch programs:", err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchPrograms()
-  }, [user?.id])
+  // Use React Query for programs data (cached)
+  const { data: programs = [], isLoading, error: programsError } = usePrograms(user?.id)
+  const error = programsError ? "Kon programma's niet laden" : null
 
   const handleProgramClick = (id: string) => {
     navigate(`/programs/${id}`)
+  }
+
+  const handleWizardComplete = (programId: string) => {
+    setShowWizard(false)
+    navigate(`/programs/${programId}`)
   }
 
   if (isLoading) {
@@ -111,13 +109,23 @@ export function ProgramsPage() {
 
   return (
     <div className="px-4 py-6 space-y-6">
-      <h2 className="text-2xl font-bold">Programma's</h2>
+      <div className="flex items-center justify-between">
+        <h2 className="text-2xl font-bold">Programma's</h2>
+        <Button onClick={() => setShowWizard(true)}>
+          <Plus className="h-4 w-4 mr-2" />
+          Nieuw Programma
+        </Button>
+      </div>
 
       {!hasPrograms ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
             Je hebt nog geen programma's.
           </p>
+          <Button className="mt-4" onClick={() => setShowWizard(true)}>
+            <Plus className="h-4 w-4 mr-2" />
+            Maak je eerste programma
+          </Button>
         </div>
       ) : (
         <>
@@ -141,6 +149,23 @@ export function ProgramsPage() {
           />
         </>
       )}
+
+      {/* New Program Wizard Dialog */}
+      <Dialog open={showWizard} onOpenChange={setShowWizard}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Nieuw Programma</DialogTitle>
+            <DialogDescription>
+              Maak een nieuw mentaal fitnessprogramma aan.
+            </DialogDescription>
+          </DialogHeader>
+          <ProgramWizard
+            mode="create"
+            onComplete={handleWizardComplete}
+            onCancel={() => setShowWizard(false)}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

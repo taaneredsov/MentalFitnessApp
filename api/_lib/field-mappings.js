@@ -51,6 +51,7 @@ export const COMPANY_FIELDS = {
 // Programs table field IDs (Mentale Fitnessprogramma's)
 export const PROGRAM_FIELDS = {
   id: "fldzeEtEfVRM3qXzp",              // ID (AutoNumber)
+  programId: "fldKHAHbREuKbbi1N",       // Programma ID (Formula - display name)
   user: "fldDc1mJUjBl2y7Hy",            // Gebruiker (Link)
   startDate: "fldY5UGS0XSd1eUxu",       // Startdatum
   duration: "fld3mrRTtqPX2a1fX",        // Duur van programma
@@ -60,7 +61,8 @@ export const PROGRAM_FIELDS = {
   goals: "fldo1Lc26dqEkUkwU",           // Doelstellingen (Link)
   methods: "fldvcpSF78ATEk12U",         // Mentale methode (Link)
   sessionTime: "fldEWZ3BpI7ueG9ai",     // Tijd per sessie (Rollup)
-  notes: "fldAUf1ENHtF8NRPl"            // Notities
+  notes: "fldAUf1ENHtF8NRPl",           // Notities
+  methodUsage: "fldXNUYtU4KG84ZMX"      // Methodegebruik (Link)
 }
 
 // Goals table field IDs (Doelstellingen)
@@ -80,6 +82,7 @@ export const METHOD_FIELDS = {
   description: "fldW7tdp7AJoeKerd",      // Beschrijving
   experienceLevel: "fldKppvap3PVPlMq8",  // Ervaringsniveau
   photo: "fldT64jU7CfcgTe0y",            // Foto
+  media: "fldobaP1oS9uZKTh2",            // Media (Link to Media table)
   users: "fldizDnwdWMO7UfSz",            // Gebruikers (Link)
   programs: "fld36JCBhGcXYurrp"          // Mentale Fitnessprogramma's (Link)
 }
@@ -88,6 +91,25 @@ export const METHOD_FIELDS = {
 export const DAY_FIELDS = {
   name: "fldj61ALcQp8OYO1u",             // Name (Maandag, Dinsdag, etc.)
   programs: "fldoml9PLaWNLT59y"          // Mentale Fitnessprogramma's (Link)
+}
+
+// Media table field IDs (Media - tblwzDUwtnhFKw4kA)
+export const MEDIA_FIELDS = {
+  filename: "fldJ2OY8jXdQQS3Vx",          // Bestandsnaam
+  type: "fldsEJYb1olj2zQoj",              // Type (video/audio)
+  file: "fld8BlErdZjq1yNkW"               // Bestand (attachment)
+}
+
+// Method Usage table field IDs (Methodegebruik - tblktNOXF3yPPavXU)
+export const METHOD_USAGE_FIELDS = {
+  name: "fldt25MnO1OilxFOF",              // Name (auto-generated)
+  user: "fldlJtJOwZ4poOcoN",              // Gebruiker (link to Users)
+  method: "fldPyWglLXgXVO0ru",            // Methode (link to Methods)
+  methodName: "fld4YLJWrdwMvyrjx",        // Methode Naam (lookup)
+  program: "fld18WcaPR8nXNr4a",           // Mentale Fitnessprogramma's (link to Programs)
+  usedAt: "fldvUGcgnwuux1bvi",            // Gebruikt op (date)
+  remark: "fldpskQnKFWDFGRFk",            // Opmerking (multiline text)
+  goals: "fldYrzWJeMcyf4kNi"              // Doelstellingen (link to Goals)
 }
 
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs)
@@ -195,6 +217,7 @@ export function transformProgram(record) {
   const fields = record.fields
   return {
     id: record.id,
+    name: fields[PROGRAM_FIELDS.programId],  // Programma ID formula field as display name
     startDate: fields[PROGRAM_FIELDS.startDate],
     endDate: parseEuropeanDate(fields[PROGRAM_FIELDS.endDate]),
     duration: fields[PROGRAM_FIELDS.duration],
@@ -203,7 +226,8 @@ export function transformProgram(record) {
     goals: fields[PROGRAM_FIELDS.goals] || [],
     methods: fields[PROGRAM_FIELDS.methods] || [],
     sessionTime: fields[PROGRAM_FIELDS.sessionTime] || 0,
-    notes: fields[PROGRAM_FIELDS.notes]
+    notes: fields[PROGRAM_FIELDS.notes],
+    methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length
   }
 }
 
@@ -230,7 +254,24 @@ export function transformMethod(record) {
     name: fields[METHOD_FIELDS.name],
     duration: fields[METHOD_FIELDS.duration] || 0,
     description: fields[METHOD_FIELDS.description],
-    photo: fields[METHOD_FIELDS.photo]?.[0]?.url
+    experienceLevel: fields[METHOD_FIELDS.experienceLevel],
+    photo: fields[METHOD_FIELDS.photo]?.[0]?.thumbnails?.large?.url || fields[METHOD_FIELDS.photo]?.[0]?.url,
+    media: fields[METHOD_FIELDS.media] || []  // Linked record IDs to Media table
+  }
+}
+
+/**
+ * Transform Airtable media record to clean Media object
+ */
+export function transformMedia(record) {
+  const fields = record.fields
+  const file = fields[MEDIA_FIELDS.file]?.[0]
+
+  return {
+    id: record.id,
+    filename: fields[MEDIA_FIELDS.filename],
+    type: fields[MEDIA_FIELDS.type],  // "video" or "audio"
+    url: file?.url
   }
 }
 
@@ -242,5 +283,21 @@ export function transformDay(record) {
   return {
     id: record.id,
     name: fields[DAY_FIELDS.name]
+  }
+}
+
+/**
+ * Transform Airtable method usage record to clean MethodUsage object
+ */
+export function transformMethodUsage(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    userId: fields[METHOD_USAGE_FIELDS.user]?.[0],
+    methodId: fields[METHOD_USAGE_FIELDS.method]?.[0],
+    methodName: fields[METHOD_USAGE_FIELDS.methodName]?.[0],
+    programId: fields[METHOD_USAGE_FIELDS.program]?.[0],
+    usedAt: fields[METHOD_USAGE_FIELDS.usedAt],
+    remark: fields[METHOD_USAGE_FIELDS.remark]
   }
 }

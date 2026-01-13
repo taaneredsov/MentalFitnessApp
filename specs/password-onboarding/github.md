@@ -23,7 +23,7 @@ This feature has been published to GitHub.
 
 | # | Title | Tasks | Status |
 |---|-------|-------|--------|
-| #28 | Phase 1: API Changes | 4 | Open |
+| #28 | Phase 1: API Changes | 5 | Open |
 | #29 | Phase 2: Onboarding UI | 5 | Open |
 | #30 | Phase 3: Account Password Change | 2 | Open |
 

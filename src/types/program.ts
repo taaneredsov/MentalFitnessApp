@@ -1,5 +1,6 @@
 export interface Program {
   id: string
+  name?: string
   startDate: string
   endDate: string
   duration: string
@@ -9,6 +10,7 @@ export interface Program {
   methods: string[]
   sessionTime: number
   notes?: string
+  methodUsageCount?: number  // Count of linked Methodegebruik records
 }
 
 export interface ProgramDetail extends Program {
@@ -24,12 +26,50 @@ export interface Goal {
   status: "Actief" | "Afgerond" | "Gepland"
 }
 
+export interface Day {
+  id: string
+  name: string  // Maandag, Dinsdag, etc.
+}
+
+export interface CreateProgramData {
+  userId: string
+  startDate: string
+  duration: string
+  goals?: string[]
+  daysOfWeek?: string[]
+  methods?: string[]
+  notes?: string
+}
+
+export interface MediaItem {
+  id: string
+  filename: string
+  type: string  // "video" or "audio"
+  url: string
+}
+
 export interface Method {
   id: string
   name: string
   duration: number
   description?: string
+  experienceLevel?: string
   photo?: string
+  media?: string[]  // Linked record IDs to Media table
+}
+
+export interface MethodDetail extends Method {
+  mediaDetails?: MediaItem[]
+}
+
+export interface MethodUsage {
+  id: string
+  userId?: string
+  methodId?: string
+  methodName?: string
+  programId?: string
+  usedAt?: string
+  remark?: string
 }
 
 export type ProgramStatus = "planned" | "running" | "finished"
@@ -97,4 +137,30 @@ export function formatNextDay(nextDay: {
   if (nextDay.isToday) return "Vandaag"
   if (nextDay.daysUntil === 1) return "Morgen"
   return nextDay.day
+}
+
+/**
+ * Parse weeks from duration string (e.g., "4 weken" -> 4)
+ */
+export function parseWeeksFromDuration(duration: string): number {
+  const match = duration.match(/(\d+)/)
+  return match ? parseInt(match[1], 10) : 0
+}
+
+/**
+ * Calculate activity-based progress percentage
+ * Progress = completed activities / total expected activities
+ * Total expected = weeks × frequency (days per week)
+ */
+export function getActivityProgress(program: Program): number {
+  const weeks = parseWeeksFromDuration(program.duration)
+  const frequency = program.frequency || 0
+  const totalExpected = weeks * frequency
+
+  if (totalExpected === 0) return 0
+
+  const completed = program.methodUsageCount || 0
+  const progress = Math.round((completed / totalExpected) * 100)
+
+  return Math.min(progress, 100) // Cap at 100%
 }

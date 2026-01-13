@@ -5,6 +5,21 @@ export function sendSuccess(res, data, status = 200) {
   })
 }
 
+/**
+ * Parse request body - handles both string and object bodies
+ * (vercel dev doesn't always auto-parse JSON bodies)
+ */
+export function parseBody(req) {
+  if (typeof req.body === "string") {
+    try {
+      return JSON.parse(req.body)
+    } catch {
+      return {}
+    }
+  }
+  return req.body || {}
+}
+
 export function sendError(res, error, status = 400) {
   return res.status(status).json({
     success: false,

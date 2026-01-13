@@ -1,13 +1,13 @@
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
-import { api } from "@/lib/api-client"
+import { usePrograms, useProgram } from "@/hooks/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import type { Program, ProgramDetail } from "@/types/program"
 import {
   getProgramStatus,
   getNextScheduledDay,
-  formatNextDay
+  formatNextDay,
+  getActivityProgress
 } from "@/types/program"
 import {
   Calendar,
@@ -18,6 +18,7 @@ import {
   Sparkles
 } from "lucide-react"
 import { InstallPrompt } from "@/components/InstallPrompt"
+import { ProgramWizard } from "@/components/ProgramWizard"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -27,59 +28,67 @@ function formatDate(dateStr: string): string {
   })
 }
 
-function getProgress(program: Program): number {
-  const start = new Date(program.startDate).getTime()
-  const end = new Date(program.endDate).getTime()
-  const now = Date.now()
-
-  if (now <= start) return 0
-  if (now >= end) return 100
-
-  return Math.round(((now - start) / (end - start)) * 100)
-}
-
 export function HomePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
-  const [runningProgram, setRunningProgram] = useState<ProgramDetail | null>(
-    null
-  )
-  const [isLoading, setIsLoading] = useState(true)
+  const [showOnboarding, setShowOnboarding] = useState(false)
 
   const firstName = user?.name?.split(" ")[0] || "there"
 
-  useEffect(() => {
-    async function fetchRunningProgram() {
-      if (!user?.id) return
+  // Use React Query for programs (cached)
+  const { data: programs = [], isLoading: programsLoading } = usePrograms(user?.id)
 
-      try {
-        const programs = await api.programs.list(user.id)
-        const running = programs.find(p => getProgramStatus(p) === "running")
+  // Find the running program
+  const runningProgramBasic = useMemo(
+    () => programs.find(p => getProgramStatus(p) === "running"),
+    [programs]
+  )
 
-        if (running) {
-          const detail = await api.programs.get(running.id)
-          setRunningProgram(detail)
-        }
-      } catch (err) {
-        console.error("Failed to fetch running program:", err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
+  // Fetch full program details if we have a running program
+  const { data: runningProgram, isLoading: detailLoading } = useProgram(
+    runningProgramBasic?.id || ""
+  )
 
-    fetchRunningProgram()
-  }, [user?.id])
+  const isLoading = programsLoading || (runningProgramBasic && detailLoading)
+  const hasNoPrograms = !programsLoading && programs.length === 0
+
+  // Auto-show onboarding for first-time users
+  const shouldShowOnboarding = showOnboarding || (hasNoPrograms && !programsLoading)
+
+  const handleOnboardingComplete = (programId: string) => {
+    setShowOnboarding(false)
+    navigate(`/programs/${programId}`)
+  }
 
   const nextDay = runningProgram
     ? getNextScheduledDay(runningProgram.dayNames)
     : null
+
+  // Show onboarding wizard for first-time users
+  if (shouldShowOnboarding) {
+    return (
+      <div className="py-6 px-4 space-y-6">
+        <section>
+          <h2 className="text-2xl font-bold mb-1">Welkom, {firstName}!</h2>
+          <p className="text-muted-foreground">
+            Laten we je eerste programma maken om te beginnen met je mentale fitness reis.
+          </p>
+        </section>
+
+        <ProgramWizard
+          mode="onboarding"
+          onComplete={handleOnboardingComplete}
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="py-6 space-y-6">
       <section className="px-4">
         <h2 className="text-2xl font-bold mb-1">Hello, {firstName}!</h2>
         <p className="text-muted-foreground">
-          Welcome to your mental fitness journey.
+          Welkom bij je persoonlijke mentale fitness-coach.
         </p>
       </section>
 
@@ -101,6 +110,11 @@ export function HomePage() {
                 <CardTitle className="text-base">Huidig Programma</CardTitle>
                 <ChevronRight className="h-5 w-5 text-muted-foreground" />
               </div>
+              {runningProgram.name && (
+                <p className="text-sm text-muted-foreground mt-1">
+                  {runningProgram.name}
+                </p>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               <div className="flex items-center gap-4 text-sm text-muted-foreground">
@@ -120,12 +134,12 @@ export function HomePage() {
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Voortgang</span>
-                  <span>{getProgress(runningProgram)}%</span>
+                  <span>{getActivityProgress(runningProgram)}%</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${getProgress(runningProgram)}%` }}
+                    style={{ width: `${getActivityProgress(runningProgram)}%` }}
                   />
                 </div>
               </div>
@@ -144,6 +158,11 @@ export function HomePage() {
                       : "Volgende Activiteit"}
                   </CardTitle>
                 </div>
+                {runningProgram.name && (
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {runningProgram.name}
+                  </p>
+                )}
               </CardHeader>
               <CardContent className="space-y-3">
                 <p className="text-sm font-medium text-primary">
@@ -155,7 +174,13 @@ export function HomePage() {
                     {runningProgram.methodDetails.map(method => (
                       <div
                         key={method.id}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50"
+                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          navigate(`/methods/${method.id}`, {
+                            state: { programId: runningProgram.id }
+                          })
+                        }}
                       >
                         {method.photo && (
                           <img
@@ -174,6 +199,7 @@ export function HomePage() {
                             </p>
                           )}
                         </div>
+                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
                       </div>
                     ))}
                   </div>
@@ -208,11 +234,11 @@ export function HomePage() {
       <section className="grid gap-4 px-4">
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Resources</CardTitle>
+            <CardTitle className="text-base">Hulp & Informatie</CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-sm text-muted-foreground">
-              Access helpful resources and guides.
+              Veelgestelde vragen en handleidingen.
             </p>
           </CardContent>
         </Card>

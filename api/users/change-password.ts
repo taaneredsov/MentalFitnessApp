@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { hashPassword } from "../_lib/password.js"
 import { verifyToken } from "../_lib/jwt.js"
 import { USER_FIELDS } from "../_lib/field-mappings.js"
@@ -36,7 +36,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const userId = payload.userId as string
 
     // Validate request body
-    const { password } = changePasswordSchema.parse(req.body)
+    const { password } = changePasswordSchema.parse(parseBody(req))
 
     // Hash and store the new password
     const passwordHash = await hashPassword(password)

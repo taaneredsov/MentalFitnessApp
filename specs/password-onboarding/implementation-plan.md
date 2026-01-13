@@ -10,30 +10,42 @@ Modify login endpoint and create set-password endpoint.
 
 ### Tasks
 
-- [x] Modify `api/auth/login.ts` to return `needsPasswordSetup` flag instead of error when no hash
+- [x] Modify `api/auth/login.ts` to return `needsPasswordSetup` flag for first-time users (no hash AND no last login)
 - [x] Create `api/auth/set-password.ts` endpoint for initial password setup
 - [x] Add password change endpoint to `api/users/change-password.ts`
 - [x] Add `setPassword` and `changePassword` methods to `src/lib/api-client.ts`
+- [x] Update `api/auth/login.ts` to check both password hash AND last login for first-time user detection
 
 ### Technical Details
 
 **Modified Login Response (api/auth/login.ts):**
 ```typescript
-// When user exists but no password hash:
-if (!passwordHash) {
+const passwordHash = record.fields[USER_FIELDS.passwordHash]
+const lastLogin = record.fields[USER_FIELDS.lastLogin]
+
+// First-time user: no password hash AND no last login
+if (!passwordHash && !lastLogin) {
   return sendSuccess(res, {
     needsPasswordSetup: true,
     userId: record.id,
     email: record.fields[USER_FIELDS.email]
   })
 }
+
+// User has last login but no password - something is wrong
+if (!passwordHash && lastLogin) {
+  return sendError(res, "Account niet correct geconfigureerd. Neem contact op met beheerder.", 400)
+}
+
+// Normal flow: verify password
 ```
 
 **Set Password Endpoint (api/auth/set-password.ts):**
 ```typescript
 // POST /api/auth/set-password
 // Body: { userId: string, email: string, password: string }
-// - Verify user exists and has no password hash
+// - Verify user exists
+// - Verify user is first-time user (no password hash AND no last login)
 // - Hash password and store
 // - Return tokens (same as login)
 ```
@@ -132,11 +144,20 @@ Add password change functionality to Account page.
 
 ## Verification
 
-1. Clear password hash for test user in Airtable
+### First-Time User Flow
+1. Create test user in Airtable with NO password hash AND NO last login
 2. Go to login page, enter test user email
 3. Should redirect to /set-password page
 4. Set password (min 8 chars, with confirmation)
 5. Should be logged in and redirected to home
-6. Go to Account page
-7. Change password using the form
-8. Logout and login with new password
+
+### Edge Case: Invalid Account State
+1. Create test user in Airtable with NO password hash BUT WITH last login date
+2. Go to login page, enter test user email
+3. Should see error: "Account niet correct geconfigureerd. Neem contact op met beheerder."
+
+### Password Change Flow
+1. Log in with existing user
+2. Go to Account page
+3. Change password using the form
+4. Logout and login with new password

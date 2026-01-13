@@ -1,6 +1,7 @@
 import { LogOut } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
+import appIcon from "/pwa-512x512.svg"
 
 export function AppHeader() {
   const { logout } = useAuth()
@@ -8,7 +9,10 @@ export function AppHeader() {
   return (
     <header className="sticky top-0 z-40 bg-background border-b border-border pt-safe">
       <div className="flex items-center justify-between h-14 px-4">
-        <h1 className="text-lg font-semibold">Mental Fitness</h1>
+        <div className="flex items-center gap-2">
+          <img src={appIcon} alt="Mental Fitness" className="h-8 w-8" />
+          <h1 className="text-lg font-semibold">Mental Fitness</h1>
+        </div>
         <Button
           variant="ghost"
           size="icon"

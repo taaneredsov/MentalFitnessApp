@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { hashPassword } from "../_lib/password.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
 
@@ -19,7 +19,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const body = createUserSchema.parse(req.body)
+    const body = createUserSchema.parse(parseBody(req))
 
     // Check if user already exists (filterByFormula requires field names)
     const existing = await base(tables.users)

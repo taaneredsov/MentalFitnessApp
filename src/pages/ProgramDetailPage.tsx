@@ -1,17 +1,18 @@
-import { useState, useEffect } from "react"
 import { useParams, useNavigate } from "react-router-dom"
-import { api } from "@/lib/api-client"
+import { useProgram, useMethodUsage } from "@/hooks/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import type { ProgramDetail } from "@/types/program"
-import { getProgramStatus } from "@/types/program"
+import { getProgramStatus, parseWeeksFromDuration, getActivityProgress } from "@/types/program"
 import {
   ArrowLeft,
   Calendar,
   Clock,
   Target,
   Loader2,
-  CheckCircle2
+  CheckCircle2,
+  ChevronRight,
+  History,
+  Timer
 } from "lucide-react"
 
 function formatDate(dateStr: string): string {
@@ -46,27 +47,13 @@ function StatusBadge({ status }: { status: string }) {
 export function ProgramDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
-  const [program, setProgram] = useState<ProgramDetail | null>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
 
-  useEffect(() => {
-    async function fetchProgram() {
-      if (!id) return
+  // Use React Query for data (cached)
+  const { data: program, isLoading: programLoading, error: programError } = useProgram(id || "")
+  const { data: recentActivities = [] } = useMethodUsage(id || "", 2)
 
-      try {
-        const data = await api.programs.get(id)
-        setProgram(data)
-      } catch (err) {
-        setError("Kon programma niet laden")
-        console.error("Failed to fetch program:", err)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-
-    fetchProgram()
-  }, [id])
+  const isLoading = programLoading
+  const error = programError ? "Kon programma niet laden" : null
 
   if (isLoading) {
     return (
@@ -116,6 +103,16 @@ export function ProgramDetailPage() {
             </div>
           </div>
 
+          {program.duration && (
+            <div className="flex items-center gap-3">
+              <Timer className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Duur</p>
+                <p className="font-medium">{program.duration}</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center gap-3">
             <Target className="h-5 w-5 text-muted-foreground" />
             <div>
@@ -133,6 +130,32 @@ export function ProgramDetailPage() {
               </div>
             </div>
           )}
+
+          {/* Activity Progress */}
+          {(() => {
+            const weeks = parseWeeksFromDuration(program.duration)
+            const totalActivities = weeks * program.frequency
+            const completedActivities = program.methodUsageCount || 0
+            const progress = getActivityProgress(program)
+
+            if (totalActivities > 0) {
+              return (
+                <div className="space-y-2 pt-2 border-t">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Voortgang</span>
+                    <span className="font-medium">{completedActivities} van {totalActivities} activiteiten</span>
+                  </div>
+                  <div className="h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })()}
         </CardContent>
       </Card>
 
@@ -198,7 +221,13 @@ export function ProgramDetailPage() {
           <CardContent>
             <ul className="space-y-3">
               {program.methodDetails.map(method => (
-                <li key={method.id} className="flex items-center gap-3">
+                <li
+                  key={method.id}
+                  className="flex items-center gap-3 p-2 -mx-2 rounded-lg cursor-pointer hover:bg-muted transition-colors"
+                  onClick={() => navigate(`/methods/${method.id}`, {
+                    state: { programId: program.id }
+                  })}
+                >
                   {method.photo && (
                     <img
                       src={method.photo}
@@ -211,6 +240,41 @@ export function ProgramDetailPage() {
                     {method.duration > 0 && (
                       <p className="text-sm text-muted-foreground">
                         {method.duration} min
+                      </p>
+                    )}
+                  </div>
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </li>
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Recent Activities */}
+      {recentActivities.length > 0 && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <History className="h-5 w-5" />
+              Recente Activiteiten
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ul className="space-y-3">
+              {recentActivities.map(activity => (
+                <li key={activity.id} className="flex items-start gap-3">
+                  <CheckCircle2 className="h-5 w-5 mt-0.5 text-green-500" />
+                  <div className="flex-1">
+                    <p className="font-medium">{activity.methodName || "Methode"}</p>
+                    {activity.usedAt && (
+                      <p className="text-sm text-muted-foreground">
+                        {formatDate(activity.usedAt)}
+                      </p>
+                    )}
+                    {activity.remark && (
+                      <p className="text-sm text-muted-foreground mt-1 italic">
+                        "{activity.remark}"
                       </p>
                     )}
                   </div>

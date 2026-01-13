@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { transformUser, USER_FIELDS } from "../_lib/field-mappings.js"
 
 const updateUserSchema = z.object({
@@ -23,7 +23,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const body = updateUserSchema.parse(req.body)
+    const body = updateUserSchema.parse(parseBody(req))
 
     // Map to field IDs
     const fields: Record<string, unknown> = {}
