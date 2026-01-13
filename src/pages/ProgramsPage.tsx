@@ -12,9 +12,10 @@ import {
   DialogDescription
 } from "@/components/ui/dialog"
 import { ProgramWizard } from "@/components/ProgramWizard"
+import { AIProgramWizard } from "@/components/AIProgramWizard"
 import type { Program, ProgramStatus } from "@/types/program"
 import { getProgramStatus } from "@/types/program"
-import { Loader2, Plus } from "lucide-react"
+import { Loader2, Plus, Sparkles, Settings2 } from "lucide-react"
 
 interface GroupedPrograms {
   running: Program[]
@@ -71,6 +72,7 @@ export function ProgramsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
   const [showWizard, setShowWizard] = useState(false)
+  const [wizardType, setWizardType] = useState<"manual" | "ai" | null>(null)
 
   // Use React Query for programs data (cached)
   const { data: programs = [], isLoading, error: programsError } = usePrograms(user?.id)
@@ -82,7 +84,15 @@ export function ProgramsPage() {
 
   const handleWizardComplete = (programId: string) => {
     setShowWizard(false)
+    setWizardType(null)
     navigate(`/programs/${programId}`)
+  }
+
+  const handleDialogClose = (open: boolean) => {
+    setShowWizard(open)
+    if (!open) {
+      setWizardType(null)
+    }
   }
 
   if (isLoading) {
@@ -151,19 +161,60 @@ export function ProgramsPage() {
       )}
 
       {/* New Program Wizard Dialog */}
-      <Dialog open={showWizard} onOpenChange={setShowWizard}>
+      <Dialog open={showWizard} onOpenChange={handleDialogClose}>
         <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nieuw Programma</DialogTitle>
             <DialogDescription>
-              Maak een nieuw mentaal fitnessprogramma aan.
+              {!wizardType
+                ? "Hoe wil je je programma samenstellen?"
+                : wizardType === "ai"
+                ? "Laat AI een gepersonaliseerd programma voor je maken."
+                : "Maak stap voor stap je eigen programma."}
             </DialogDescription>
           </DialogHeader>
-          <ProgramWizard
-            mode="create"
-            onComplete={handleWizardComplete}
-            onCancel={() => setShowWizard(false)}
-          />
+
+          {!wizardType ? (
+            <div className="space-y-4 py-4">
+              <Button
+                onClick={() => setWizardType("ai")}
+                className="w-full justify-start h-auto py-4"
+                size="lg"
+              >
+                <Sparkles className="mr-3 h-5 w-5" />
+                <div className="text-left">
+                  <div className="font-semibold">AI Programma (Aanbevolen)</div>
+                  <div className="text-sm font-normal opacity-80">
+                    Laat AI een gepersonaliseerd schema maken op basis van je doelen
+                  </div>
+                </div>
+              </Button>
+              <Button
+                onClick={() => setWizardType("manual")}
+                variant="outline"
+                className="w-full justify-start h-auto py-4"
+              >
+                <Settings2 className="mr-3 h-5 w-5" />
+                <div className="text-left">
+                  <div className="font-semibold">Handmatig Samenstellen</div>
+                  <div className="text-sm font-normal opacity-80">
+                    Stel zelf je programma samen stap voor stap
+                  </div>
+                </div>
+              </Button>
+            </div>
+          ) : wizardType === "ai" ? (
+            <AIProgramWizard
+              onComplete={handleWizardComplete}
+              onCancel={() => setWizardType(null)}
+            />
+          ) : (
+            <ProgramWizard
+              mode="create"
+              onComplete={handleWizardComplete}
+              onCancel={() => setWizardType(null)}
+            />
+          )}
         </DialogContent>
       </Dialog>
     </div>
