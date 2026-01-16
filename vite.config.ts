@@ -11,7 +11,7 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: "autoUpdate",
-      includeAssets: ["favicon.ico", "apple-touch-icon.png"],
+      includeAssets: ["favicon.ico", "apple-touch-icon.png", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
         name: "Corporate Mental Fitness",
         short_name: "Mental Fitness",
@@ -24,19 +24,19 @@ export default defineConfig({
         start_url: "/",
         icons: [
           {
-            src: "pwa-192x192.svg",
+            src: "pwa-192x192.png",
             sizes: "192x192",
-            type: "image/svg+xml"
+            type: "image/png"
           },
           {
-            src: "pwa-512x512.svg",
+            src: "pwa-512x512.png",
             sizes: "512x512",
-            type: "image/svg+xml"
+            type: "image/png"
           },
           {
-            src: "pwa-512x512.svg",
+            src: "pwa-512x512.png",
             sizes: "512x512",
-            type: "image/svg+xml",
+            type: "image/png",
             purpose: "maskable"
           }
         ]
