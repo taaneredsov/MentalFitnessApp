@@ -3,11 +3,12 @@ import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
 import { usePrograms, useProgram } from "@/hooks/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import type { Programmaplanning } from "@/types/program"
 import {
   getProgramStatus,
   getNextScheduledDay,
   formatNextDay,
-  getActivityProgress
+  getSessionProgress
 } from "@/types/program"
 import {
   Calendar,
@@ -19,6 +20,7 @@ import {
 } from "lucide-react"
 import { InstallPrompt } from "@/components/InstallPrompt"
 import { AIProgramWizard } from "@/components/AIProgramWizard"
+import { FullScheduleSection } from "@/components/FullScheduleSection"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -26,6 +28,29 @@ function formatDate(dateStr: string): string {
     day: "numeric",
     month: "short"
   })
+}
+
+/**
+ * Find the next scheduled session from the program schedule
+ * Returns today's session if available, otherwise the next upcoming session
+ */
+function getNextScheduledSession(schedule: Programmaplanning[]): Programmaplanning | null {
+  if (!schedule?.length) return null
+
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split("T")[0]
+
+  // Find today's session first
+  const todaySession = schedule.find(s => s.date === todayStr)
+  if (todaySession) return todaySession
+
+  // Find next upcoming session
+  return schedule.find(s => {
+    const sessionDate = new Date(s.date)
+    sessionDate.setHours(0, 0, 0, 0)
+    return sessionDate > today
+  }) || null
 }
 
 export function HomePage() {
@@ -63,6 +88,25 @@ export function HomePage() {
   const nextDay = runningProgram
     ? getNextScheduledDay(runningProgram.dayNames)
     : null
+
+  // Find the next scheduled session (for programmaplanningId navigation)
+  const nextSession = runningProgram
+    ? getNextScheduledSession(runningProgram.schedule)
+    : null
+
+  // Filter methods to only show today's scheduled methods
+  const todaysMethods = useMemo(() => {
+    const methodDetails = runningProgram?.methodDetails
+    const nextMethodIds = nextSession?.methodIds
+    if (!nextMethodIds || !methodDetails) return []
+    const methodIdSet = new Set(nextMethodIds)
+    return methodDetails.filter(m => methodIdSet.has(m.id))
+  }, [runningProgram?.methodDetails, nextSession?.methodIds])
+
+  // Calculate total time for today's methods
+  const todaysSessionTime = useMemo(() => {
+    return todaysMethods.reduce((sum, m) => sum + (m.duration || 0), 0)
+  }, [todaysMethods])
 
   // Show onboarding wizard for first-time users
   if (shouldShowOnboarding) {
@@ -134,12 +178,12 @@ export function HomePage() {
               <div className="space-y-1">
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Voortgang</span>
-                  <span>{getActivityProgress(runningProgram)}%</span>
+                  <span>{getSessionProgress(runningProgram)}%</span>
                 </div>
                 <div className="h-2 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${getActivityProgress(runningProgram)}%` }}
+                    style={{ width: `${getSessionProgress(runningProgram)}%` }}
                   />
                 </div>
               </div>
@@ -169,16 +213,19 @@ export function HomePage() {
                   {formatNextDay(nextDay)}
                 </p>
 
-                {runningProgram.methodDetails.length > 0 && (
+                {todaysMethods.length > 0 && (
                   <div className="space-y-2">
-                    {runningProgram.methodDetails.map(method => (
+                    {todaysMethods.map(method => (
                       <div
                         key={method.id}
                         className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
                         onClick={(e) => {
                           e.stopPropagation()
                           navigate(`/methods/${method.id}`, {
-                            state: { programId: runningProgram.id }
+                            state: {
+                              programmaplanningId: nextSession?.id,
+                              programId: runningProgram.id  // Fallback for backward compatibility
+                            }
                           })
                         }}
                       >
@@ -205,14 +252,24 @@ export function HomePage() {
                   </div>
                 )}
 
-                {runningProgram.sessionTime > 0 && (
+                {todaysSessionTime > 0 && (
                   <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
                     <Clock className="h-4 w-4" />
-                    <span>Totaal: {runningProgram.sessionTime} minuten</span>
+                    <span>Totaal: {todaysSessionTime} minuten</span>
                   </div>
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* Full Schedule View */}
+          {runningProgram.schedule.length > 0 && (
+            <FullScheduleSection
+              schedule={runningProgram.schedule}
+              methodDetails={runningProgram.methodDetails}
+              programId={runningProgram.id}
+              startDate={runningProgram.startDate}
+            />
           )}
         </section>
       ) : (

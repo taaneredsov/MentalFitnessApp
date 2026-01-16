@@ -6,10 +6,13 @@ import {
   transformGoal,
   transformMethod,
   transformDay,
+  transformProgrammaplanning,
   PROGRAM_FIELDS,
   GOAL_FIELDS,
   METHOD_FIELDS,
-  DAY_FIELDS
+  DAY_FIELDS,
+  PROGRAMMAPLANNING_FIELDS,
+  FIELD_NAMES
 } from "../_lib/field-mappings.js"
 
 /**
@@ -85,11 +88,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       dayNames = dayRecords.map(r => transformDay(r as any).name)
     }
 
+    // Fetch Programmaplanning records for this program
+    // We fetch all and filter by programId because Airtable linked record formulas
+    // compare by display value which can be unreliable
+    const allScheduleRecords = await base(tables.programmaplanning)
+      .select({
+        returnFieldsByFieldId: true,
+        sort: [{ field: PROGRAMMAPLANNING_FIELDS.date, direction: "asc" }]
+      })
+      .all()
+
+    // Filter by programId (the linked record ID stored in the field)
+    const schedule = allScheduleRecords
+      .map(r => transformProgrammaplanning(r as any))
+      .filter(s => s.programId === id)
+
+    // Calculate session counts for progress tracking
+    const totalSessions = schedule.length
+    const completedSessions = schedule.filter(s => s.isCompleted).length
+
     return sendSuccess(res, {
       ...program,
       goalDetails,
       methodDetails,
-      dayNames
+      dayNames,
+      schedule,
+      totalSessions,
+      completedSessions
     })
   } catch (error) {
     return handleApiError(res, error)

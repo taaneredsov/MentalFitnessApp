@@ -8,8 +8,9 @@ import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
 import { AIInputForm } from "./AIInputForm"
 import { GeneratingAnimation } from "./GeneratingAnimation"
+import { ScheduleReview } from "./ScheduleReview"
 import { ProgramResult } from "./ProgramResult"
-import type { AIWizardState, AIWizardPhase, AIGenerateResult } from "./types"
+import type { AIWizardState, AIWizardPhase, AIGenerateResult, AIPreviewResult, AIScheduleDay } from "./types"
 
 interface AIProgramWizardProps {
   onComplete: (programId: string) => void
@@ -29,6 +30,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
   const queryClient = useQueryClient()
   const [state, setState] = useState<AIWizardState>(initialState)
   const [phase, setPhase] = useState<AIWizardPhase>("input")
+  const [preview, setPreview] = useState<AIPreviewResult | null>(null)
+  const [editedSchedule, setEditedSchedule] = useState<AIScheduleDay[]>([])
   const [result, setResult] = useState<AIGenerateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -42,6 +45,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
     setState((prev) => ({ ...prev, ...updates }))
   }
 
+  // Step 1: Generate preview (no Airtable save)
   const handleGenerate = async () => {
     if (!user?.id || !accessToken) {
       setError("Sessie verlopen. Log opnieuw in.")
@@ -53,7 +57,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
     setError(null)
 
     try {
-      const response = await api.programs.generate(
+      const response = await api.programs.preview(
         {
           userId: user.id,
           goals: state.goals,
@@ -64,13 +68,11 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
         accessToken
       )
 
-      setResult(response)
-      setPhase("result")
-
-      // Invalidate queries so programs list shows fresh data
-      queryClient.invalidateQueries({ queryKey: ["programs"] })
+      setPreview(response)
+      setEditedSchedule(response.aiSchedule) // Initialize with AI-generated schedule
+      setPhase("review")
     } catch (err) {
-      console.error("Failed to generate program:", err)
+      console.error("Failed to generate preview:", err)
       setError(
         err instanceof Error
           ? err.message
@@ -78,6 +80,53 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
       )
       setPhase("error")
     }
+  }
+
+  // Step 2: Confirm and save to Airtable
+  const handleConfirm = async () => {
+    if (!user?.id || !accessToken || !preview) {
+      setError("Sessie verlopen. Log opnieuw in.")
+      setPhase("error")
+      return
+    }
+
+    setPhase("confirming")
+    setError(null)
+
+    try {
+      const response = await api.programs.confirm(
+        {
+          userId: user.id,
+          goals: state.goals,
+          startDate: state.startDate,
+          duration: state.duration,
+          daysOfWeek: state.daysOfWeek,
+          editedSchedule,
+          programSummary: preview.programSummary
+        },
+        accessToken
+      )
+
+      setResult(response)
+      setPhase("result")
+
+      // Invalidate queries so programs list shows fresh data
+      queryClient.invalidateQueries({ queryKey: ["programs"] })
+    } catch (err) {
+      console.error("Failed to confirm program:", err)
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Kon programma niet opslaan. Probeer het opnieuw."
+      )
+      setPhase("error")
+    }
+  }
+
+  const handleBackToInput = () => {
+    setPreview(null)
+    setEditedSchedule([])
+    setPhase("input")
   }
 
   const handleViewProgram = () => {
@@ -88,6 +137,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
 
   const handleCreateNew = () => {
     setState(initialState)
+    setPreview(null)
+    setEditedSchedule([])
     setResult(null)
     setError(null)
     setPhase("input")
@@ -127,6 +178,41 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
       <Card>
         <CardContent className="py-4">
           <GeneratingAnimation />
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Confirming phase (saving to Airtable)
+  if (phase === "confirming") {
+    return (
+      <Card>
+        <CardContent className="py-8">
+          <div className="text-center space-y-4">
+            <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2 animate-pulse">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
+            </div>
+            <h3 className="text-lg font-semibold">Je programma wordt opgeslagen...</h3>
+            <p className="text-sm text-muted-foreground">Even geduld...</p>
+          </div>
+        </CardContent>
+      </Card>
+    )
+  }
+
+  // Review phase
+  if (phase === "review" && preview) {
+    return (
+      <Card>
+        <CardContent className="py-4">
+          <ScheduleReview
+            preview={preview}
+            editedSchedule={editedSchedule}
+            onScheduleChange={setEditedSchedule}
+            onConfirm={handleConfirm}
+            onBack={handleBackToInput}
+            isConfirming={false}
+          />
         </CardContent>
       </Card>
     )

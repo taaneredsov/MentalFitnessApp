@@ -1,5 +1,5 @@
 import type { User } from "@/types/user"
-import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse } from "@/types/program"
+import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest } from "@/types/program"
 
 const API_BASE = "/api"
 
@@ -149,6 +149,24 @@ export const api = {
           Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify(data)
+      }),
+
+    preview: (data: AIPreviewRequest, accessToken: string) =>
+      request<AIPreviewResponse>("/programs/preview", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    confirm: (data: AIConfirmRequest, accessToken: string) =>
+      request<AIGenerateResponse>("/programs/confirm", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
       })
   },
 
@@ -159,7 +177,7 @@ export const api = {
   },
 
   methodUsage: {
-    create: (data: { userId: string; methodId: string; programId?: string; remark?: string }, accessToken: string) =>
+    create: (data: { userId: string; methodId: string; programId?: string; programmaplanningId?: string; remark?: string }, accessToken: string) =>
       request<{ id: string }>("/method-usage", {
         method: "POST",
         headers: {

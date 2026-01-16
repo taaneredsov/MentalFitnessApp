@@ -20,7 +20,7 @@ interface MediaPlayerProps {
 
 function MediaPlayer({ media, onComplete, isCompleted }: MediaPlayerProps) {
   const { handleTimeUpdate, handleEnded, handlePause } = useMediaProgress(media.id, {
-    pauseThreshold: 0.9,  // Trigger on pause at 90%+
+    pauseThreshold: 0.97,  // Trigger on pause at 97%+
     onComplete: () => onComplete(media.id)
   })
 
@@ -113,7 +113,8 @@ function MediaPlayer({ media, onComplete, isCompleted }: MediaPlayerProps) {
 }
 
 interface LocationState {
-  programId?: string
+  programId?: string  // DEPRECATED - use programmaplanningId
+  programmaplanningId?: string  // Link to specific scheduled session
 }
 
 export function MethodDetailPage() {
@@ -123,8 +124,10 @@ export function MethodDetailPage() {
   const { user, accessToken } = useAuth()
   const queryClient = useQueryClient()
 
-  // Get programId from navigation state (when coming from a program)
-  const programId = (location.state as LocationState)?.programId
+  // Get programmaplanningId from navigation state (when coming from a program schedule)
+  const locationState = location.state as LocationState
+  const programmaplanningId = locationState?.programmaplanningId
+  const programId = locationState?.programId  // Fallback for backward compatibility
 
   // Use React Query for method data (cached)
   const { data: method, isLoading, error: methodError } = useMethod(id || "")
@@ -158,12 +161,13 @@ export function MethodDetailPage() {
     }
 
     try {
-      console.log("Creating method usage:", { userId: user.id, methodId: method.id, programId, remark })
+      console.log("Creating method usage:", { userId: user.id, methodId: method.id, programmaplanningId, programId, remark })
       const result = await api.methodUsage.create(
         {
           userId: user.id,
           methodId: method.id,
-          programId: programId || undefined,
+          programmaplanningId: programmaplanningId || undefined,
+          programId: !programmaplanningId ? programId || undefined : undefined,  // Only use programId as fallback
           remark: remark || undefined
         },
         accessToken
@@ -194,12 +198,13 @@ export function MethodDetailPage() {
     }
 
     try {
-      console.log("Creating method usage (skip):", { userId: user.id, methodId: method.id, programId })
+      console.log("Creating method usage (skip):", { userId: user.id, methodId: method.id, programmaplanningId, programId })
       const result = await api.methodUsage.create(
         {
           userId: user.id,
           methodId: method.id,
-          programId: programId || undefined
+          programmaplanningId: programmaplanningId || undefined,
+          programId: !programmaplanningId ? programId || undefined : undefined  // Only use programId as fallback
         },
         accessToken
       )

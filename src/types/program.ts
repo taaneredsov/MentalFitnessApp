@@ -13,10 +13,27 @@ export interface Program {
   methodUsageCount?: number  // Count of linked Methodegebruik records
 }
 
+export interface Programmaplanning {
+  id: string
+  planningId?: string
+  programId?: string
+  date: string
+  dayOfWeekId?: string
+  sessionDescription?: string
+  methodIds: string[]
+  goalIds: string[]
+  methodUsageIds: string[]
+  isCompleted: boolean
+  notes?: string
+}
+
 export interface ProgramDetail extends Program {
   goalDetails: Goal[]
   methodDetails: Method[]
   dayNames: string[]
+  schedule: Programmaplanning[]
+  totalSessions: number
+  completedSessions: number
 }
 
 export interface Goal {
@@ -68,7 +85,8 @@ export interface MethodUsage {
   userId?: string
   methodId?: string
   methodName?: string
-  programId?: string
+  programId?: string  // DEPRECATED - use programmaplanningId
+  programmaplanningId?: string
   usedAt?: string
   remark?: string
 }
@@ -102,6 +120,35 @@ export interface AIGenerateResponse {
   aiSchedule: AIScheduleDay[]
   weeklySessionTime: number
   recommendations: string[]
+  programSummary?: string
+}
+
+// AI Program Preview (no saving to Airtable)
+export interface AIPreviewRequest {
+  userId: string
+  goals: string[]
+  startDate: string
+  duration: string
+  daysOfWeek: string[]
+}
+
+export interface AIPreviewResponse {
+  aiSchedule: AIScheduleDay[]
+  weeklySessionTime: number
+  recommendations: string[]
+  programSummary?: string
+  availableMethods: Method[]
+  selectedGoals: Goal[]
+}
+
+// AI Program Confirm (save to Airtable)
+export interface AIConfirmRequest {
+  userId: string
+  goals: string[]
+  startDate: string
+  duration: string
+  daysOfWeek: string[]
+  editedSchedule: AIScheduleDay[]
   programSummary?: string
 }
 
@@ -179,9 +226,10 @@ export function parseWeeksFromDuration(duration: string): number {
 }
 
 /**
- * Calculate activity-based progress percentage
+ * Calculate activity-based progress percentage (DEPRECATED)
  * Progress = completed activities / total expected activities
  * Total expected = weeks × frequency (days per week)
+ * @deprecated Use getSessionProgress() instead for accurate Programmaplanning-level tracking
  */
 export function getActivityProgress(program: Program): number {
   const weeks = parseWeeksFromDuration(program.duration)
@@ -193,5 +241,19 @@ export function getActivityProgress(program: Program): number {
   const completed = program.methodUsageCount || 0
   const progress = Math.round((completed / totalExpected) * 100)
 
+  return Math.min(progress, 100) // Cap at 100%
+}
+
+/**
+ * Calculate session-based progress percentage
+ * Progress = completed sessions / total sessions
+ * Based on actual Programmaplanning records with linked method usage
+ */
+export function getSessionProgress(programDetail: ProgramDetail): number {
+  const { totalSessions, completedSessions } = programDetail
+
+  if (totalSessions === 0) return 0
+
+  const progress = Math.round((completedSessions / totalSessions) * 100)
   return Math.min(progress, 100) // Cap at 100%
 }

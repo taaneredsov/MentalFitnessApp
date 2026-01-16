@@ -1,4 +1,4 @@
-import type { Goal, Day, Program } from "@/types/program"
+import type { Goal, Day, Program, Method } from "@/types/program"
 
 export interface AIWizardState {
   step: number
@@ -14,7 +14,7 @@ export const AI_WIZARD_STEPS = [
   { title: "Trainingsdagen", description: "Selecteer je trainingsdagen" }
 ]
 
-export type AIWizardPhase = "input" | "generating" | "result" | "error"
+export type AIWizardPhase = "input" | "generating" | "review" | "confirming" | "result" | "error"
 
 export interface AIScheduleMethod {
   methodId: string
@@ -35,6 +35,24 @@ export interface AIGenerateResult {
   weeklySessionTime: number
   recommendations: string[]
   programSummary?: string
+}
+
+export interface AIPreviewResult {
+  aiSchedule: AIScheduleDay[]
+  weeklySessionTime: number
+  recommendations: string[]
+  programSummary?: string
+  availableMethods: Method[]
+  selectedGoals: Goal[]
+}
+
+export interface ScheduleReviewProps {
+  preview: AIPreviewResult
+  editedSchedule: AIScheduleDay[]
+  onScheduleChange: (schedule: AIScheduleDay[]) => void
+  onConfirm: () => void
+  onBack: () => void
+  isConfirming: boolean
 }
 
 export interface AIInputFormProps {

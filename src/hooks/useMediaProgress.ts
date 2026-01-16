@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from "react"
 
 interface UseMediaProgressOptions {
-  pauseThreshold?: number // Threshold for pause trigger (0-1), default 0.9 (90%)
+  pauseThreshold?: number // Threshold for pause trigger (0-1), default 0.97 (97%)
   onComplete?: () => void
 }
 
@@ -19,7 +19,7 @@ interface UseMediaProgressReturn {
  *
  * Triggers completion when:
  * - Media ends (100% played)
- * - User pauses after reaching pauseThreshold (default 90%)
+ * - User pauses after reaching pauseThreshold (default 97%)
  *
  * @param mediaId - Unique identifier for the media being tracked
  * @param options - Configuration options
@@ -29,7 +29,7 @@ export function useMediaProgress(
   mediaId: string,
   options: UseMediaProgressOptions = {}
 ): UseMediaProgressReturn {
-  const { pauseThreshold = 0.9, onComplete } = options
+  const { pauseThreshold = 0.97, onComplete } = options
 
   const [completed, setCompleted] = useState(false)
   const [progress, setProgress] = useState(0)
@@ -75,7 +75,7 @@ export function useMediaProgress(
 
       const currentProgress = media.currentTime / media.duration
 
-      // Trigger completion when paused at 90% or more
+      // Trigger completion when paused at threshold (default 97%) or more
       if (currentProgress >= pauseThreshold) {
         triggerComplete()
       }
