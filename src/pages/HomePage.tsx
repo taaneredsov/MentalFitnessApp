@@ -18,7 +18,7 @@ import {
   Sparkles
 } from "lucide-react"
 import { InstallPrompt } from "@/components/InstallPrompt"
-import { ProgramWizard } from "@/components/ProgramWizard"
+import { AIProgramWizard } from "@/components/AIProgramWizard"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -75,9 +75,9 @@ export function HomePage() {
           </p>
         </section>
 
-        <ProgramWizard
-          mode="onboarding"
+        <AIProgramWizard
           onComplete={handleOnboardingComplete}
+          onCancel={() => setShowOnboarding(false)}
         />
       </div>
     )
