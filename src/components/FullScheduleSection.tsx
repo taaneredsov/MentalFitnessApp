@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronDown, ChevronUp, Check, Calendar } from "lucide-react"
+import { ChevronDown, ChevronUp, Check, Calendar, CheckCircle, Circle } from "lucide-react"
 import type { Programmaplanning, Method } from "@/types/program"
 
 interface FullScheduleSectionProps {
@@ -46,7 +46,11 @@ export function FullScheduleSection({
   const today = useMemo(() => {
     const d = new Date()
     d.setHours(0, 0, 0, 0)
-    return d.toISOString().split("T")[0]
+    // Use local date, not UTC (toISOString uses UTC which can cause date mismatch)
+    const year = d.getFullYear()
+    const month = String(d.getMonth() + 1).padStart(2, "0")
+    const day = String(d.getDate()).padStart(2, "0")
+    return `${year}-${month}-${day}`
   }, [])
 
   // Create method lookup map
@@ -133,6 +137,10 @@ export function FullScheduleSection({
                     .map(id => methodMap.get(id))
                     .filter(Boolean) as Method[]
 
+                  // Session is complete if all methods are completed
+                  const completedCount = session.completedMethodIds?.length ?? 0
+                  const isSessionComplete = methods.length > 0 && completedCount >= methods.length
+
                   return (
                     <div
                       key={session.id}
@@ -146,9 +154,15 @@ export function FullScheduleSection({
                     >
                       {/* Completion status */}
                       <div className="mt-0.5">
-                        {session.isCompleted ? (
+                        {isSessionComplete ? (
                           <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
                             <Check className="h-3 w-3 text-white" />
+                          </div>
+                        ) : completedCount > 0 ? (
+                          <div className="w-5 h-5 rounded-full border-2 border-green-500 flex items-center justify-center">
+                            <span className="text-[10px] font-medium text-green-600">
+                              {completedCount}
+                            </span>
                           </div>
                         ) : (
                           <div className={`w-5 h-5 rounded-full border-2 ${
@@ -170,9 +184,28 @@ export function FullScheduleSection({
                           )}
                         </p>
                         {methods.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1 truncate">
-                            {methods.map(m => m.name).join(", ")}
-                          </p>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {methods.map(m => {
+                              const isMethodCompleted = session.completedMethodIds?.includes(m.id) ?? false
+                              return (
+                                <span
+                                  key={m.id}
+                                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                                    isMethodCompleted
+                                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
+                                      : "bg-muted text-muted-foreground"
+                                  }`}
+                                >
+                                  {isMethodCompleted ? (
+                                    <CheckCircle className="h-3 w-3" />
+                                  ) : (
+                                    <Circle className="h-3 w-3" />
+                                  )}
+                                  {m.name}
+                                </span>
+                              )
+                            })}
+                          </div>
                         )}
                       </div>
 

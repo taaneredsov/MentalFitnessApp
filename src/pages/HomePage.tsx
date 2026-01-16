@@ -32,6 +32,16 @@ function formatDate(dateStr: string): string {
 }
 
 /**
+ * Get local date in YYYY-MM-DD format (not UTC)
+ */
+function getLocalDateStr(date: Date): string {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, "0")
+  const day = String(date.getDate()).padStart(2, "0")
+  return `${year}-${month}-${day}`
+}
+
+/**
  * Find the next scheduled session from the program schedule
  * Returns today's session if available, otherwise the next upcoming session
  */
@@ -40,7 +50,7 @@ function getNextScheduledSession(schedule: Programmaplanning[]): Programmaplanni
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().split("T")[0]
+  const todayStr = getLocalDateStr(today)
 
   // Find today's session first
   const todaySession = schedule.find(s => s.date === todayStr)

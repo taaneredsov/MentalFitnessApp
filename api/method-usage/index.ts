@@ -36,7 +36,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const rawBody = parseBody(req)
-    console.log("Method usage request body:", JSON.stringify(rawBody))
     const body = createUsageSchema.parse(rawBody)
 
     // Build fields object using field IDs

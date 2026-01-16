@@ -35,6 +35,8 @@ export interface ProgramDetail extends Program {
   schedule: Programmaplanning[]
   totalSessions: number
   completedSessions: number
+  totalMethods: number
+  completedMethods: number
 }
 
 export interface Goal {
@@ -246,15 +248,15 @@ export function getActivityProgress(program: Program): number {
 }
 
 /**
- * Calculate session-based progress percentage
- * Progress = completed sessions / total sessions
- * Based on actual Programmaplanning records with linked method usage
+ * Calculate method-based progress percentage
+ * Progress = completed methods / total methods
+ * This provides partial progress credit for each method completed
  */
 export function getSessionProgress(programDetail: ProgramDetail): number {
-  const { totalSessions, completedSessions } = programDetail
+  const { totalMethods, completedMethods } = programDetail
 
-  if (totalSessions === 0) return 0
+  if (totalMethods === 0) return 0
 
-  const progress = Math.round((completedSessions / totalSessions) * 100)
+  const progress = Math.round((completedMethods / totalMethods) * 100)
   return Math.min(progress, 100) // Cap at 100%
 }

@@ -135,9 +135,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         .filter((id): id is string => !!id)
     }))
 
-    // Calculate session counts for progress tracking
+    // Calculate progress tracking (method-based for partial progress)
     const totalSessions = schedule.length
-    const completedSessions = schedule.filter(s => s.isCompleted).length
+    const completedSessions = schedule.filter(s => {
+      const methodCount = s.methodIds?.length || 0
+      const completedCount = s.completedMethodIds?.length || 0
+      return methodCount > 0 && completedCount >= methodCount
+    }).length
+
+    // Method-based progress for more granular tracking
+    const totalMethods = schedule.reduce((sum, s) => sum + (s.methodIds?.length || 0), 0)
+    const completedMethods = schedule.reduce((sum, s) => sum + (s.completedMethodIds?.length || 0), 0)
 
     return sendSuccess(res, {
       ...program,
@@ -146,7 +154,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       dayNames,
       schedule,
       totalSessions,
-      completedSessions
+      completedSessions,
+      totalMethods,
+      completedMethods
     })
   } catch (error) {
     return handleApiError(res, error)
