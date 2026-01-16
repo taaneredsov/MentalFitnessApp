@@ -8,7 +8,8 @@ import { METHOD_USAGE_FIELDS, transformMethodUsage } from "../_lib/field-mapping
 const createUsageSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   methodId: z.string().min(1, "Method ID is required"),
-  programId: z.string().optional(),
+  programId: z.string().optional(),  // DEPRECATED - use programmaplanningId
+  programmaplanningId: z.string().optional(),  // Link to specific scheduled session
   remark: z.string().optional()
 })
 
@@ -34,7 +35,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const body = createUsageSchema.parse(parseBody(req))
+    const rawBody = parseBody(req)
+    console.log("Method usage request body:", JSON.stringify(rawBody))
+    const body = createUsageSchema.parse(rawBody)
 
     // Build fields object using field IDs
     const fields: Record<string, unknown> = {
@@ -43,7 +46,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [METHOD_USAGE_FIELDS.usedAt]: new Date().toISOString().split("T")[0]
     }
 
-    if (body.programId) {
+    // Prefer programmaplanningId over programId (programId is deprecated)
+    if (body.programmaplanningId) {
+      fields[METHOD_USAGE_FIELDS.programmaplanning] = [body.programmaplanningId]
+    } else if (body.programId) {
+      // Fallback to program link for backward compatibility
       fields[METHOD_USAGE_FIELDS.program] = [body.programId]
     }
 
