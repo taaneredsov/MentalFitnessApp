@@ -22,15 +22,15 @@ export interface AIScheduleMethod {
   methodId: string
   methodName: string
   duration: number
-  order: number
 }
 
 /**
- * A single day in the AI-generated schedule
+ * A single day in the AI-generated schedule (with specific date)
  */
 export interface AIScheduleDay {
-  dayId: string
-  dayName: string
+  date: string          // YYYY-MM-DD format
+  dayOfWeek: string     // Dutch name (Maandag, etc.)
+  dayId: string         // Airtable record ID
   methods: AIScheduleMethod[]
 }
 
@@ -39,10 +39,31 @@ export interface AIScheduleDay {
  */
 export interface AIProgramResponse {
   schedule: AIScheduleDay[]
-  totalSessionTime: number
   weeklySessionTime: number
   recommendations: string[]
-  notes?: string
+  programSummary: string
+}
+
+/**
+ * Training date with day information
+ */
+export interface TrainingDate {
+  date: string          // YYYY-MM-DD
+  dayOfWeek: string     // Dutch name
+  dayId: string         // Airtable record ID
+}
+
+/**
+ * Method with frequency and experience information for AI
+ */
+export interface AIMethod {
+  id: string
+  name: string
+  duration: number
+  description?: string
+  optimalFrequency: string[]
+  experienceLevel?: string           // e.g., "Beginner", "Gevorderd"
+  isRecommendedForGoals: boolean     // true if method is linked to selected goals
 }
 
 /**
@@ -50,45 +71,182 @@ export interface AIProgramResponse {
  */
 export interface AIPromptInput {
   goals: Array<{ id: string; name: string; description?: string }>
-  prompts: Array<{ goalIds: string[]; prompt: string }>
-  methods: Array<{ id: string; name: string; duration: number; description?: string }>
-  days: Array<{ id: string; name: string }>
+  programPrompts: Array<{ goalIds: string[]; prompt: string }>  // Type: Programmaopbouw
+  systemPrompts: Map<string, string>  // Type: Systeem, keyed by name
+  methods: AIMethod[]
+  trainingDates: TrainingDate[]
   duration: string
 }
 
 /**
- * Build the system prompt for GPT-4o
+ * OpenAI Structured Outputs JSON Schema for mental fitness program
+ */
+export const AI_PROGRAM_SCHEMA = {
+  type: "json_schema" as const,
+  json_schema: {
+    name: "mental_fitness_program",
+    strict: true,
+    schema: {
+      type: "object",
+      properties: {
+        schedule: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              date: { type: "string", description: "Training date in YYYY-MM-DD format" },
+              dayOfWeek: { type: "string", description: "Dutch day name (Maandag, Dinsdag, etc.)" },
+              dayId: { type: "string", description: "Airtable record ID for the day" },
+              methods: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    methodId: { type: "string", description: "Airtable record ID for the method" },
+                    methodName: { type: "string", description: "Name of the method" },
+                    duration: { type: "number", description: "Duration in minutes" }
+                  },
+                  required: ["methodId", "methodName", "duration"],
+                  additionalProperties: false
+                }
+              }
+            },
+            required: ["date", "dayOfWeek", "dayId", "methods"],
+            additionalProperties: false
+          }
+        },
+        weeklySessionTime: { type: "number", description: "Average weekly session time in minutes" },
+        recommendations: {
+          type: "array",
+          items: { type: "string" },
+          description: "3-5 personalized recommendations in Dutch"
+        },
+        programSummary: { type: "string", description: "Brief program summary in Dutch" }
+      },
+      required: ["schedule", "weeklySessionTime", "recommendations", "programSummary"],
+      additionalProperties: false
+    }
+  }
+}
+
+// Default system prompts (used as fallbacks if not found in Airtable)
+const DEFAULT_SYSTEM_PROMPTS = {
+  intro: `Je bent een expert in het samenstellen van mentale fitnessprogramma's. Je taak is om een gepersonaliseerd programma samen te stellen voor ALLE opgegeven trainingsdatums.`,
+
+  selectie_regels: `## Selectie Regels:
+1. **PRIORITEIT**: Gebruik bij voorkeur methodes uit de "AANBEVOLEN" lijst - deze zijn specifiek gekoppeld aan de gekozen doelstellingen
+2. **Niveau**: Houd rekening met het ervaringsniveau (Niveau) - begin met eenvoudigere methodes en bouw op
+3. Methodes uit "Overige" mogen alleen gebruikt worden als aanvulling of als de aanbevolen methodes niet voldoende variatie bieden`,
+
+  frequentie_regels: `## Frequentie Regels:
+Houd rekening met de "Frequentie" van elke methode:
+- "Dagelijks": Plan op ELKE trainingsdag
+- "Wekelijks": Plan maximaal 1x per week
+- "Meermaals per dag": Mag meerdere keren op dezelfde dag
+- "Ad-hoc": Flexibel in te plannen waar passend
+- Methodes zonder frequentie: Vrij in te delen, maar niet te vaak herhalen`,
+
+  samenstelling_regels: `## Regels voor het Samenstellen:
+1. Maak een planning voor ELKE datum in de trainingsdatums lijst
+2. Elke sessie moet tussen 15 en 30 minuten duren
+3. Respecteer de optimale frequentie van methodes
+4. Bouw progressie op: begin met eenvoudigere methodes (Beginner niveau), verhoog geleidelijk naar Gevorderd
+5. Varieer methodes waar mogelijk (binnen frequentieregels)
+6. Gebruik ALLEEN de exacte methode IDs en dayIDs uit de lijsten hierboven
+7. Kopieer de datum, dayOfWeek en dayId exact zoals opgegeven`,
+
+  output_formaat: `## Output Formaat:
+Retourneer een JSON object met exact deze structuur:
+{
+  "schedule": [
+    {
+      "date": "2026-01-20",
+      "dayOfWeek": "Maandag",
+      "dayId": "rec...",
+      "methods": [
+        { "methodId": "rec...", "methodName": "Naam", "duration": 10 }
+      ]
+    }
+  ],
+  "weeklySessionTime": 75,
+  "recommendations": ["Tip 1", "Tip 2", "Tip 3"],
+  "programSummary": "Korte samenvatting van het programma"
+}
+
+- schedule: MOET een entry hebben voor ELKE trainingsdatum
+- weeklySessionTime: gemiddelde totale tijd per week in minuten
+- recommendations: 3-5 gepersonaliseerde tips in het Nederlands
+- programSummary: korte samenvatting van het programma in het Nederlands`
+}
+
+/**
+ * Get a system prompt by name, with fallback to default
+ */
+function getSystemPrompt(
+  prompts: Map<string, string>,
+  name: keyof typeof DEFAULT_SYSTEM_PROMPTS
+): string {
+  return prompts.get(name) || DEFAULT_SYSTEM_PROMPTS[name]
+}
+
+/**
+ * Build the system prompt for GPT-4o with training dates and frequency rules
  */
 export function buildSystemPrompt(input: AIPromptInput): string {
-  const { goals, prompts, methods, days, duration } = input
+  const { goals, programPrompts, systemPrompts, methods, trainingDates, duration } = input
+
+  // Get dynamic system prompts (with fallbacks)
+  const introPrompt = getSystemPrompt(systemPrompts, "intro")
+  const selectieRegels = getSystemPrompt(systemPrompts, "selectie_regels")
+  const frequentieRegels = getSystemPrompt(systemPrompts, "frequentie_regels")
+  const samenstellingRegels = getSystemPrompt(systemPrompts, "samenstelling_regels")
+  const outputFormaat = getSystemPrompt(systemPrompts, "output_formaat")
 
   // Build goal descriptions
   const goalDescriptions = goals
     .map(g => `- ${g.name}${g.description ? `: ${g.description}` : ""}`)
     .join("\n")
 
-  // Build prompt instructions per goal
-  const promptInstructions = prompts
-    .map(p => {
-      const goalNames = goals
-        .filter(g => p.goalIds.includes(g.id))
-        .map(g => g.name)
-        .join(", ")
-      return `Voor ${goalNames}:\n${p.prompt}`
-    })
-    .join("\n\n")
+  // Build prompt instructions per goal (from Programmaopbouw type prompts)
+  const promptInstructions = programPrompts.length > 0
+    ? programPrompts
+        .map(p => {
+          const goalNames = goals
+            .filter(g => p.goalIds.includes(g.id))
+            .map(g => g.name)
+            .join(", ")
+          return `Voor ${goalNames}:\n${p.prompt}`
+        })
+        .join("\n\n")
+    : "Geen specifieke instructies beschikbaar."
 
-  // Build available methods list
-  const methodsList = methods
-    .map(m => `- ID: "${m.id}", Naam: "${m.name}", Duur: ${m.duration} minuten${m.description ? `, Beschrijving: ${m.description}` : ""}`)
+  // Separate recommended methods (linked to goals) from other methods
+  const recommendedMethods = methods.filter(m => m.isRecommendedForGoals)
+  const otherMethods = methods.filter(m => !m.isRecommendedForGoals)
+
+  // Build method entry with all relevant info
+  const formatMethod = (m: AIMethod) => {
+    const parts = [`ID: "${m.id}"`, `Naam: "${m.name}"`, `Duur: ${m.duration} minuten`]
+    if (m.experienceLevel) parts.push(`Niveau: ${m.experienceLevel}`)
+    if (m.optimalFrequency.length > 0) parts.push(`Frequentie: ${m.optimalFrequency.join(", ")}`)
+    if (m.description) parts.push(`Beschrijving: ${m.description}`)
+    return `- ${parts.join(", ")}`
+  }
+
+  const recommendedMethodsList = recommendedMethods.length > 0
+    ? recommendedMethods.map(formatMethod).join("\n")
+    : "Geen specifieke methodes gekoppeld aan deze doelstellingen."
+
+  const otherMethodsList = otherMethods.length > 0
+    ? otherMethods.map(formatMethod).join("\n")
+    : ""
+
+  // Build training dates list
+  const trainingDatesList = trainingDates
+    .map(d => `- Datum: "${d.date}", Dag: "${d.dayOfWeek}", DayID: "${d.dayId}"`)
     .join("\n")
 
-  // Build selected days list
-  const daysList = days
-    .map(d => `- ID: "${d.id}", Naam: "${d.name}"`)
-    .join("\n")
-
-  return `Je bent een expert in het samenstellen van mentale fitnessprogramma's. Je taak is om een gepersonaliseerd programma samen te stellen op basis van de geselecteerde doelstellingen en beschikbare dagen.
+  return `${introPrompt}
 
 ## Gebruiker's Doelstellingen:
 ${goalDescriptions}
@@ -96,44 +254,23 @@ ${goalDescriptions}
 ## Instructies per Doelstelling:
 ${promptInstructions}
 
-## Beschikbare Methodes:
-${methodsList}
+## AANBEVOLEN Methodes (gekoppeld aan de doelstellingen - PRIORITEIT):
+${recommendedMethodsList}
+${otherMethodsList ? `
+## Overige Beschikbare Methodes (kunnen aanvullend gebruikt worden):
+${otherMethodsList}` : ""}
 
-## Geselecteerde Dagen:
-${daysList}
+## Trainingsdatums (maak voor ELKE datum een planning):
+${trainingDatesList}
 
 ## Programma Duur:
 ${duration}
 
-## Regels voor het Samenstellen:
-1. Verdeel de methodes gelijkmatig over de geselecteerde dagen
-2. Elke sessie moet tussen 15 en 30 minuten duren
-3. Varieer de methodes gedurende de week - niet elke dag dezelfde
-4. Bouw progressie op door te beginnen met eenvoudigere methodes
-5. Houd rekening met de duur van elke methode
-6. Gebruik ALLEEN de methode IDs uit de lijst hierboven
-7. Elke methode in een dag moet een unieke "order" hebben (1, 2, 3, etc.)
+${selectieRegels}
 
-## Output Formaat:
-Retourneer een JSON object met exact dit formaat:
-{
-  "schedule": [
-    {
-      "dayId": "rec...",
-      "dayName": "Maandag",
-      "methods": [
-        { "methodId": "rec...", "methodName": "Naam", "duration": 10, "order": 1 }
-      ]
-    }
-  ],
-  "totalSessionTime": 25,
-  "weeklySessionTime": 75,
-  "recommendations": ["Tip 1", "Tip 2", "Tip 3"],
-  "notes": "Optionele notities over het programma"
-}
+${frequentieRegels}
 
-- totalSessionTime: gemiddelde tijd per sessie in minuten
-- weeklySessionTime: totale tijd per week in minuten
-- recommendations: 3-5 gepersonaliseerde tips in het Nederlands
-- notes: optionele aanvullende notities`
+${samenstellingRegels}
+
+${outputFormaat}`
 }

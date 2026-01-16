@@ -54,6 +54,7 @@ export interface Method {
   duration: number
   description?: string
   experienceLevel?: string
+  optimalFrequency?: string[]  // Array of frequency options (Dagelijks, Wekelijks, etc.)
   photo?: string
   media?: string[]  // Linked record IDs to Media table
 }
@@ -87,21 +88,21 @@ export interface AIScheduleMethod {
   methodId: string
   methodName: string
   duration: number
-  order: number
 }
 
 export interface AIScheduleDay {
-  dayId: string
-  dayName: string
+  date: string          // YYYY-MM-DD format
+  dayOfWeek: string     // Dutch day name (Maandag, etc.)
+  dayId: string         // Airtable record ID
   methods: AIScheduleMethod[]
 }
 
 export interface AIGenerateResponse {
   program: Program
   aiSchedule: AIScheduleDay[]
-  totalSessionTime: number
   weeklySessionTime: number
   recommendations: string[]
+  programSummary?: string
 }
 
 /**

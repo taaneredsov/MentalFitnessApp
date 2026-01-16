@@ -20,21 +20,21 @@ export interface AIScheduleMethod {
   methodId: string
   methodName: string
   duration: number
-  order: number
 }
 
 export interface AIScheduleDay {
-  dayId: string
-  dayName: string
+  date: string          // YYYY-MM-DD format
+  dayOfWeek: string     // Dutch day name (Maandag, etc.)
+  dayId: string         // Airtable record ID
   methods: AIScheduleMethod[]
 }
 
 export interface AIGenerateResult {
   program: Program
   aiSchedule: AIScheduleDay[]
-  totalSessionTime: number
   weeklySessionTime: number
   recommendations: string[]
+  programSummary?: string
 }
 
 export interface AIInputFormProps {

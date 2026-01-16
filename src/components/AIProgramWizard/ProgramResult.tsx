@@ -1,24 +1,62 @@
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { CheckCircle2, Clock, Calendar, Lightbulb, ArrowRight, Plus } from "lucide-react"
-import { DAY_ORDER, type ProgramResultProps } from "./types"
+import type { ProgramResultProps } from "./types"
 
 export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramResultProps) {
-  const { program, aiSchedule, weeklySessionTime, recommendations } = result
+  const { program, aiSchedule, weeklySessionTime, recommendations, programSummary } = result
 
-  // Sort schedule by day order
+  // Sort schedule by date (chronologically)
   const sortedSchedule = [...aiSchedule].sort((a, b) => {
-    return DAY_ORDER.indexOf(a.dayName) - DAY_ORDER.indexOf(b.dayName)
+    return a.date.localeCompare(b.date)
   })
 
-  // Format date for display
-  const formatDate = (dateStr: string) => {
+  // Safely parse a date string, returning null if invalid
+  const parseDate = (dateStr: string | undefined | null): Date | null => {
+    if (!dateStr) return null
+    // Handle YYYY-MM-DD format explicitly for consistent parsing
+    const parts = dateStr.split("-")
+    if (parts.length === 3) {
+      const date = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]))
+      if (!isNaN(date.getTime())) return date
+    }
+    // Fallback to native parsing
     const date = new Date(dateStr)
+    return isNaN(date.getTime()) ? null : date
+  }
+
+  // Get effective start date: use program.startDate or fall back to first schedule date
+  const effectiveStartDate = program.startDate || (sortedSchedule.length > 0 ? sortedSchedule[0].date : "")
+
+  // Format date for display (e.g., "Ma 20 jan")
+  const formatScheduleDate = (dateStr: string, dayOfWeek: string) => {
+    const date = parseDate(dateStr)
+    if (!date) return dayOfWeek.slice(0, 2)  // Fallback to day abbreviation only
+    const dayAbbrev = dayOfWeek.slice(0, 2)  // "Ma", "Di", etc.
+    const day = date.getDate()
+    const month = date.toLocaleDateString("nl-NL", { month: "short" })
+    return `${dayAbbrev} ${day} ${month}`
+  }
+
+  // Format start date for display
+  const formatDate = (dateStr: string | undefined | null) => {
+    const date = parseDate(dateStr)
+    if (!date) return "Niet beschikbaar"
     return date.toLocaleDateString("nl-NL", {
       weekday: "long",
       day: "numeric",
       month: "long"
     })
+  }
+
+  // Group schedule by week for better display
+  const getWeekNumber = (dateStr: string, startDateStr: string) => {
+    const date = parseDate(dateStr)
+    const start = parseDate(startDateStr)
+    if (!date || !start) return 1  // Default to week 1 if dates are invalid
+    const diffTime = date.getTime() - start.getTime()
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24))
+    return Math.floor(diffDays / 7) + 1
   }
 
   return (
@@ -43,7 +81,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
           <div className="flex items-center gap-3">
             <Calendar className="w-5 h-5 text-muted-foreground" />
             <div>
-              <p className="text-sm font-medium">Start: {formatDate(program.startDate)}</p>
+              <p className="text-sm font-medium">Start: {formatDate(effectiveStartDate)}</p>
               <p className="text-xs text-muted-foreground">{program.duration}</p>
             </div>
           </div>
@@ -57,33 +95,53 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
         </CardContent>
       </Card>
 
-      {/* Weekly Schedule */}
+      {/* Program Summary */}
+      {programSummary && (
+        <Card>
+          <CardContent className="py-3">
+            <p className="text-sm text-muted-foreground">{programSummary}</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Date-based Schedule */}
       <div className="space-y-3">
-        <h4 className="font-medium">Weekschema</h4>
-        <div className="space-y-2">
-          {sortedSchedule.map((day) => (
-            <Card key={day.dayId}>
-              <CardContent className="py-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="font-medium">{day.dayName}</p>
-                    <div className="mt-1 space-y-1">
-                      {day.methods
-                        .sort((a, b) => a.order - b.order)
-                        .map((method, index) => (
-                          <p key={index} className="text-sm text-muted-foreground">
-                            {method.methodName} ({method.duration} min)
-                          </p>
-                        ))}
+        <h4 className="font-medium">Trainingsschema</h4>
+        <div className="space-y-2 max-h-64 overflow-y-auto">
+          {sortedSchedule.map((day, index) => {
+            const weekNum = getWeekNumber(day.date, effectiveStartDate)
+            const prevWeekNum = index > 0 ? getWeekNumber(sortedSchedule[index - 1].date, effectiveStartDate) : 0
+            const showWeekHeader = weekNum !== prevWeekNum
+
+            return (
+              <div key={`${day.date}-${day.dayId}`}>
+                {showWeekHeader && (
+                  <p className="text-xs font-medium text-muted-foreground mt-3 mb-1">
+                    Week {weekNum}
+                  </p>
+                )}
+                <Card>
+                  <CardContent className="py-3">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium">{formatScheduleDate(day.date, day.dayOfWeek)}</p>
+                        <div className="mt-1 space-y-1">
+                          {day.methods.map((method, methodIndex) => (
+                            <p key={methodIndex} className="text-sm text-muted-foreground">
+                              {method.methodName} ({method.duration} min)
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {day.methods.reduce((sum, m) => sum + m.duration, 0)} min
+                      </span>
                     </div>
-                  </div>
-                  <span className="text-sm text-muted-foreground">
-                    {day.methods.reduce((sum, m) => sum + m.duration, 0)} min
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          ))}
+                  </CardContent>
+                </Card>
+              </div>
+            )
+          })}
         </div>
       </div>
 

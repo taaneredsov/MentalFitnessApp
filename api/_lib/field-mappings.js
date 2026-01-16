@@ -22,7 +22,9 @@ export const TABLES = {
   content: process.env.AIRTABLE_TABLE_CONTENT || "tblrGcoPeuqTiXOcM",          // Content
   media: process.env.AIRTABLE_TABLE_MEDIA || "tblwzDUwtnhFKw4kA",              // Media
   daysOfWeek: process.env.AIRTABLE_TABLE_DAYS_OF_WEEK || "tblS3gleG8cSlWOJ3",  // Dagen van de week
-  programPrompts: process.env.AIRTABLE_TABLE_PROGRAM_PROMPTS || "tblHmI6cSujof3KHu" // Programma opbouw prompts
+  programPrompts: process.env.AIRTABLE_TABLE_PROGRAM_PROMPTS || "tblHmI6cSujof3KHu", // Programma opbouw prompts
+  programmaplanning: process.env.AIRTABLE_TABLE_PROGRAMMAPLANNING || "tbl2PHUaonvs1MYRx", // Programmaplanning
+  experienceLevels: process.env.AIRTABLE_TABLE_EXPERIENCE_LEVELS || "tblt5lzx2Msw1aKxv"  // Ervaringsniveaus
 }
 
 // User table field IDs (Gebruikers) - use for reading/writing
@@ -80,11 +82,21 @@ export const METHOD_FIELDS = {
   name: "fldXP3qNngK3oXEjR",             // Methode Naam
   duration: "fldg3pJ3mtwBTVtd8",         // Duur (minuten)
   description: "fldW7tdp7AJoeKerd",      // Beschrijving
-  experienceLevel: "fldKppvap3PVPlMq8",  // Ervaringsniveau
+  experienceLevel: "fldKppvap3PVPlMq8",  // Ervaringsniveau (gekoppeld) - Link to Ervaringsniveaus
+  optimalFrequency: "fldX9SfbkhYUuRC3T", // Optimale frequentie (multipleSelects)
+  linkedGoals: "fldymisqDYdypLbUc",      // Doelstellingen (gekoppeld) - Link to Goals
   photo: "fldT64jU7CfcgTe0y",            // Foto
   media: "fldobaP1oS9uZKTh2",            // Media (Link to Media table)
   users: "fldizDnwdWMO7UfSz",            // Gebruikers (Link)
   programs: "fld36JCBhGcXYurrp"          // Mentale Fitnessprogramma's (Link)
+}
+
+// Experience Levels table field IDs (Ervaringsniveaus - tblt5lzx2Msw1aKxv)
+export const EXPERIENCE_LEVEL_FIELDS = {
+  name: "fldklaZeObmJ9ZNgq",              // Name (Beginner, Gevorderd, etc.)
+  notes: "fldveMMaCFMTXmiUP",             // Notes (description)
+  users: "fldYKpakL7EWq4FRD",             // Gebruikers (Link)
+  methods: "fldNklNZgp7cLHo0x"            // Methodes (Link)
 }
 
 // Days of Week table field IDs (Dagen van de week)
@@ -116,7 +128,23 @@ export const METHOD_USAGE_FIELDS = {
 export const PROGRAM_PROMPT_FIELDS = {
   name: "fld54jyMhPH0Cesl7",              // Name
   goals: "fldDo7u9EeWNyXENj",             // Doelstellingen (link to Goals)
-  prompt: "fld7nmlwZoO2QFqMj"             // Prompt (multiline text)
+  prompt: "fld7nmlwZoO2QFqMj",            // Prompt (multiline text)
+  promptType: "fldDawVqkN23XSfve"         // Type prompt (Systeem/Programmaopbouw)
+}
+
+// Programmaplanning table field IDs (Programmaplanning - tbl2PHUaonvs1MYRx)
+export const PROGRAMMAPLANNING_FIELDS = {
+  planningId: "fldufZbBLil7jDKnj",         // Planning ID (singleLineText)
+  program: "fldTPzVYhmSBxYRa3",            // Mentale Fitnessprogramma (link to Programs)
+  date: "fldvqnZDdjaVxB25H",               // Datum (date)
+  dayOfWeek: "fldxC8uxRqMdS7InU",          // Dag van de week (link to Days)
+  sessionDescription: "fldnY9fKqbItJVxel", // Beschrijving van sessie(s) (multilineText)
+  startTime: "fldZmLFDUenghweym",          // Begintijd (dateTime)
+  endTime: "fld5pBFBsGFb6xuvE",            // Eindtijd (dateTime)
+  methods: "fldxQn8r2ySIFs4pg",            // Beoogde methodes (link to Methods)
+  goals: "fld2Xyx6dzgSMR7Yy",              // Doelstelling(en) (link to Goals)
+  methodUsage: "fldoxGlLYZ5NI60hl",        // Methodegebruik (link to Method Usage)
+  notes: "fld28cHcjefZFQr9P"               // Opmerkingen (multilineText)
 }
 
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs)
@@ -160,10 +188,21 @@ export const FIELD_NAMES = {
   method: {
     name: "Methode Naam",
     duration: "Duur (minuten)",
-    description: "Beschrijving"
+    description: "Beschrijving",
+    optimalFrequency: "Optimale frequentie"
   },
   day: {
     name: "Name"
+  },
+  programmaplanning: {
+    planningId: "Planning ID",
+    program: "Mentale Fitnessprogramma",
+    date: "Datum",
+    dayOfWeek: "Dag van de week",
+    sessionDescription: "Beschrijving van sessie(s)",
+    methods: "Beoogde methodes",
+    goals: "Doelstelling(en)",
+    notes: "Opmerkingen"
   }
 }
 
@@ -261,9 +300,23 @@ export function transformMethod(record) {
     name: fields[METHOD_FIELDS.name],
     duration: fields[METHOD_FIELDS.duration] || 0,
     description: fields[METHOD_FIELDS.description],
-    experienceLevel: fields[METHOD_FIELDS.experienceLevel],
+    experienceLevelIds: fields[METHOD_FIELDS.experienceLevel] || [],  // Linked record IDs to Ervaringsniveaus
+    optimalFrequency: fields[METHOD_FIELDS.optimalFrequency] || [],   // Array of frequency options
+    linkedGoalIds: fields[METHOD_FIELDS.linkedGoals] || [],           // Linked record IDs to Goals
     photo: fields[METHOD_FIELDS.photo]?.[0]?.thumbnails?.large?.url || fields[METHOD_FIELDS.photo]?.[0]?.url,
     media: fields[METHOD_FIELDS.media] || []  // Linked record IDs to Media table
+  }
+}
+
+/**
+ * Transform Airtable experience level record to clean ExperienceLevel object
+ */
+export function transformExperienceLevel(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    name: fields[EXPERIENCE_LEVEL_FIELDS.name],
+    notes: fields[EXPERIENCE_LEVEL_FIELDS.notes]
   }
 }
 
@@ -318,6 +371,25 @@ export function transformProgramPrompt(record) {
     id: record.id,
     name: fields[PROGRAM_PROMPT_FIELDS.name],
     prompt: fields[PROGRAM_PROMPT_FIELDS.prompt],
-    goals: fields[PROGRAM_PROMPT_FIELDS.goals] || []
+    goals: fields[PROGRAM_PROMPT_FIELDS.goals] || [],
+    promptType: fields[PROGRAM_PROMPT_FIELDS.promptType]  // "Systeem" or "Programmaopbouw"
+  }
+}
+
+/**
+ * Transform Airtable programmaplanning record to clean Programmaplanning object
+ */
+export function transformProgrammaplanning(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    planningId: fields[PROGRAMMAPLANNING_FIELDS.planningId],
+    programId: fields[PROGRAMMAPLANNING_FIELDS.program]?.[0],
+    date: fields[PROGRAMMAPLANNING_FIELDS.date],
+    dayOfWeekId: fields[PROGRAMMAPLANNING_FIELDS.dayOfWeek]?.[0],
+    sessionDescription: fields[PROGRAMMAPLANNING_FIELDS.sessionDescription],
+    methodIds: fields[PROGRAMMAPLANNING_FIELDS.methods] || [],
+    goalIds: fields[PROGRAMMAPLANNING_FIELDS.goals] || [],
+    notes: fields[PROGRAMMAPLANNING_FIELDS.notes]
   }
 }

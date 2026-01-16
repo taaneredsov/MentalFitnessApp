@@ -8,9 +8,127 @@ import {
   transformDay,
   transformProgram,
   transformProgramPrompt,
-  PROGRAM_FIELDS
+  transformExperienceLevel,
+  PROGRAM_FIELDS,
+  PROGRAMMAPLANNING_FIELDS
 } from "../_lib/field-mappings.js"
-import { getOpenAI, buildSystemPrompt, type AIProgramResponse } from "../_lib/openai.js"
+import {
+  getOpenAI,
+  buildSystemPrompt,
+  AI_PROGRAM_SCHEMA,
+  type AIProgramResponse,
+  type TrainingDate,
+  type AIMethod
+} from "../_lib/openai.js"
+
+// Day name to JS weekday mapping (0 = Sunday, 1 = Monday, etc.)
+const DAY_NAME_TO_WEEKDAY: Record<string, number> = {
+  "Zondag": 0,
+  "Maandag": 1,
+  "Dinsdag": 2,
+  "Woensdag": 3,
+  "Donderdag": 4,
+  "Vrijdag": 5,
+  "Zaterdag": 6
+}
+
+const WEEKDAY_TO_DAY_NAME = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"]
+
+/**
+ * Parse duration string to number of weeks (e.g., "4 weken" -> 4)
+ */
+function parseWeeks(duration: string): number {
+  const match = duration.match(/(\d+)/)
+  return match ? parseInt(match[1], 10) : 4
+}
+
+/**
+ * Calculate all training dates based on start date, duration, and selected days
+ */
+function calculateTrainingDates(
+  startDate: string,
+  duration: string,
+  days: Array<{ id: string; name: string }>
+): TrainingDate[] {
+  const weeks = parseWeeks(duration)
+  const start = new Date(startDate)
+  const trainingDates: TrainingDate[] = []
+
+  // Create a map of weekday to day record for quick lookup
+  const dayMap = new Map<number, { id: string; name: string }>()
+  for (const day of days) {
+    const weekday = DAY_NAME_TO_WEEKDAY[day.name]
+    if (weekday !== undefined) {
+      dayMap.set(weekday, day)
+    }
+  }
+
+  // Calculate end date (exclusive)
+  const endDate = new Date(start)
+  endDate.setDate(endDate.getDate() + weeks * 7)
+
+  // Iterate through each day from start to end
+  const current = new Date(start)
+  while (current < endDate) {
+    const weekday = current.getDay()
+    const dayRecord = dayMap.get(weekday)
+
+    if (dayRecord) {
+      // Format date as YYYY-MM-DD
+      const dateStr = current.toISOString().split("T")[0]
+      trainingDates.push({
+        date: dateStr,
+        dayOfWeek: WEEKDAY_TO_DAY_NAME[weekday],
+        dayId: dayRecord.id
+      })
+    }
+
+    // Move to next day
+    current.setDate(current.getDate() + 1)
+  }
+
+  return trainingDates
+}
+
+/**
+ * Create Programmaplanning records in Airtable in batches
+ * Airtable allows max 10 records per batch
+ */
+async function createProgramplanningRecords(
+  programId: string,
+  goalIds: string[],
+  schedule: AIProgramResponse["schedule"]
+): Promise<void> {
+  const records: Array<{ fields: Record<string, unknown> }> = []
+
+  for (const day of schedule) {
+    // Extract method IDs for this day
+    const methodIds = day.methods.map(m => m.methodId)
+
+    // Build session description
+    const sessionDescription = day.methods
+      .map(m => `${m.methodName} (${m.duration} min)`)
+      .join("\n")
+
+    records.push({
+      fields: {
+        [PROGRAMMAPLANNING_FIELDS.program]: [programId],
+        [PROGRAMMAPLANNING_FIELDS.date]: day.date,
+        [PROGRAMMAPLANNING_FIELDS.dayOfWeek]: [day.dayId],
+        [PROGRAMMAPLANNING_FIELDS.methods]: methodIds,
+        [PROGRAMMAPLANNING_FIELDS.goals]: goalIds,
+        [PROGRAMMAPLANNING_FIELDS.sessionDescription]: sessionDescription
+      }
+    })
+  }
+
+  // Create in batches of 10
+  const BATCH_SIZE = 10
+  for (let i = 0; i < records.length; i += BATCH_SIZE) {
+    const batch = records.slice(i, i + BATCH_SIZE)
+    await base(tables.programmaplanning).create(batch, { typecast: true })
+  }
+}
 
 /**
  * POST /api/programs/generate - Generate AI program and create in Airtable
@@ -64,30 +182,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const goals = goalRecords.map(record => transformGoal(record as any))
 
-    // Fetch program prompts linked to selected goals
+    // Fetch all program prompts (both Systeem and Programmaopbouw types)
     const promptRecords = await base(tables.programPrompts)
       .select({
         returnFieldsByFieldId: true
       })
       .all()
 
-    // Filter prompts that have at least one matching goal
-    const prompts = promptRecords
-      .map(record => transformProgramPrompt(record as any))
+    // Transform and separate prompts by type
+    const allPrompts = promptRecords.map(record => transformProgramPrompt(record as any))
+
+    // Extract system prompts (Type: Systeem) into a Map keyed by name
+    const systemPromptRecords = allPrompts.filter(p => p.promptType === "Systeem")
+    const systemPrompts = new Map<string, string>()
+    for (const sp of systemPromptRecords) {
+      if (sp.name && sp.prompt) {
+        systemPrompts.set(sp.name, sp.prompt)
+      }
+    }
+
+    // Filter goal-specific prompts (Type: Programmaopbouw or no type for backward compatibility)
+    const programPrompts = allPrompts
+      .filter(p => p.promptType === "Programmaopbouw" || !p.promptType)
       .filter(prompt => prompt.goals.some((goalId: string) => body.goals.includes(goalId)))
       .map(prompt => ({
         goalIds: prompt.goals.filter((goalId: string) => body.goals.includes(goalId)),
         prompt: prompt.prompt
       }))
 
-    // Fetch all methods
+    // Fetch experience levels to map IDs to names
+    const experienceLevelRecords = await base(tables.experienceLevels)
+      .select({
+        returnFieldsByFieldId: true
+      })
+      .all()
+
+    const experienceLevels = experienceLevelRecords.map(record => transformExperienceLevel(record as any))
+    const experienceLevelMap = new Map(experienceLevels.map(el => [el.id, el.name]))
+
+    // Fetch all methods (including optimalFrequency, linkedGoals, experienceLevel)
     const methodRecords = await base(tables.methods)
       .select({
         returnFieldsByFieldId: true
       })
       .all()
 
-    const methods = methodRecords.map(record => transformMethod(record as any))
+    const rawMethods = methodRecords.map(record => transformMethod(record as any))
+
+    // Transform methods to AIMethod format with frequency, experience level, and goal relevance
+    const methods: AIMethod[] = rawMethods.map(m => {
+      // Get experience level name from the first linked record (if any)
+      const expLevelId = m.experienceLevelIds?.[0]
+      const experienceLevel = expLevelId ? experienceLevelMap.get(expLevelId) : undefined
+
+      // Check if this method is linked to any of the selected goals
+      const isRecommendedForGoals = m.linkedGoalIds?.some((goalId: string) => body.goals.includes(goalId)) || false
+
+      return {
+        id: m.id,
+        name: m.name,
+        duration: m.duration,
+        description: m.description,
+        optimalFrequency: m.optimalFrequency || [],
+        experienceLevel,
+        isRecommendedForGoals
+      }
+    })
 
     // Fetch selected days
     const dayRecords = await base(tables.daysOfWeek)
@@ -99,30 +259,34 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const days = dayRecords.map(record => transformDay(record as any))
 
-    // Sort days in week order
-    const dayOrder = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"]
-    days.sort((a, b) => dayOrder.indexOf(a.name) - dayOrder.indexOf(b.name))
+    // Calculate all training dates for the program duration
+    const trainingDates = calculateTrainingDates(body.startDate, body.duration, days)
 
-    // Build system prompt
+    if (trainingDates.length === 0) {
+      return sendError(res, "No training dates could be calculated. Check start date and selected days.", 400)
+    }
+
+    // Build system prompt with training dates
     const systemPrompt = buildSystemPrompt({
       goals,
-      prompts,
+      programPrompts,
+      systemPrompts,
       methods,
-      days,
+      trainingDates,
       duration: body.duration
     })
 
-    // Call OpenAI GPT-4o
+    // Call OpenAI GPT-4o with Structured Outputs
     const openai = getOpenAI()
     const completion = await openai.chat.completions.create({
       model: "gpt-4o",
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: "Genereer een mentaal fitnessprogramma op basis van de bovenstaande informatie. Retourneer alleen het JSON object, geen andere tekst." }
+        { role: "user", content: "Genereer een mentaal fitnessprogramma op basis van de bovenstaande informatie." }
       ],
-      response_format: { type: "json_object" },
+      response_format: AI_PROGRAM_SCHEMA,
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: 4000  // Increased for longer schedules
     })
 
     // Parse AI response
@@ -161,12 +325,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [PROGRAM_FIELDS.methods]: Array.from(methodIds)
     }
 
-    // Add AI notes if provided
-    if (aiResponse.notes) {
-      programFields[PROGRAM_FIELDS.notes] = aiResponse.notes
+    // Add AI program summary as notes
+    if (aiResponse.programSummary) {
+      programFields[PROGRAM_FIELDS.notes] = aiResponse.programSummary
     }
 
     const programRecord = await base(tables.programs).create(programFields, { typecast: true })
+
+    // Create Programmaplanning records for each training date
+    await createProgramplanningRecords(programRecord.id, body.goals, aiResponse.schedule)
 
     // Fetch created program with computed fields
     const createdRecord = await base(tables.programs).find(programRecord.id)
@@ -176,9 +343,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendSuccess(res, {
       program,
       aiSchedule: aiResponse.schedule,
-      totalSessionTime: aiResponse.totalSessionTime,
       weeklySessionTime: aiResponse.weeklySessionTime,
-      recommendations: aiResponse.recommendations || []
+      recommendations: aiResponse.recommendations || [],
+      programSummary: aiResponse.programSummary
     }, 201)
   } catch (error) {
     return handleApiError(res, error)

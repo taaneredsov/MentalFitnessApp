@@ -2,9 +2,13 @@ import dotenv from "dotenv"
 import { resolve } from "path"
 import Airtable from "airtable"
 import { TABLES } from "./field-mappings.js"
+import { loadSecrets } from "./secrets.js"
 
-// Load .env.local
+// Load .env.local for local development
 dotenv.config({ path: resolve(process.cwd(), ".env.local") })
+
+// Load Docker Swarm secrets (will override env vars if files exist)
+loadSecrets()
 
 let _base = null
 
