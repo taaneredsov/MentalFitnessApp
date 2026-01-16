@@ -20,18 +20,23 @@ app.use(cookieParser())
 // Request/Response adapter for Vercel handlers
 function wrapVercelHandler(handler: (req: any, res: any) => any) {
   return async (req: express.Request, res: express.Response) => {
-    // Add Vercel-style helpers to response
+    // Save original methods before overwriting
+    const originalStatus = res.status.bind(res)
+    const originalJson = res.json.bind(res)
+    const originalSend = res.send.bind(res)
+
+    // Add Vercel-style helpers to response (chainable)
     const vercelRes = res as any
     vercelRes.status = (code: number) => {
-      res.status(code)
+      originalStatus(code)
       return vercelRes
     }
     vercelRes.json = (data: any) => {
-      res.json(data)
+      originalJson(data)
       return vercelRes
     }
     vercelRes.send = (data: any) => {
-      res.send(data)
+      originalSend(data)
       return vercelRes
     }
 
