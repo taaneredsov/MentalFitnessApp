@@ -135,10 +135,17 @@ async function setupRoutes() {
   app.use(express.static(distPath))
 
   // SPA fallback - serve index.html for all non-API routes
-  app.get("*", (req, res) => {
+  // Use middleware pattern for Express 5 compatibility
+  app.use((req: express.Request, res: express.Response, next: express.NextFunction) => {
     // Don't serve index.html for API routes that weren't matched
     if (req.path.startsWith("/api/")) {
-      return res.status(404).json({ error: "Not found" })
+      res.status(404).json({ error: "Not found" })
+      return
+    }
+    // Only handle GET requests
+    if (req.method !== "GET") {
+      next()
+      return
     }
     res.sendFile(path.join(distPath, "index.html"))
   })
