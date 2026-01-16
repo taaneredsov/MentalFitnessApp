@@ -96,4 +96,4 @@ volumes:
     driver_opts:
       type: none
       o: bind
-      device: /mnt/data/mfa/redis
+      device: /mnt/data/mfa-redis

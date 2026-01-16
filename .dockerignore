@@ -43,3 +43,6 @@ specs
 # Development files
 docker-compose.local.yml
 .eslintcache
+
+# Redis data (from volume mount)
+redis
