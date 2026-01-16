@@ -1,11 +1,18 @@
 import type { Goal, Day, Program } from "@/types/program"
 
 export interface AIWizardState {
+  step: number
   goals: string[]
   startDate: string
   duration: string
   daysOfWeek: string[]
 }
+
+export const AI_WIZARD_STEPS = [
+  { title: "Doelstellingen", description: "Selecteer je doelen" },
+  { title: "Planning", description: "Kies startdatum en duur" },
+  { title: "Trainingsdagen", description: "Selecteer je trainingsdagen" }
+]
 
 export type AIWizardPhase = "input" | "generating" | "result" | "error"
 

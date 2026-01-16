@@ -17,6 +17,7 @@ interface AIProgramWizardProps {
 }
 
 const initialState: AIWizardState = {
+  step: 0,
   goals: [],
   startDate: new Date().toISOString().split("T")[0],
   duration: "",
