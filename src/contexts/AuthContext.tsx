@@ -27,7 +27,7 @@ interface AuthContextType {
   accessToken: string | null
   isLoading: boolean
   isAuthenticated: boolean
-  login: (email: string, password: string) => Promise<LoginResponse>
+  login: (email: string, password?: string) => Promise<LoginResponse>
   logout: () => Promise<void>
   refreshAuth: () => Promise<void>
   setAuthFromResponse: (user: User, accessToken: string) => void
@@ -50,11 +50,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(user)
   }, [])
 
-  const login = useCallback(async (email: string, password: string): Promise<LoginResponse> => {
+  const login = useCallback(async (email: string, password?: string): Promise<LoginResponse> => {
     const response = await fetch("/api/auth/login", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, ...(password && { password }) })
     })
 
     const data = await response.json()
