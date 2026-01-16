@@ -113,6 +113,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Parse and validate request body
     const body = parseBody(req)
+    console.log("Preview request body:", JSON.stringify(body))
 
     if (!body?.userId) {
       return sendError(res, "userId is required", 400)
