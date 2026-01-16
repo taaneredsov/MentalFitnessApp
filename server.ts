@@ -35,9 +35,10 @@ function wrapVercelHandler(handler: (req: any, res: any) => any) {
       return vercelRes
     }
 
-    // Adapt request to include Vercel-style query/body
-    const vercelReq = req as any
-    vercelReq.query = { ...req.query, ...req.params }
+    // Create Vercel-style request object (don't modify original req.query - it's read-only in Express 5)
+    const vercelReq = Object.assign(Object.create(Object.getPrototypeOf(req)), req, {
+      query: { ...req.query, ...req.params }
+    })
 
     try {
       const result = handler(vercelReq, vercelRes)
