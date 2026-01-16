@@ -23,6 +23,7 @@ export interface Programmaplanning {
   methodIds: string[]
   goalIds: string[]
   methodUsageIds: string[]
+  completedMethodIds: string[]  // Method IDs that have been completed in this session
   isCompleted: boolean
   notes?: string
 }

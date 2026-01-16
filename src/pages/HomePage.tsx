@@ -16,7 +16,8 @@ import {
   Target,
   Loader2,
   ChevronRight,
-  Sparkles
+  Sparkles,
+  CheckCircle
 } from "lucide-react"
 import { InstallPrompt } from "@/components/InstallPrompt"
 import { AIProgramWizard } from "@/components/AIProgramWizard"
@@ -215,40 +216,51 @@ export function HomePage() {
 
                 {todaysMethods.length > 0 && (
                   <div className="space-y-2">
-                    {todaysMethods.map(method => (
-                      <div
-                        key={method.id}
-                        className="flex items-center gap-3 p-2 rounded-lg bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          navigate(`/methods/${method.id}`, {
-                            state: {
-                              programmaplanningId: nextSession?.id,
-                              programId: runningProgram.id  // Fallback for backward compatibility
-                            }
-                          })
-                        }}
-                      >
-                        {method.photo && (
-                          <img
-                            src={method.photo}
-                            alt={method.name}
-                            className="w-10 h-10 rounded-lg object-cover"
-                          />
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">
-                            {method.name}
-                          </p>
-                          {method.duration > 0 && (
-                            <p className="text-xs text-muted-foreground">
-                              {method.duration} min
+                    {todaysMethods.map(method => {
+                      const isMethodCompleted = nextSession?.completedMethodIds?.includes(method.id) ?? false
+                      return (
+                        <div
+                          key={method.id}
+                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                            isMethodCompleted
+                              ? "bg-green-50 dark:bg-green-950/20 ring-1 ring-green-200 dark:ring-green-800"
+                              : "bg-muted/50 hover:bg-muted"
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/methods/${method.id}`, {
+                              state: {
+                                programmaplanningId: nextSession?.id,
+                                programId: runningProgram.id  // Fallback for backward compatibility
+                              }
+                            })
+                          }}
+                        >
+                          {method.photo && (
+                            <img
+                              src={method.photo}
+                              alt={method.name}
+                              className="w-10 h-10 rounded-lg object-cover"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className={`text-sm font-medium truncate ${isMethodCompleted ? "text-green-700 dark:text-green-400" : ""}`}>
+                              {method.name}
                             </p>
+                            {method.duration > 0 && (
+                              <p className="text-xs text-muted-foreground">
+                                {method.duration} min
+                              </p>
+                            )}
+                          </div>
+                          {isMethodCompleted ? (
+                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
                           )}
                         </div>
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 )}
 

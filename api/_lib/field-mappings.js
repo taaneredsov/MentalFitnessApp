@@ -118,7 +118,8 @@ export const METHOD_USAGE_FIELDS = {
   user: "fldlJtJOwZ4poOcoN",              // Gebruiker (link to Users)
   method: "fldPyWglLXgXVO0ru",            // Methode (link to Methods)
   methodName: "fld4YLJWrdwMvyrjx",        // Methode Naam (lookup)
-  program: "fld18WcaPR8nXNr4a",           // Mentale Fitnessprogramma's (link to Programs)
+  program: "fld18WcaPR8nXNr4a",           // Mentale Fitnessprogramma's (link to Programs) - DEPRECATED
+  programmaplanning: "fldVyFTiTqVZ3BVoH", // Programmaplanning (link to Programmaplanning)
   usedAt: "fldvUGcgnwuux1bvi",            // Gebruikt op (date)
   remark: "fldpskQnKFWDFGRFk",            // Opmerking (multiline text)
   goals: "fldYrzWJeMcyf4kNi"              // Doelstellingen (link to Goals)
@@ -356,7 +357,8 @@ export function transformMethodUsage(record) {
     userId: fields[METHOD_USAGE_FIELDS.user]?.[0],
     methodId: fields[METHOD_USAGE_FIELDS.method]?.[0],
     methodName: fields[METHOD_USAGE_FIELDS.methodName]?.[0],
-    programId: fields[METHOD_USAGE_FIELDS.program]?.[0],
+    programId: fields[METHOD_USAGE_FIELDS.program]?.[0],  // DEPRECATED - use programmaplanningId
+    programmaplanningId: fields[METHOD_USAGE_FIELDS.programmaplanning]?.[0],
     usedAt: fields[METHOD_USAGE_FIELDS.usedAt],
     remark: fields[METHOD_USAGE_FIELDS.remark]
   }
@@ -381,6 +383,7 @@ export function transformProgramPrompt(record) {
  */
 export function transformProgrammaplanning(record) {
   const fields = record.fields
+  const methodUsageIds = fields[PROGRAMMAPLANNING_FIELDS.methodUsage] || []
   return {
     id: record.id,
     planningId: fields[PROGRAMMAPLANNING_FIELDS.planningId],
@@ -390,6 +393,8 @@ export function transformProgrammaplanning(record) {
     sessionDescription: fields[PROGRAMMAPLANNING_FIELDS.sessionDescription],
     methodIds: fields[PROGRAMMAPLANNING_FIELDS.methods] || [],
     goalIds: fields[PROGRAMMAPLANNING_FIELDS.goals] || [],
+    methodUsageIds: methodUsageIds,
+    isCompleted: methodUsageIds.length > 0,  // Session is completed when it has at least one methodUsage
     notes: fields[PROGRAMMAPLANNING_FIELDS.notes]
   }
 }

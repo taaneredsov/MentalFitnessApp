@@ -12,6 +12,7 @@ import {
   METHOD_FIELDS,
   DAY_FIELDS,
   PROGRAMMAPLANNING_FIELDS,
+  METHOD_USAGE_FIELDS,
   FIELD_NAMES
 } from "../_lib/field-mappings.js"
 
@@ -99,9 +100,40 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .all()
 
     // Filter by programId (the linked record ID stored in the field)
-    const schedule = allScheduleRecords
+    const rawSchedule = allScheduleRecords
       .map(r => transformProgrammaplanning(r as any))
       .filter(s => s.programId === id)
+
+    // Collect all methodUsageIds from the schedule to fetch completed method IDs
+    const allMethodUsageIds = rawSchedule.flatMap(s => s.methodUsageIds || [])
+
+    // Fetch Method Usage records to get the completed method IDs
+    let methodUsageToMethodMap = new Map<string, string>()
+    if (allMethodUsageIds.length > 0) {
+      const usageFormula = `OR(${allMethodUsageIds.map(uid => `RECORD_ID() = "${uid}"`).join(",")})`
+      const usageRecords = await base(tables.methodUsage)
+        .select({
+          filterByFormula: usageFormula,
+          returnFieldsByFieldId: true
+        })
+        .all()
+
+      // Map Method Usage ID -> Method ID
+      for (const record of usageRecords) {
+        const methodIds = record.fields[METHOD_USAGE_FIELDS.method] as string[] | undefined
+        if (methodIds?.[0]) {
+          methodUsageToMethodMap.set(record.id, methodIds[0])
+        }
+      }
+    }
+
+    // Add completedMethodIds to each session
+    const schedule = rawSchedule.map(session => ({
+      ...session,
+      completedMethodIds: (session.methodUsageIds || [])
+        .map(usageId => methodUsageToMethodMap.get(usageId))
+        .filter((id): id is string => !!id)
+    }))
 
     // Calculate session counts for progress tracking
     const totalSessions = schedule.length
