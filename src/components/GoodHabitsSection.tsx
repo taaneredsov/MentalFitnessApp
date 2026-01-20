@@ -52,50 +52,65 @@ export function GoodHabitsSection() {
   // Don't render if no habits
   if (!isLoading && habits.length === 0) return null
 
+  // Extract emoji from habit name (if present at the start)
+  const getEmojiAndName = (name: string) => {
+    const emojiMatch = name.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u)
+    if (emojiMatch) {
+      return {
+        emoji: emojiMatch[1],
+        name: name.slice(emojiMatch[0].length)
+      }
+    }
+    return { emoji: null, name }
+  }
+
   return (
     <Card>
-      <CardHeader className="pb-2">
+      <CardHeader className="pb-3">
         <div className="flex items-center gap-2">
-          <Heart className="h-4 w-4 text-primary" />
-          <CardTitle className="text-base">Goede Gewoontes</CardTitle>
+          <Heart className="h-5 w-5 text-primary" />
+          <CardTitle className="text-lg">Goede Gewoontes</CardTitle>
         </div>
       </CardHeader>
-      <CardContent className="space-y-2">
+      <CardContent className="space-y-3">
         {isLoading ? (
-          <p className="text-sm text-muted-foreground">Laden...</p>
+          <p className="text-muted-foreground">Laden...</p>
         ) : (
           habits.map(habit => {
             const isCompleted = completedHabits.has(habit.id)
+            const { emoji, name } = getEmojiAndName(habit.name)
             return (
               <button
                 key={habit.id}
                 onClick={() => toggleHabit(habit.id)}
-                className={`w-full p-3 rounded-lg text-left transition-colors flex items-start gap-3 ${
-                  isCompleted
-                    ? "bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800"
-                    : "bg-muted/50 hover:bg-muted"
-                }`}
+                className="w-full p-4 rounded-2xl text-left transition-all duration-200 flex items-center gap-4 bg-card border-0 shadow-sm hover:shadow-md active:scale-[0.98]"
               >
-                <div
-                  className={`flex-shrink-0 w-5 h-5 rounded-full border-2 flex items-center justify-center mt-0.5 transition-colors ${
-                    isCompleted
-                      ? "bg-green-500 border-green-500 text-white"
-                      : "border-muted-foreground/30"
-                  }`}
-                >
-                  {isCompleted && <Check className="h-3 w-3" />}
+                {/* Emoji icon in circle */}
+                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-muted/70 flex items-center justify-center text-2xl">
+                  {emoji || "✨"}
                 </div>
+
+                {/* Habit name */}
                 <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-medium ${isCompleted ? "text-green-700 dark:text-green-300" : ""}`}>
-                    {habit.name}
+                  <p className="font-semibold text-base">
+                    {name}
                   </p>
                   {habit.description && (
-                    <p className={`text-xs mt-0.5 ${
-                      isCompleted ? "text-green-600/70 dark:text-green-400/70" : "text-muted-foreground"
-                    }`}>
+                    <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
                       {habit.description}
                     </p>
                   )}
+                </div>
+
+                {/* Checkmark button */}
+                <div
+                  className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${
+                    isCompleted
+                      ? "bg-primary text-primary-foreground shadow-sm"
+                      : "bg-muted/50 text-muted-foreground/50"
+                  }`}
+                >
+                  <Check className={`h-5 w-5 ${isCompleted ? "" : "opacity-40"}`} />
                 </div>
               </button>
             )

@@ -152,10 +152,10 @@ export function HomePage() {
 
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
-      <div className="py-6 space-y-6">
+      <div className="py-8 space-y-6">
         <section className="px-4">
-          <h2 className="text-2xl font-bold mb-1">Hello, {firstName}!</h2>
-          <p className="text-muted-foreground">
+          <h2 className="text-3xl font-bold mb-2">Hello, {firstName}!</h2>
+          <p className="text-lg text-muted-foreground">
             Welkom bij je persoonlijke mentale fitness-coach.
           </p>
         </section>
@@ -173,13 +173,15 @@ export function HomePage() {
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => navigate(`/programs/${runningProgram.id}`)}
           >
-            <CardHeader className="pb-2">
+            <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-base">Huidig Programma</CardTitle>
-                <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                <CardTitle className="text-lg">Huidig Programma</CardTitle>
+                <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
+                  <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                </div>
               </div>
               {runningProgram.name && (
-                <p className="text-sm text-muted-foreground mt-1">
+                <p className="text-muted-foreground mt-1">
                   {runningProgram.name}
                 </p>
               )}
@@ -199,12 +201,12 @@ export function HomePage() {
                 </div>
               </div>
 
-              <div className="space-y-1">
-                <div className="flex justify-between text-xs text-muted-foreground">
+              <div className="space-y-2">
+                <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Voortgang</span>
-                  <span>{getSessionProgress(runningProgram)}%</span>
+                  <span className="font-medium">{getSessionProgress(runningProgram)}%</span>
                 </div>
-                <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-3 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
                     style={{ width: `${getSessionProgress(runningProgram)}%` }}
@@ -217,37 +219,39 @@ export function HomePage() {
           {/* Upcoming Activity Card */}
           {nextDay && (
             <Card>
-              <CardHeader className="pb-2">
+              <CardHeader className="pb-3">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <CardTitle className="text-base">
+                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle className="text-lg">
                     {nextDay.isToday
                       ? "Activiteit van Vandaag"
                       : "Volgende Activiteit"}
                   </CardTitle>
                 </div>
                 {runningProgram.name && (
-                  <p className="text-sm text-muted-foreground mt-1">
+                  <p className="text-muted-foreground mt-1">
                     {runningProgram.name}
                   </p>
                 )}
               </CardHeader>
-              <CardContent className="space-y-3">
-                <p className="text-sm font-medium text-primary">
+              <CardContent className="space-y-4">
+                <p className="font-medium text-primary">
                   {formatNextDay(nextDay)}
                 </p>
 
                 {todaysMethods.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
                     {todaysMethods.map(method => {
                       const isMethodCompleted = nextSession?.completedMethodIds?.includes(method.id) ?? false
                       return (
                         <div
                           key={method.id}
-                          className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                          className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
                             isMethodCompleted
-                              ? "bg-green-50 dark:bg-green-950/20 ring-1 ring-green-200 dark:ring-green-800"
-                              : "bg-muted/50 hover:bg-muted"
+                              ? "bg-primary/10 ring-2 ring-primary/30"
+                              : "bg-card shadow-sm"
                           }`}
                           onClick={(e) => {
                             e.stopPropagation()
@@ -263,23 +267,27 @@ export function HomePage() {
                             <img
                               src={method.photo}
                               alt={method.name}
-                              className="w-10 h-10 rounded-lg object-cover"
+                              className="w-12 h-12 rounded-xl object-cover"
                             />
                           )}
                           <div className="flex-1 min-w-0">
-                            <p className={`text-sm font-medium truncate ${isMethodCompleted ? "text-green-700 dark:text-green-400" : ""}`}>
+                            <p className={`font-semibold truncate ${isMethodCompleted ? "text-primary" : ""}`}>
                               {method.name}
                             </p>
                             {method.duration > 0 && (
-                              <p className="text-xs text-muted-foreground">
+                              <p className="text-sm text-muted-foreground">
                                 {method.duration} min
                               </p>
                             )}
                           </div>
                           {isMethodCompleted ? (
-                            <CheckCircle className="h-5 w-5 text-green-600 dark:text-green-500" />
+                            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                              <CheckCircle className="h-5 w-5 text-primary-foreground" />
+                            </div>
                           ) : (
-                            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
+                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
+                            </div>
                           )}
                         </div>
                       )
@@ -329,11 +337,11 @@ export function HomePage() {
 
         <section className="grid gap-4 px-4">
           <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Hulp & Informatie</CardTitle>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-lg">Hulp & Informatie</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="text-sm text-muted-foreground">
+              <p className="text-muted-foreground">
                 Veelgestelde vragen en handleidingen.
               </p>
             </CardContent>
