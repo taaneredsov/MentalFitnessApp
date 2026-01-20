@@ -7,7 +7,7 @@ export function AppHeader() {
   const { logout } = useAuth()
 
   return (
-    <header className="sticky top-0 z-40 bg-background border-b border-border pt-safe">
+    <header className="sticky top-0 z-40 bg-white border-b border-border pt-safe">
       <div className="flex items-center justify-between h-14 px-4">
         <div className="flex items-center gap-2">
           <img src={appIcon} alt="Mental Fitness" className="h-8 w-8" />

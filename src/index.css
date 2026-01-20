@@ -66,8 +66,8 @@ html, body {
   /* Friendly rounded design - larger radius */
   --radius: 1rem;
 
-  /* Soft sage green background */
-  --background: oklch(0.82 0.08 140);
+  /* Light neutral gray background (#f2f2f2) */
+  --background: oklch(0.96 0 0);
   --foreground: oklch(0.25 0.02 140);
 
   /* White cards */
@@ -109,14 +109,14 @@ html, body {
   --chart-4: oklch(0.65 0.18 320);
   --chart-5: oklch(0.7 0.15 40);
 
-  /* Sidebar */
-  --sidebar: oklch(0.78 0.06 140);
+  /* Sidebar - white background */
+  --sidebar: oklch(1 0 0);
   --sidebar-foreground: oklch(0.25 0.02 140);
   --sidebar-primary: oklch(0.55 0.12 145);
   --sidebar-primary-foreground: oklch(1 0 0);
-  --sidebar-accent: oklch(0.85 0.05 140);
+  --sidebar-accent: oklch(0.96 0 0);
   --sidebar-accent-foreground: oklch(0.25 0.02 140);
-  --sidebar-border: oklch(0.75 0.05 140);
+  --sidebar-border: oklch(0.92 0 0);
   --sidebar-ring: oklch(0.55 0.12 145);
 }
 
