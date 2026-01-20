@@ -4,10 +4,21 @@
 @custom-variant dark (&:is(.dark *));
 
 /* Base styles */
-body {
+html, body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  /* Prevent iOS Safari bounce/overscroll for PWA pull-to-refresh */
+  overscroll-behavior-y: contain;
+}
+
+/* iOS PWA specific - disable native pull-to-refresh */
+@supports (-webkit-touch-callout: none) {
+  body {
+    /* Prevent pull-to-refresh on iOS Safari */
+    overflow-y: scroll;
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 @theme inline {
