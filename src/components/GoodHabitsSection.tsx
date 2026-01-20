@@ -53,8 +53,10 @@ export function GoodHabitsSection() {
   if (!isLoading && habits.length === 0) return null
 
   // Extract emoji from habit name (if present at the start)
+  // Handles ZWJ sequences like 🙆‍♂️ (person + ZWJ + male sign)
   const getEmojiAndName = (name: string) => {
-    const emojiMatch = name.match(/^(\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)\s*/u)
+    // Match emoji including ZWJ sequences (emoji + optional variation selector, joined by ZWJ)
+    const emojiMatch = name.match(/^((?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F?)(?:\u200D(?:\p{Emoji_Presentation}|\p{Emoji}\uFE0F?))*)\s*/u)
     if (emojiMatch) {
       return {
         emoji: emojiMatch[1],
