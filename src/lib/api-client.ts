@@ -174,7 +174,9 @@ export const api = {
   methods: {
     list: () => request<Method[]>("/methods"),
 
-    get: (id: string) => request<MethodDetail>(`/methods/${encodeURIComponent(id)}`)
+    get: (id: string) => request<MethodDetail>(`/methods/${encodeURIComponent(id)}`),
+
+    getHabits: () => request<{ id: string; name: string; description?: string }[]>("/methods/habits")
   },
 
   methodUsage: {

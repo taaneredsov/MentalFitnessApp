@@ -24,6 +24,7 @@ import { InstallPrompt } from "@/components/InstallPrompt"
 import { AIProgramWizard } from "@/components/AIProgramWizard"
 import { FullScheduleSection } from "@/components/FullScheduleSection"
 import { PullToRefreshWrapper } from "@/components/PullToRefresh"
+import { GoodHabitsSection } from "@/components/GoodHabitsSection"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -321,6 +322,10 @@ export function HomePage() {
           </Card>
         </section>
       )}
+
+        <section className="grid gap-4 px-4">
+          <GoodHabitsSection />
+        </section>
 
         <section className="grid gap-4 px-4">
           <Card>

@@ -32,6 +32,14 @@ export function useMethod(id: string) {
   })
 }
 
+export function useGoodHabits() {
+  return useQuery({
+    queryKey: queryKeys.habits,
+    queryFn: () => api.methods.getHabits(),
+    staleTime: CACHE_LONG
+  })
+}
+
 export function useDays() {
   return useQuery({
     queryKey: queryKeys.days,

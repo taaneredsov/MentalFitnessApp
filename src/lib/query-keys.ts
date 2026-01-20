@@ -3,6 +3,7 @@ export const queryKeys = {
   goals: ["goals"] as const,
   methods: ["methods"] as const,
   method: (id: string) => ["methods", id] as const,
+  habits: ["habits"] as const,
   days: ["days"] as const,
   companies: (ids: string[]) => ["companies", ...ids.sort()] as const,
 

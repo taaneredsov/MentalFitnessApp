@@ -116,8 +116,10 @@ async function setupRoutes() {
   // Methods routes
   const { default: methodsHandler } = await import("./api/methods/index.js")
   const { default: methodByIdHandler } = await import("./api/methods/[id].js")
+  const { default: habitsHandler } = await import("./api/methods/habits.js")
 
   app.get("/api/methods", wrapVercelHandler(methodsHandler))
+  app.get("/api/methods/habits", wrapVercelHandler(habitsHandler))
   app.get("/api/methods/:id", wrapVercelHandler(methodByIdHandler))
 
   // Goals routes
