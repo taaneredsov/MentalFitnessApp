@@ -30,6 +30,7 @@ function saveCompletedHabits(habitIds: Set<string>) {
 export function GoodHabitsSection() {
   const { data: habits = [], isLoading } = useGoodHabits()
   const [completedHabits, setCompletedHabits] = useState<Set<string>>(() => getCompletedHabits())
+  const [expandedHabit, setExpandedHabit] = useState<string | null>(null)
 
   useEffect(() => {
     // Refresh completed habits when component mounts (in case date changed)
@@ -47,6 +48,10 @@ export function GoodHabitsSection() {
       saveCompletedHabits(next)
       return next
     })
+  }
+
+  const toggleExpanded = (habitId: string) => {
+    setExpandedHabit(prev => prev === habitId ? null : habitId)
   }
 
   // Don't render if no habits
@@ -80,41 +85,57 @@ export function GoodHabitsSection() {
         ) : (
           habits.map(habit => {
             const isCompleted = completedHabits.has(habit.id)
+            const isExpanded = expandedHabit === habit.id
             const { emoji, name } = getEmojiAndName(habit.name)
             return (
-              <button
+              <div
                 key={habit.id}
-                onClick={() => toggleHabit(habit.id)}
-                className="w-full p-4 rounded-2xl text-left transition-all duration-200 flex items-center gap-4 bg-card border-0 shadow-sm hover:shadow-md active:scale-[0.98]"
+                onClick={() => toggleExpanded(habit.id)}
+                className="w-full p-4 rounded-2xl text-left transition-all duration-200 bg-card border-0 shadow-sm hover:shadow-md cursor-pointer"
               >
-                {/* Emoji icon in circle */}
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-muted/70 flex items-center justify-center text-2xl">
-                  {emoji || "✨"}
+                <div className="flex items-center gap-4">
+                  {/* Emoji icon in circle */}
+                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-muted/70 flex items-center justify-center text-2xl">
+                    {emoji || "✨"}
+                  </div>
+
+                  {/* Habit name */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-semibold text-base">
+                      {name}
+                    </p>
+                    {habit.description && !isExpanded && (
+                      <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                        {habit.description}
+                      </p>
+                    )}
+                  </div>
+
+                  {/* Checkmark button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      toggleHabit(habit.id)
+                    }}
+                    className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 ${
+                      isCompleted
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "bg-muted/50 text-muted-foreground/50"
+                    }`}
+                  >
+                    <Check className={`h-5 w-5 ${isCompleted ? "" : "opacity-40"}`} />
+                  </button>
                 </div>
 
-                {/* Habit name */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-base">
-                    {name}
-                  </p>
-                  {habit.description && (
-                    <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
+                {/* Expanded description */}
+                {isExpanded && habit.description && (
+                  <div className="mt-3 pl-16 pr-14">
+                    <p className="text-sm text-muted-foreground">
                       {habit.description}
                     </p>
-                  )}
-                </div>
-
-                {/* Checkmark button */}
-                <div
-                  className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 ${
-                    isCompleted
-                      ? "bg-primary text-primary-foreground shadow-sm"
-                      : "bg-muted/50 text-muted-foreground/50"
-                  }`}
-                >
-                  <Check className={`h-5 w-5 ${isCompleted ? "" : "opacity-40"}`} />
-                </div>
-              </button>
+                  </div>
+                )}
+              </div>
             )
           })
         )}
