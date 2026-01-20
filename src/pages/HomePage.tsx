@@ -1,5 +1,6 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/AuthContext"
 import { usePrograms, useProgram } from "@/hooks/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,6 +23,7 @@ import {
 import { InstallPrompt } from "@/components/InstallPrompt"
 import { AIProgramWizard } from "@/components/AIProgramWizard"
 import { FullScheduleSection } from "@/components/FullScheduleSection"
+import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -67,9 +69,18 @@ function getNextScheduledSession(schedule: Programmaplanning[]): Programmaplanni
 export function HomePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [showOnboarding, setShowOnboarding] = useState(false)
 
   const firstName = user?.name?.split(" ")[0] || "there"
+
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["programs"] }),
+      queryClient.invalidateQueries({ queryKey: ["program"] })
+    ])
+  }, [queryClient])
 
   // Use React Query for programs (cached)
   const { data: programs = [], isLoading: programsLoading } = usePrograms(user?.id)
@@ -139,13 +150,14 @@ export function HomePage() {
   }
 
   return (
-    <div className="py-6 space-y-6">
-      <section className="px-4">
-        <h2 className="text-2xl font-bold mb-1">Hello, {firstName}!</h2>
-        <p className="text-muted-foreground">
-          Welkom bij je persoonlijke mentale fitness-coach.
-        </p>
-      </section>
+    <PullToRefreshWrapper onRefresh={handleRefresh}>
+      <div className="py-6 space-y-6">
+        <section className="px-4">
+          <h2 className="text-2xl font-bold mb-1">Hello, {firstName}!</h2>
+          <p className="text-muted-foreground">
+            Welkom bij je persoonlijke mentale fitness-coach.
+          </p>
+        </section>
 
       <InstallPrompt />
 
@@ -310,18 +322,19 @@ export function HomePage() {
         </section>
       )}
 
-      <section className="grid gap-4 px-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="text-base">Hulp & Informatie</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground">
-              Veelgestelde vragen en handleidingen.
-            </p>
-          </CardContent>
-        </Card>
-      </section>
-    </div>
+        <section className="grid gap-4 px-4">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Hulp & Informatie</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                Veelgestelde vragen en handleidingen.
+              </p>
+            </CardContent>
+          </Card>
+        </section>
+      </div>
+    </PullToRefreshWrapper>
   )
 }

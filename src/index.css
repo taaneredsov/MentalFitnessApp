@@ -159,3 +159,31 @@ body {
     width: 95%;
   }
 }
+
+/* Pull-to-Refresh Styling */
+.ptr--ptr {
+  background: var(--background);
+  box-shadow: inset 0 -3px 5px rgba(0, 0, 0, 0.05);
+}
+
+.ptr--box {
+  padding: 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ptr--icon,
+.ptr--text {
+  color: var(--muted-foreground);
+}
+
+.ptr--text {
+  font-size: 0.875rem;
+  margin-left: 8px;
+}
+
+/* Dark mode support */
+.dark .ptr--ptr {
+  box-shadow: inset 0 -3px 5px rgba(255, 255, 255, 0.05);
+}
