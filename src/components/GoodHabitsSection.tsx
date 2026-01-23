@@ -1,53 +1,67 @@
-import { useState, useEffect } from "react"
+import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { useGoodHabits } from "@/hooks/queries"
-import { Heart, Check } from "lucide-react"
-
-function getTodayKey(): string {
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = String(now.getMonth() + 1).padStart(2, "0")
-  const day = String(now.getDate()).padStart(2, "0")
-  return `goodHabits_${year}-${month}-${day}`
-}
-
-function getCompletedHabits(): Set<string> {
-  const key = getTodayKey()
-  const stored = localStorage.getItem(key)
-  if (!stored) return new Set()
-  try {
-    return new Set(JSON.parse(stored))
-  } catch {
-    return new Set()
-  }
-}
-
-function saveCompletedHabits(habitIds: Set<string>) {
-  const key = getTodayKey()
-  localStorage.setItem(key, JSON.stringify([...habitIds]))
-}
+import { useGoodHabits, useHabitUsage, useRecordHabitUsage, useDeleteHabitUsage } from "@/hooks/queries"
+import { useAuth } from "@/contexts/AuthContext"
+import { getTodayDate } from "@/lib/rewards-utils"
+import { POINTS } from "@/types/rewards"
+import { Heart, Check, Star } from "lucide-react"
 
 export function GoodHabitsSection() {
-  const { data: habits = [], isLoading } = useGoodHabits()
-  const [completedHabits, setCompletedHabits] = useState<Set<string>>(() => getCompletedHabits())
+  const { user, accessToken } = useAuth()
+  const today = useMemo(() => getTodayDate(), [])
+
+  const { data: habits = [], isLoading: isLoadingHabits } = useGoodHabits()
+  const { data: completedHabitIds = [], isLoading: isLoadingUsage } = useHabitUsage(user?.id, today)
+
+  const recordHabitMutation = useRecordHabitUsage()
+  const deleteHabitMutation = useDeleteHabitUsage()
+
   const [expandedHabit, setExpandedHabit] = useState<string | null>(null)
+  const [recentlyCompleted, setRecentlyCompleted] = useState<string | null>(null)
 
-  useEffect(() => {
-    // Refresh completed habits when component mounts (in case date changed)
-    setCompletedHabits(getCompletedHabits())
-  }, [])
+  // React Query now handles optimistic updates via onMutate
+  const completedHabits = useMemo(() => new Set(completedHabitIds), [completedHabitIds])
 
-  const toggleHabit = (habitId: string) => {
-    setCompletedHabits(prev => {
-      const next = new Set(prev)
-      if (next.has(habitId)) {
-        next.delete(habitId)
-      } else {
-        next.add(habitId)
-      }
-      saveCompletedHabits(next)
-      return next
-    })
+  const isLoading = isLoadingHabits || isLoadingUsage
+
+  const toggleHabit = async (habitId: string) => {
+    if (!user?.id || !accessToken) return
+
+    const isCompleted = completedHabits.has(habitId)
+
+    if (isCompleted) {
+      // Uncomplete the habit - React Query handles optimistic update
+      deleteHabitMutation.mutate({
+        userId: user.id,
+        methodId: habitId,
+        date: today,
+        accessToken
+      }, {
+        onError: (error) => {
+          console.error("[GoodHabitsSection] Failed to delete habit:", error)
+        }
+      })
+    } else {
+      // Show points animation
+      setRecentlyCompleted(habitId)
+      setTimeout(() => setRecentlyCompleted(null), 2000)
+
+      // Complete the habit - React Query handles optimistic update
+      recordHabitMutation.mutate({
+        data: {
+          userId: user.id,
+          methodId: habitId,
+          date: today
+        },
+        accessToken
+      }, {
+        onError: (error) => {
+          console.error("[GoodHabitsSection] Failed to record habit:", error)
+          // Clear the animation on error
+          setRecentlyCompleted(null)
+        }
+      })
+    }
   }
 
   const toggleExpanded = (habitId: string) => {
@@ -111,20 +125,29 @@ export function GoodHabitsSection() {
                     )}
                   </div>
 
-                  {/* Checkmark button */}
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      toggleHabit(habit.id)
-                    }}
-                    className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 ${
-                      isCompleted
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "bg-muted/50 text-muted-foreground/50"
-                    }`}
-                  >
-                    <Check className={`h-5 w-5 ${isCompleted ? "" : "opacity-40"}`} />
-                  </button>
+                  {/* Points indicator + Checkmark button */}
+                  <div className="flex items-center gap-2">
+                    {recentlyCompleted === habit.id && (
+                      <span className="flex items-center gap-0.5 text-xs font-medium text-primary animate-in fade-in zoom-in duration-300">
+                        <Star className="h-3 w-3" />
+                        +{POINTS.habit}
+                      </span>
+                    )}
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        toggleHabit(habit.id)
+                      }}
+                      disabled={recordHabitMutation.isPending || deleteHabitMutation.isPending}
+                      className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 ${
+                        isCompleted
+                          ? "bg-primary text-primary-foreground shadow-sm"
+                          : "bg-muted/50 text-muted-foreground/50"
+                      }`}
+                    >
+                      <Check className={`h-5 w-5 ${isCompleted ? "" : "opacity-40"}`} />
+                    </button>
+                  </div>
                 </div>
 
                 {/* Expanded description */}

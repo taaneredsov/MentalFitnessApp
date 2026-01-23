@@ -1,5 +1,6 @@
 import type { User } from "@/types/user"
 import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest } from "@/types/program"
+import type { UserRewards, AwardRequest, AwardResponse } from "@/types/rewards"
 
 const API_BASE = "/api"
 
@@ -191,6 +192,50 @@ export const api = {
 
     byProgram: (programId: string, limit = 2) =>
       request<MethodUsage[]>(`/method-usage/by-program?programId=${encodeURIComponent(programId)}&limit=${limit}`)
+  },
+
+  rewards: {
+    get: (accessToken: string) =>
+      request<UserRewards>("/rewards", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    award: (data: AwardRequest, accessToken: string) =>
+      request<AwardResponse>("/rewards/award", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      })
+  },
+
+  habitUsage: {
+    get: (userId: string, date: string, accessToken: string) =>
+      request<string[]>(`/habit-usage?userId=${encodeURIComponent(userId)}&date=${encodeURIComponent(date)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    create: (data: { userId: string; methodId: string; date: string }, accessToken: string) =>
+      request<{ id: string; pointsAwarded?: number }>("/habit-usage", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    delete: (userId: string, methodId: string, date: string, accessToken: string) =>
+      request<void>(`/habit-usage?userId=${encodeURIComponent(userId)}&methodId=${encodeURIComponent(methodId)}&date=${encodeURIComponent(date)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
   }
 }
 

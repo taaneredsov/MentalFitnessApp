@@ -11,6 +11,10 @@ export const queryKeys = {
   programs: (userId: string) => ["programs", userId] as const,
   program: (id: string) => ["program", id] as const,
 
+  // Rewards data - short cache (1 minute)
+  rewards: ["rewards"] as const,
+  habitUsage: (userId: string, date: string) => ["habitUsage", userId, date] as const,
+
   // Dynamic data - short cache (1 minute)
   methodUsage: (programId: string) => ["methodUsage", programId] as const
 }

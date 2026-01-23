@@ -24,7 +24,8 @@ export const TABLES = {
   daysOfWeek: process.env.AIRTABLE_TABLE_DAYS_OF_WEEK || "tblS3gleG8cSlWOJ3",  // Dagen van de week
   programPrompts: process.env.AIRTABLE_TABLE_PROGRAM_PROMPTS || "tblHmI6cSujof3KHu", // Programma opbouw prompts
   programmaplanning: process.env.AIRTABLE_TABLE_PROGRAMMAPLANNING || "tbl2PHUaonvs1MYRx", // Programmaplanning
-  experienceLevels: process.env.AIRTABLE_TABLE_EXPERIENCE_LEVELS || "tblt5lzx2Msw1aKxv"  // Ervaringsniveaus
+  experienceLevels: process.env.AIRTABLE_TABLE_EXPERIENCE_LEVELS || "tblt5lzx2Msw1aKxv",  // Ervaringsniveaus
+  habitUsage: process.env.AIRTABLE_TABLE_HABIT_USAGE || "tblpWiRiseAZ7jfHm"   // Gewoontegebruik
 }
 
 // User table field IDs (Gebruikers) - use for reading/writing
@@ -37,7 +38,14 @@ export const USER_FIELDS = {
   company: "fldnaYqcZHVHpH1RT",        // Bedrijf (linked)
   role: "fldu0CiOBgfDlZ7HI",           // Rol
   languageCode: "fldMQEv7JI5PjNeyk",   // Taalcode
-  profilePhoto: "fldqdOOgdgZUla8Ub"    // Profielfoto
+  profilePhoto: "fldqdOOgdgZUla8Ub",   // Profielfoto
+  // Reward system fields
+  totalPoints: "fldRcrVTHrvSUe1Mh",      // Totaal Punten (Number)
+  currentStreak: "fldDsfIZH929xN30H",    // Huidige Streak (Number)
+  longestStreak: "fldUI14lfcoJAI329",    // Langste Streak (Number)
+  lastActiveDate: "fldwl4wC7pT4hKZVN",   // Laatste Actieve Dag (Date)
+  badges: "fldMbIUw4uzjNKYy9",           // Badges (Long text - JSON array)
+  level: "fldBp9BHyhbiGxK8V"             // Niveau (Number)
 }
 
 // Company table field IDs (Bedrijven) - use for reading/writing
@@ -64,7 +72,8 @@ export const PROGRAM_FIELDS = {
   methods: "fldvcpSF78ATEk12U",         // Mentale methode (Link)
   sessionTime: "fldEWZ3BpI7ueG9ai",     // Tijd per sessie (Rollup)
   notes: "fldAUf1ENHtF8NRPl",           // Notities
-  methodUsage: "fldXNUYtU4KG84ZMX"      // Methodegebruik (Link)
+  methodUsage: "fldXNUYtU4KG84ZMX",     // Methodegebruik (Link)
+  milestonesAwarded: "fldQu0mHYeNj4mury" // Behaalde Mijlpalen (Long text - JSON array)
 }
 
 // Goals table field IDs (Doelstellingen)
@@ -148,6 +157,13 @@ export const PROGRAMMAPLANNING_FIELDS = {
   notes: "fld28cHcjefZFQr9P"               // Opmerkingen (multilineText)
 }
 
+// Habit Usage table field IDs (Gewoontegebruik - tblpWiRiseAZ7jfHm)
+export const HABIT_USAGE_FIELDS = {
+  user: "fld0kGrTAfzCg35Zb",       // Gebruikers (link to Users)
+  method: "fldXY6F1q5UM4e148",     // Methodes (link to Methods)
+  date: "fldL34wbT2NxYPUKh"        // Datum (date YYYY-MM-DD)
+}
+
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs)
 export const FIELD_NAMES = {
   user: {
@@ -159,7 +175,19 @@ export const FIELD_NAMES = {
     company: "Bedrijf",
     role: "Rol",
     languageCode: "Taalcode",
-    profilePhoto: "Profielfoto"
+    profilePhoto: "Profielfoto",
+    // Reward fields
+    totalPoints: "Totaal Punten",
+    currentStreak: "Huidige Streak",
+    longestStreak: "Langste Streak",
+    lastActiveDate: "Laatste Actieve Dag",
+    badges: "Badges",
+    level: "Niveau"
+  },
+  habitUsage: {
+    user: "Gebruikers",
+    method: "Methodes",
+    date: "Datum"
   },
   company: {
     name: "Bedrijfsnaam",
@@ -262,6 +290,18 @@ function parseEuropeanDate(dateStr) {
  */
 export function transformProgram(record) {
   const fields = record.fields
+
+  // Parse milestones from JSON string (or default to empty array)
+  let milestonesAwarded = []
+  const milestonesField = fields[PROGRAM_FIELDS.milestonesAwarded]
+  if (milestonesField) {
+    try {
+      milestonesAwarded = typeof milestonesField === 'string' ? JSON.parse(milestonesField) : milestonesField
+    } catch {
+      milestonesAwarded = []
+    }
+  }
+
   return {
     id: record.id,
     name: fields[PROGRAM_FIELDS.programId],  // Programma ID formula field as display name
@@ -274,7 +314,8 @@ export function transformProgram(record) {
     methods: fields[PROGRAM_FIELDS.methods] || [],
     sessionTime: fields[PROGRAM_FIELDS.sessionTime] || 0,
     notes: fields[PROGRAM_FIELDS.notes],
-    methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length
+    methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length,
+    milestonesAwarded
   }
 }
 
@@ -396,5 +437,45 @@ export function transformProgrammaplanning(record) {
     methodUsageIds: methodUsageIds,
     isCompleted: methodUsageIds.length > 0,  // Session is completed when it has at least one methodUsage
     notes: fields[PROGRAMMAPLANNING_FIELDS.notes]
+  }
+}
+
+/**
+ * Extract reward data from a user record
+ */
+export function transformUserRewards(record) {
+  const fields = record.fields
+
+  // Parse badges from JSON string (or default to empty array)
+  let badges = []
+  const badgesField = fields[USER_FIELDS.badges]
+  if (badgesField) {
+    try {
+      badges = typeof badgesField === 'string' ? JSON.parse(badgesField) : badgesField
+    } catch {
+      badges = []
+    }
+  }
+
+  return {
+    totalPoints: fields[USER_FIELDS.totalPoints] || 0,
+    currentStreak: fields[USER_FIELDS.currentStreak] || 0,
+    longestStreak: fields[USER_FIELDS.longestStreak] || 0,
+    lastActiveDate: fields[USER_FIELDS.lastActiveDate] || null,
+    badges,
+    level: fields[USER_FIELDS.level] || 1
+  }
+}
+
+/**
+ * Transform Airtable habit usage record to clean HabitUsage object
+ */
+export function transformHabitUsage(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    userId: fields[HABIT_USAGE_FIELDS.user]?.[0],
+    methodId: fields[HABIT_USAGE_FIELDS.method]?.[0],
+    date: fields[HABIT_USAGE_FIELDS.date]
   }
 }

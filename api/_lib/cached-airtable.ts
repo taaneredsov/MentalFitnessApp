@@ -1,7 +1,7 @@
 import { base, tables } from "./airtable.js"
 import { cache, cacheKey, TABLE_TTL } from "./cache.js"
 
-type TableName = keyof typeof tables
+type TableName = keyof typeof tables & string
 
 interface SelectOptions {
   filterByFormula?: string
@@ -21,16 +21,16 @@ export async function cachedSelect<T>(
 ): Promise<T[]> {
   const tableId = tables[tableName]
   const key = cacheKey(tableId, JSON.stringify(options))
-  const ttl = TABLE_TTL[tableName] || 300
+  const ttl = TABLE_TTL[tableName as string] || 300
 
   // Try cache first
   const cached = await cache.get<T[]>(key)
   if (cached) {
-    console.log(`Cache HIT: ${tableName}`)
+    console.log(`Cache HIT: ${String(tableName)}`)
     return cached
   }
 
-  console.log(`Cache MISS: ${tableName}`)
+  console.log(`Cache MISS: ${String(tableName)}`)
 
   // Fetch from Airtable
   const query = base(tableId).select({
