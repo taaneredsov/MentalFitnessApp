@@ -138,6 +138,20 @@ async function setupRoutes() {
   app.post("/api/method-usage", wrapVercelHandler(methodUsageHandler))
   app.get("/api/method-usage/by-program", wrapVercelHandler(methodUsageByProgramHandler))
 
+  // Rewards routes
+  const { default: rewardsHandler } = await import("./api/rewards/index.js")
+  const { default: awardRewardsHandler } = await import("./api/rewards/award.js")
+
+  app.get("/api/rewards", wrapVercelHandler(rewardsHandler))
+  app.post("/api/rewards/award", wrapVercelHandler(awardRewardsHandler))
+
+  // Habit usage routes
+  const { default: habitUsageHandler } = await import("./api/habit-usage/index.js")
+
+  app.get("/api/habit-usage", wrapVercelHandler(habitUsageHandler))
+  app.post("/api/habit-usage", wrapVercelHandler(habitUsageHandler))
+  app.delete("/api/habit-usage", wrapVercelHandler(habitUsageHandler))
+
   // Cache routes
   const { default: cacheInvalidateHandler } = await import("./api/cache/invalidate.js")
   app.post("/api/cache/invalidate", wrapVercelHandler(cacheInvalidateHandler))
