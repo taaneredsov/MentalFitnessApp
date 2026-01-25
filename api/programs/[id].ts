@@ -1,6 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
+import { verifyToken } from "../_lib/jwt.js"
 import {
   transformProgram,
   transformGoal,
@@ -13,7 +14,8 @@ import {
   DAY_FIELDS,
   PROGRAMMAPLANNING_FIELDS,
   METHOD_USAGE_FIELDS,
-  FIELD_NAMES
+  FIELD_NAMES,
+  isValidRecordId
 } from "../_lib/field-mappings.js"
 
 /**
@@ -166,12 +168,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 /**
  * PATCH /api/programs/[id] - Update a program
  * Body: { methods?, notes? }
+ * Requires authentication and ownership verification
  */
 async function handlePatch(req: VercelRequest, res: VercelResponse) {
   try {
+    // Verify authentication
+    const authHeader = req.headers.authorization
+    if (!authHeader?.startsWith("Bearer ")) {
+      return sendError(res, "Unauthorized", 401)
+    }
+    const token = authHeader.slice(7)
+    const payload = await verifyToken(token)
+    if (!payload) {
+      return sendError(res, "Invalid token", 401)
+    }
+
     const { id } = req.query
     if (!id || typeof id !== "string") {
       return sendError(res, "Program ID is required", 400)
+    }
+
+    // Validate record ID format to prevent injection
+    if (!isValidRecordId(id)) {
+      return sendError(res, "Invalid program ID format", 400)
+    }
+
+    // Fetch the program to verify ownership
+    const existingRecords = await base(tables.programs)
+      .select({
+        filterByFormula: `RECORD_ID() = "${id}"`,
+        maxRecords: 1,
+        returnFieldsByFieldId: true
+      })
+      .firstPage()
+
+    if (existingRecords.length === 0) {
+      return sendError(res, "Program not found", 404)
+    }
+
+    // Verify the authenticated user owns this program
+    const programUserId = (existingRecords[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
+    if (programUserId !== payload.userId) {
+      return sendError(res, "Forbidden: You don't own this program", 403)
     }
 
     const body = parseBody(req)

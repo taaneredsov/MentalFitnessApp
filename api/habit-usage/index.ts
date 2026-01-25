@@ -3,7 +3,7 @@ import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { verifyToken } from "../_lib/jwt.js"
-import { HABIT_USAGE_FIELDS, FIELD_NAMES, USER_FIELDS, transformUserRewards } from "../_lib/field-mappings.js"
+import { HABIT_USAGE_FIELDS, FIELD_NAMES, USER_FIELDS, transformUserRewards, escapeFormulaValue, isValidRecordId } from "../_lib/field-mappings.js"
 
 // Point values
 const POINTS = {
@@ -31,11 +31,17 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
     return sendError(res, "date is required", 400)
   }
 
+  // Validate userId format to prevent injection
+  if (!isValidRecordId(userId)) {
+    return sendError(res, "Invalid user ID format", 400)
+  }
+
   // Fetch all habit usage for this date, then filter by user in code
   // (Airtable's filterByFormula with linked records can be unreliable)
+  // Use escapeFormulaValue to prevent injection attacks
   const records = await base(tables.habitUsage)
     .select({
-      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${date}"`,
+      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${escapeFormulaValue(date)}"`,
       returnFieldsByFieldId: true
     })
     .all()
@@ -72,12 +78,17 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
     return sendError(res, "Cannot create habit usage for another user", 403)
   }
 
+  // Validate IDs to prevent injection
+  if (!isValidRecordId(body.userId) || !isValidRecordId(body.methodId)) {
+    return sendError(res, "Invalid ID format", 400)
+  }
+
   // Check if already exists (idempotent)
   // Fetch all records for this date, then filter in JavaScript
   // (Airtable's ARRAYJOIN returns display values, not record IDs, so we can't filter properly in formula)
   const existingRecords = await base(tables.habitUsage)
     .select({
-      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${body.date}"`,
+      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${escapeFormulaValue(body.date)}"`,
       returnFieldsByFieldId: true
     })
     .all()
@@ -186,11 +197,16 @@ async function handleDelete(req: VercelRequest, res: VercelResponse, tokenUserId
     return sendError(res, "Cannot delete habit usage for another user", 403)
   }
 
+  // Validate IDs to prevent injection
+  if (!isValidRecordId(userId) || !isValidRecordId(methodId)) {
+    return sendError(res, "Invalid ID format", 400)
+  }
+
   // Fetch all records for this date, then filter in JavaScript
   // (Airtable's ARRAYJOIN returns display values, not record IDs)
   const allRecords = await base(tables.habitUsage)
     .select({
-      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${date}"`,
+      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${escapeFormulaValue(date)}"`,
       returnFieldsByFieldId: true
     })
     .all()

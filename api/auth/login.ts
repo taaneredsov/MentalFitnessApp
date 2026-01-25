@@ -4,7 +4,7 @@ import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { verifyPassword } from "../_lib/password.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
-import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
+import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -20,9 +20,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const { email, password } = loginSchema.parse(parseBody(req))
 
     // Find user by email (filterByFormula requires field names, not IDs)
+    // Use escapeFormulaValue to prevent formula injection attacks
     const records = await base(tables.users)
       .select({
-        filterByFormula: `{${FIELD_NAMES.user.email}} = "${email}"`,
+        filterByFormula: `{${FIELD_NAMES.user.email}} = "${escapeFormulaValue(email)}"`,
         maxRecords: 1,
         returnFieldsByFieldId: true
       })

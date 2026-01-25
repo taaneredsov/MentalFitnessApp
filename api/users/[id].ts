@@ -2,7 +2,8 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { transformUser, USER_FIELDS } from "../_lib/field-mappings.js"
+import { verifyToken } from "../_lib/jwt.js"
+import { transformUser, USER_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
@@ -16,10 +17,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, "Method not allowed", 405)
   }
 
+  // Verify authentication
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith("Bearer ")) {
+    return sendError(res, "Unauthorized", 401)
+  }
+  const token = authHeader.slice(7)
+  const payload = await verifyToken(token)
+  if (!payload) {
+    return sendError(res, "Invalid token", 401)
+  }
+
   const { id } = req.query
 
   if (!id || typeof id !== "string") {
     return sendError(res, "User ID is required", 400)
+  }
+
+  // Validate record ID format to prevent injection
+  if (!isValidRecordId(id)) {
+    return sendError(res, "Invalid user ID format", 400)
+  }
+
+  // Users can only update their own profile
+  if (id !== payload.userId) {
+    return sendError(res, "Forbidden: You can only update your own profile", 403)
   }
 
   try {

@@ -10,6 +10,29 @@
  * To find field IDs: Airtable API > Meta > Get base schema
  */
 
+/**
+ * Escape a value for use in Airtable filterByFormula to prevent injection attacks.
+ * Escapes backslashes and double quotes which could break out of string literals.
+ * @param {string} value - The user-provided value to escape
+ * @returns {string} - The escaped value safe for use in formulas
+ */
+export function escapeFormulaValue(value) {
+  if (typeof value !== 'string') return value
+  // Escape backslashes first, then double quotes
+  return value.replace(/\\/g, '\\\\').replace(/"/g, '\\"')
+}
+
+/**
+ * Validate that a string looks like an Airtable record ID.
+ * Record IDs follow the pattern: rec[A-Za-z0-9]{14}
+ * @param {string} id - The ID to validate
+ * @returns {boolean} - True if valid record ID format
+ */
+export function isValidRecordId(id) {
+  if (typeof id !== 'string') return false
+  return /^rec[A-Za-z0-9]{14}$/.test(id)
+}
+
 // Table IDs (fallback to hardcoded IDs if env vars not set)
 export const TABLES = {
   companies: process.env.AIRTABLE_TABLE_COMPANIES || "tblUIwqUiARc2VZPU",      // Bedrijven
