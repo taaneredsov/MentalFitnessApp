@@ -38,10 +38,10 @@ async function handleGet(req: VercelRequest, res: VercelResponse) {
 
   // Fetch all habit usage for this date, then filter by user in code
   // (Airtable's filterByFormula with linked records can be unreliable)
-  // Use escapeFormulaValue to prevent injection attacks
+  // Use IS_SAME for reliable date comparison (handles format differences)
   const records = await base(tables.habitUsage)
     .select({
-      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${escapeFormulaValue(date)}"`,
+      filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(date)}", 'day')`,
       returnFieldsByFieldId: true
     })
     .all()
@@ -86,9 +86,10 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
   // Check if already exists (idempotent)
   // Fetch all records for this date, then filter in JavaScript
   // (Airtable's ARRAYJOIN returns display values, not record IDs, so we can't filter properly in formula)
+  // Use IS_SAME for reliable date comparison
   const existingRecords = await base(tables.habitUsage)
     .select({
-      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${escapeFormulaValue(body.date)}"`,
+      filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(body.date)}", 'day')`,
       returnFieldsByFieldId: true
     })
     .all()
@@ -204,9 +205,10 @@ async function handleDelete(req: VercelRequest, res: VercelResponse, tokenUserId
 
   // Fetch all records for this date, then filter in JavaScript
   // (Airtable's ARRAYJOIN returns display values, not record IDs)
+  // Use IS_SAME for reliable date comparison
   const allRecords = await base(tables.habitUsage)
     .select({
-      filterByFormula: `{${FIELD_NAMES.habitUsage.date}} = "${escapeFormulaValue(date)}"`,
+      filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(date)}", 'day')`,
       returnFieldsByFieldId: true
     })
     .all()

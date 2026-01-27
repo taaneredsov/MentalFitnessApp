@@ -221,15 +221,9 @@ export function useRecordHabitUsage() {
         queryClient.setQueryData(context.queryKey, context.previousData)
       }
     },
-    onSettled: (_data, _error, variables) => {
-      // Delay invalidation to allow Airtable to propagate linked records
-      // Extended to 3000ms for more reliable propagation
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.habitUsage(variables.data.userId, variables.data.date)
-        })
-      }, 3000)
-      // Invalidate rewards cache immediately
+    onSuccess: () => {
+      // Don't invalidate habitUsage - optimistic update is correct and API GET has issues
+      // Only invalidate rewards cache to reflect point changes
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
     }
   })
@@ -272,15 +266,7 @@ export function useDeleteHabitUsage() {
       if (context?.previousData !== undefined) {
         queryClient.setQueryData(context.queryKey, context.previousData)
       }
-    },
-    onSettled: (_data, _error, variables) => {
-      // Delay invalidation to allow Airtable to propagate
-      // Extended to 3000ms for more reliable propagation
-      setTimeout(() => {
-        queryClient.invalidateQueries({
-          queryKey: queryKeys.habitUsage(variables.userId, variables.date)
-        })
-      }, 3000)
     }
+    // Don't invalidate habitUsage on success - optimistic update is correct
   })
 }
