@@ -63,7 +63,8 @@ export const USER_FIELDS = {
   languageCode: "fldMQEv7JI5PjNeyk",   // Taalcode
   profilePhoto: "fldqdOOgdgZUla8Ub",   // Profielfoto
   // Reward system fields
-  totalPoints: "fldRcrVTHrvSUe1Mh",      // Totaal Punten (Number)
+  totalPoints: "fldRcrVTHrvSUe1Mh",      // Totaal Punten (Formula - calculated)
+  bonusPoints: "fldnTqsjBrzV37WPG",      // Bonus Punten (Number - milestones, streaks)
   currentStreak: "fldDsfIZH929xN30H",    // Huidige Streak (Number)
   longestStreak: "fldUI14lfcoJAI329",    // Langste Streak (Number)
   lastActiveDate: "fldwl4wC7pT4hKZVN",   // Laatste Actieve Dag (Date)
@@ -487,6 +488,7 @@ export function transformUserRewards(record) {
 
   return {
     totalPoints: fields[USER_FIELDS.totalPoints] || 0,
+    bonusPoints: fields[USER_FIELDS.bonusPoints] || 0,
     currentStreak: fields[USER_FIELDS.currentStreak] || 0,
     longestStreak: fields[USER_FIELDS.longestStreak] || 0,
     lastActiveDate: fields[USER_FIELDS.lastActiveDate] || null,

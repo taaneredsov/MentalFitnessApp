@@ -174,16 +174,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const currentRewards = transformUserRewards(records[0] as { id: string; fields: Record<string, unknown> })
     const today = getToday()
 
-    // Calculate points to award based on activity type
-    let pointsAwarded = 0
+    // Calculate bonus points to award (only for milestones - habits/methods are counted by Airtable formula)
+    // The Airtable formula calculates: (5 × habit usage count) + (10 × method usage count) + {Bonus Punten}
+    let bonusPointsAwarded = 0
     if (body.activityType === "programMilestone" && body.milestone) {
-      // For milestone activity, use the milestone-specific points
-      pointsAwarded = MILESTONE_POINTS[body.milestone] || 0
-    } else {
-      // For other activity types, use the standard points
-      pointsAwarded = POINTS[body.activityType as keyof typeof POINTS] || 0
+      // Milestone points go into bonusPoints
+      bonusPointsAwarded = MILESTONE_POINTS[body.milestone] || 0
     }
-    const newTotal = currentRewards.totalPoints + pointsAwarded
+    // Note: method and habit points are automatically counted by the Airtable formula
+    // We only track bonusPoints (milestones, streaks) separately
 
     // Calculate streak
     const streakResult = calculateStreak(currentRewards.lastActiveDate, today)
@@ -215,9 +214,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Calculate current level before awarding points
-    const currentLevel = calculateLevel(currentRewards.totalPoints)
-
     // Build milestones list for badge checks
     const milestonesReached: number[] = []
     if (body.activityType === "programMilestone" && body.milestone) {
@@ -236,7 +232,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const newBadges = checkNewBadges(currentRewards.badges, stats)
     const allBadges = [...currentRewards.badges, ...newBadges]
 
-    // Check for streak milestone badges
+    // Check for streak milestone bonuses
     let streakBonusPoints = 0
     if (newStreak === 7 && currentRewards.currentStreak < 7) {
       streakBonusPoints += POINTS.streakWeek
@@ -245,16 +241,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       streakBonusPoints += POINTS.streakMonth
     }
 
-    const finalTotal = newTotal + streakBonusPoints
+    // Calculate new bonus points total (existing + milestone + streak bonuses)
+    const newBonusPoints = currentRewards.bonusPoints + bonusPointsAwarded + streakBonusPoints
+
+    // Total points for display = formula result (habits + methods) + bonus points
+    // The formula in Airtable will include bonusPoints, but we calculate here for immediate feedback
+    const displayTotal = currentRewards.totalPoints + bonusPointsAwarded + streakBonusPoints
 
     // Check for level up
-    const newLevel = calculateLevel(finalTotal)
+    const currentLevel = calculateLevel(currentRewards.totalPoints)
+    const newLevel = calculateLevel(displayTotal)
     const levelUp = newLevel > currentLevel
 
-    // Build update fields
+    // Build update fields - only update bonusPoints (totalPoints is a formula field)
     const updateFields: Record<string, unknown> = {
       [USER_FIELDS.badges]: JSON.stringify(allBadges),
-      [USER_FIELDS.totalPoints]: finalTotal
+      [USER_FIELDS.bonusPoints]: newBonusPoints
     }
 
     // Only update streak fields if it's a new day
@@ -314,8 +316,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     return sendSuccess(res, {
-      pointsAwarded: pointsAwarded + streakBonusPoints,
-      newTotal: finalTotal,
+      pointsAwarded: bonusPointsAwarded + streakBonusPoints,
+      newTotal: displayTotal,
       newBadges,
       levelUp,
       newLevel,

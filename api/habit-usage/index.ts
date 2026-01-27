@@ -165,10 +165,8 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
       console.log("[habit-usage] Streak unchanged - already active today:", today)
     }
 
-    // Update user rewards - add habit points to total
-    const newTotalPoints = currentRewards.totalPoints + pointsAwarded
+    // Update user streak fields (habit points are counted automatically by Airtable formula)
     await base(tables.users).update(body.userId, {
-      [USER_FIELDS.totalPoints]: newTotalPoints,
       [USER_FIELDS.currentStreak]: newStreak,
       [USER_FIELDS.longestStreak]: newLongestStreak,
       [USER_FIELDS.lastActiveDate]: today
