@@ -109,7 +109,9 @@ export function AIInputForm({
             </p>
           ) : (
             <div className="space-y-2">
-              {goalsData.map((goal) => {
+              {goalsData
+                .filter((goal) => goal.name !== "Goede gewoontes")
+                .map((goal) => {
                 const isSelected = state.goals.includes(goal.id)
                 return (
                   <button
