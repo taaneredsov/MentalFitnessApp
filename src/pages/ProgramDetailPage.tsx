@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { MilestoneProgress } from "@/components/rewards"
+import { FullScheduleSection } from "@/components/FullScheduleSection"
 import { getProgramStatus } from "@/types/program"
 import {
   ArrowLeft,
@@ -172,24 +173,13 @@ export function ProgramDetailPage() {
       </Card>
 
       {/* Schedule */}
-      {program.dayNames.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Schema</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="flex flex-wrap gap-2">
-              {program.dayNames.map(day => (
-                <span
-                  key={day}
-                  className="px-3 py-1 text-sm rounded-full bg-primary/10 text-primary"
-                >
-                  {day}
-                </span>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
+      {program.schedule.length > 0 && (
+        <FullScheduleSection
+          schedule={program.schedule}
+          methodDetails={program.methodDetails}
+          programId={program.id}
+          startDate={program.startDate}
+        />
       )}
 
       {/* Goals */}
