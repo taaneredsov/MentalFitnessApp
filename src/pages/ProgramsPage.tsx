@@ -130,13 +130,13 @@ export function ProgramsPage() {
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
       <div className="px-4 py-6 space-y-6">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-2xl font-bold">Programma's</h2>
-        <Button onClick={() => setShowWizard(true)}>
-          <Plus className="h-4 w-4 mr-2" />
-          Nieuw Programma
-        </Button>
-      </div>
+          <Button onClick={() => setShowWizard(true)} className="w-full sm:w-auto">
+            <Plus className="h-4 w-4 mr-2" />
+            Nieuw Programma
+          </Button>
+        </div>
 
       {!hasPrograms ? (
         <div className="text-center py-12">
@@ -173,7 +173,7 @@ export function ProgramsPage() {
 
       {/* New Program Wizard Dialog */}
       <Dialog open={showWizard} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nieuw Programma</DialogTitle>
             <DialogDescription>
@@ -189,11 +189,11 @@ export function ProgramsPage() {
             <div className="space-y-4 py-4">
               <Button
                 onClick={() => setWizardType("ai")}
-                className="w-full justify-start h-auto py-4"
+                className="w-full justify-start h-auto py-4 whitespace-normal text-left"
                 size="lg"
               >
-                <Sparkles className="mr-3 h-5 w-5" />
-                <div className="text-left">
+                <Sparkles className="mr-3 h-5 w-5 shrink-0" />
+                <div className="text-left min-w-0">
                   <div className="font-semibold">AI Programma (Aanbevolen)</div>
                   <div className="text-sm font-normal opacity-80">
                     Laat AI een gepersonaliseerd schema maken op basis van je doelen
@@ -203,10 +203,10 @@ export function ProgramsPage() {
               <Button
                 onClick={() => setWizardType("manual")}
                 variant="outline"
-                className="w-full justify-start h-auto py-4"
+                className="w-full justify-start h-auto py-4 whitespace-normal text-left"
               >
-                <Settings2 className="mr-3 h-5 w-5" />
-                <div className="text-left">
+                <Settings2 className="mr-3 h-5 w-5 shrink-0" />
+                <div className="text-left min-w-0">
                   <div className="font-semibold">Handmatig Samenstellen</div>
                   <div className="text-sm font-normal opacity-80">
                     Stel zelf je programma samen stap voor stap

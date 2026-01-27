@@ -152,22 +152,22 @@ export function HomePage() {
 
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
-      <div className="py-8 space-y-6">
-        <section className="px-4">
+      <div className="px-4 py-8 space-y-6">
+        <section>
           <h2 className="text-3xl font-bold mb-2">Hello, {firstName}!</h2>
           <p className="text-lg text-muted-foreground">
             Welkom bij je persoonlijke mentale fitness-coach.
           </p>
         </section>
 
-      <InstallPrompt />
+        <InstallPrompt />
 
-      {isLoading ? (
-        <div className="flex items-center justify-center h-32 px-4">
-          <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-        </div>
-      ) : runningProgram ? (
-        <section className="grid gap-4 px-4">
+        {isLoading ? (
+          <div className="flex items-center justify-center h-32">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : runningProgram ? (
+          <section className="grid gap-4">
           {/* Current Program Card */}
           <Card
             className="cursor-pointer hover:shadow-md transition-shadow"
@@ -315,27 +315,27 @@ export function HomePage() {
             />
           )}
         </section>
-      ) : (
-        <section className="grid gap-4 px-4">
-          <Card>
-            <CardHeader className="pb-2">
-              <CardTitle className="text-base">Geen Actief Programma</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                Je hebt momenteel geen actief programma. Bekijk je programma's
-                om te starten.
-              </p>
-            </CardContent>
-          </Card>
-        </section>
-      )}
+        ) : (
+          <section className="grid gap-4">
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-base">Geen Actief Programma</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Je hebt momenteel geen actief programma. Bekijk je programma's
+                  om te starten.
+                </p>
+              </CardContent>
+            </Card>
+          </section>
+        )}
 
-        <section className="grid gap-4 px-4">
+        <section className="grid gap-4">
           <GoodHabitsSection />
         </section>
 
-        <section className="grid gap-4 px-4">
+        <section className="grid gap-4">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Hulp & Informatie</CardTitle>
