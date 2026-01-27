@@ -11,6 +11,12 @@ services:
       - AIRTABLE_BASE_ID_FILE=/run/secrets/airtable_base_id
       - JWT_SECRET_FILE=/run/secrets/jwt_secret
       - OPENAI_API_KEY_FILE=/run/secrets/openai_api_key
+      # SMTP configuration
+      - SMTP_SERVER_FILE=/run/secrets/smtp_server
+      - SMTP_PORT_FILE=/run/secrets/smtp_port
+      - SMTP_USER_FILE=/run/secrets/smtp_user
+      - SMTP_PASSWORD_FILE=/run/secrets/smtp_password
+      - SMTP_FROM_FILE=/run/secrets/smtp_from
       # Redis configuration
       - REDIS_URL=redis://redis:6379
     networks:
@@ -40,6 +46,11 @@ services:
       - airtable_base_id
       - jwt_secret
       - openai_api_key
+      - smtp_server
+      - smtp_port
+      - smtp_user
+      - smtp_password
+      - smtp_from
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -89,6 +100,21 @@ secrets:
   openai_api_key:
     external: true
     name: mfa_openai_api_key
+  smtp_server:
+    external: true
+    name: mfa_smtp_server
+  smtp_port:
+    external: true
+    name: mfa_smtp_port
+  smtp_user:
+    external: true
+    name: mfa_smtp_user
+  smtp_password:
+    external: true
+    name: mfa_smtp_password
+  smtp_from:
+    external: true
+    name: mfa_smtp_from
 
 volumes:
   redis_data:
