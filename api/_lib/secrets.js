@@ -34,7 +34,12 @@ export function loadSecrets() {
     "AIRTABLE_ACCESS_TOKEN",
     "AIRTABLE_BASE_ID",
     "JWT_SECRET",
-    "OPENAI_API_KEY"
+    "OPENAI_API_KEY",
+    "SMTP_SERVER",
+    "SMTP_PORT",
+    "SMTP_USER",
+    "SMTP_PASSWORD",
+    "SMTP_FROM"
   ]
 
   for (const name of secretNames) {

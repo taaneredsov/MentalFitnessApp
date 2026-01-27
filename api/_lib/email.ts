@@ -1,4 +1,8 @@
 import nodemailer from "nodemailer"
+import { loadSecrets } from "./secrets.js"
+
+// Load Docker Swarm secrets (will override env vars if files exist)
+loadSecrets()
 
 // Create SMTP transporter using environment variables
 const transporter = nodemailer.createTransport({
