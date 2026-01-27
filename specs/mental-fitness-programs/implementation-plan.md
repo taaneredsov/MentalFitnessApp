@@ -10,11 +10,11 @@ Build the backend API to fetch programs data from Airtable.
 
 ### Tasks
 
-- [ ] Add PROGRAM_FIELDS, GOAL_FIELDS, METHOD_FIELDS, DAY_FIELDS to field-mappings.js
-- [ ] Create `api/programs/index.ts` - GET user's programs
-- [ ] Create `api/programs/[id].ts` - GET single program with expanded relations
-- [ ] Add `api.programs.*` namespace to frontend API client
-- [ ] Create `src/types/program.ts` with TypeScript interfaces
+- [x] Add PROGRAM_FIELDS, GOAL_FIELDS, METHOD_FIELDS, DAY_FIELDS to field-mappings.js
+- [x] Create `api/programs/index.ts` - GET user's programs
+- [x] Create `api/programs/[id].ts` - GET single program with expanded relations
+- [x] Add `api.programs.*` namespace to frontend API client
+- [x] Create `src/types/program.ts` with TypeScript interfaces
 
 ### Technical Details
 
@@ -149,12 +149,12 @@ Transform Tab1 into a Programs listing page.
 
 ### Tasks
 
-- [ ] Rename Tab1 to "Programs" in BottomNav.tsx
-- [ ] Create `src/components/ProgramCard.tsx` component
-- [ ] Create `src/pages/ProgramsPage.tsx` with grouped sections
-- [ ] Update App.tsx route from /tab1 to /programs
-- [ ] Update pages/index.ts exports
-- [ ] Delete Tab1Page.tsx
+- [x] Rename Tab1 to "Programs" in BottomNav.tsx
+- [x] Create `src/components/ProgramCard.tsx` component
+- [x] Create `src/pages/ProgramsPage.tsx` with grouped sections
+- [x] Update App.tsx route from /tab1 to /programs
+- [x] Update pages/index.ts exports
+- [x] Delete Tab1Page.tsx
 
 ### Technical Details
 
@@ -211,11 +211,11 @@ Create a detail view for individual programs.
 
 ### Tasks
 
-- [ ] Create `src/pages/ProgramDetailPage.tsx`
-- [ ] Add `/programs/:id` route to App.tsx
-- [ ] Fetch and display program with expanded relations
-- [ ] Show schedule, goals, and methods sections
-- [ ] Add back navigation
+- [x] Create `src/pages/ProgramDetailPage.tsx`
+- [x] Add `/programs/:id` route to App.tsx
+- [x] Fetch and display program with expanded relations
+- [x] Show schedule, goals, and methods sections
+- [x] Add back navigation
 
 ### Technical Details
 
@@ -249,11 +249,11 @@ Add running program and upcoming activity to Home page.
 
 ### Tasks
 
-- [ ] Add running program card to HomePage
-- [ ] Add upcoming activity section
-- [ ] Calculate next scheduled day
-- [ ] Show methods for next session
-- [ ] Handle no running program state
+- [x] Add running program card to HomePage
+- [x] Add upcoming activity section
+- [x] Calculate next scheduled day
+- [x] Show methods for next session
+- [x] Handle no running program state
 
 ### Technical Details
 

@@ -1,11 +1,11 @@
 {
   "version": "1.0",
-  "lastUpdated": "2026-01-13T12:00:00Z",
+  "lastUpdated": "2026-01-16T15:30:00Z",
   "bullets": [
     {
       "id": "airtable-linked-filter-1",
       "text": "Airtable linked record fields cannot be filtered by record ID using filterByFormula with ARRAYJOIN - it returns display values (primary field), not record IDs. Fetch all records and filter client-side by checking if the linked field array includes the target record ID.",
-      "helpful": 1,
+      "helpful": 2,
       "harmful": 0,
       "tags": ["airtable", "api", "gotcha", "filtering"],
       "created": "2026-01-13T12:00:00Z"
@@ -17,6 +17,14 @@
       "harmful": 0,
       "tags": ["airtable", "api", "gotcha", "date"],
       "created": "2026-01-13T12:00:00Z"
+    },
+    {
+      "id": "express-vercel-route-registration-3",
+      "text": "For Express server.ts serving Vercel-style API handlers, each route must be explicitly registered with app.get/post(path, handler). Unlike Vercel's file-based routing, adding new API files in api/ requires adding corresponding route registrations in server.ts.",
+      "helpful": 1,
+      "harmful": 0,
+      "tags": ["express", "vercel", "architecture"],
+      "created": "2026-01-16T15:30:00Z"
     }
   ]
 }

@@ -10,10 +10,10 @@ Create a dedicated API endpoint to fetch good habit methods.
 
 ### Tasks
 
-- [ ] Create `GET /api/methods/habits` endpoint
-- [ ] Filter methods by linked goal "Goede gewoontes"
-- [ ] Return only needed fields (id, name, description)
-- [ ] Add route to server.ts for local development
+- [x] Create `GET /api/methods/habits` endpoint
+- [x] Filter methods by linked goal "Goede gewoontes"
+- [x] Return only needed fields (id, name, description)
+- [x] Add route to server.ts for local development
 
 ### Technical Details
 
@@ -91,10 +91,10 @@ Add the Good Habits section to HomePage.
 
 ### Tasks
 
-- [ ] Add `useGoodHabits` query hook in `src/hooks/queries.ts`
-- [ ] Add API client method `methods.getHabits()`
-- [ ] Create `GoodHabitsSection` component
-- [ ] Integrate section into HomePage
+- [x] Add `useGoodHabits` query hook in `src/hooks/queries.ts`
+- [x] Add API client method `methods.getHabits()`
+- [x] Create `GoodHabitsSection` component
+- [x] Integrate section into HomePage
 
 ### Technical Details
 

@@ -9,20 +9,23 @@ import {
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
-import { Loader2 } from "lucide-react"
+import { Loader2, Star } from "lucide-react"
+import { POINTS } from "@/types/rewards"
 
 interface FeedbackModalProps {
   isOpen: boolean
   methodName: string
   onSubmit: (remark: string) => Promise<void>
   onSkip: () => void
+  pointsAwarded?: number
 }
 
 export function FeedbackModal({
   isOpen,
   methodName,
   onSubmit,
-  onSkip
+  onSkip,
+  pointsAwarded
 }: FeedbackModalProps) {
   const [remark, setRemark] = useState("")
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -42,11 +45,19 @@ export function FeedbackModal({
     onSkip()
   }
 
+  const points = pointsAwarded ?? POINTS.method
+
   return (
     <Dialog open={isOpen}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Hoe was je sessie?</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            Hoe was je sessie?
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-primary text-sm font-normal">
+              <Star className="h-3.5 w-3.5" />
+              +{points}
+            </span>
+          </DialogTitle>
           <DialogDescription>
             Je hebt "{methodName}" afgerond. Deel je ervaring (optioneel).
           </DialogDescription>

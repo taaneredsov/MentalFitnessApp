@@ -8,9 +8,11 @@ export interface Program {
   frequency: number
   goals: string[]
   methods: string[]
-  sessionTime: number
   notes?: string
   methodUsageCount?: number  // Count of linked Methodegebruik records
+  milestonesAwarded?: string[]  // Milestones already awarded (e.g., ["25", "50"])
+  totalMethods?: number  // Total methods scheduled in program
+  completedMethods?: number  // Methods completed so far
 }
 
 export interface Programmaplanning {
@@ -37,6 +39,7 @@ export interface ProgramDetail extends Program {
   completedSessions: number
   totalMethods: number
   completedMethods: number
+  milestonesAwarded: string[]  // Milestones already awarded (e.g., ["25", "50"])
 }
 
 export interface Goal {

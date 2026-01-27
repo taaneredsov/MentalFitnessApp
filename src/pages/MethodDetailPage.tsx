@@ -3,13 +3,16 @@ import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { useAuth } from "@/contexts/AuthContext"
-import { useMethod } from "@/hooks/queries"
+import { useMethod, useProgram, useAwardPoints } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
+import { checkProgramMilestones } from "@/lib/rewards-utils"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FeedbackModal } from "@/components/FeedbackModal"
+import { RewardToast } from "@/components/rewards"
 import { useMediaProgress } from "@/hooks/useMediaProgress"
 import type { MediaItem } from "@/types/program"
+import type { AwardResponse } from "@/types/rewards"
 import { Loader2, ArrowLeft, Clock, Volume2, Video, CheckCircle } from "lucide-react"
 
 interface MediaPlayerProps {
@@ -133,9 +136,16 @@ export function MethodDetailPage() {
   const { data: method, isLoading, error: methodError } = useMethod(id || "")
   const error = methodError ? "Kon methode niet laden" : null
 
+  // Use React Query for program data (to check milestones)
+  const { data: programData } = useProgram(programId || "")
+
   const [completedMediaIds, setCompletedMediaIds] = useState<Set<string>>(new Set())
   const [showFeedback, setShowFeedback] = useState(false)
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
+  const [rewardToast, setRewardToast] = useState<AwardResponse | null>(null)
+  const [milestoneToast, setMilestoneToast] = useState<AwardResponse | null>(null)
+
+  const awardPointsMutation = useAwardPoints()
 
   const handleMediaComplete = useCallback((mediaId: string) => {
     setCompletedMediaIds(prev => {
@@ -174,6 +184,48 @@ export function MethodDetailPage() {
       )
       console.log("Method usage created:", result)
 
+      // Award points for completing the method
+      try {
+        const awardResult = await awardPointsMutation.mutateAsync({
+          data: { activityType: "method", activityId: method.id },
+          accessToken
+        })
+        setRewardToast(awardResult)
+
+        // Check for program milestone after method completion
+        if (programId && programData) {
+          const newCompletedCount = (programData.completedMethods || 0) + 1
+          const milestone = checkProgramMilestones(
+            newCompletedCount,
+            programData.totalMethods || 0,
+            programData.milestonesAwarded || []
+          )
+
+          if (milestone) {
+            // Award milestone points
+            try {
+              const milestoneResult = await awardPointsMutation.mutateAsync({
+                data: {
+                  activityType: "programMilestone",
+                  programId: programId,
+                  milestone: milestone.milestone
+                },
+                accessToken
+              })
+              // Show milestone toast after method toast
+              setTimeout(() => {
+                setMilestoneToast(milestoneResult)
+              }, 3500)  // Wait for method toast to close
+            } catch (milestoneErr) {
+              console.error("Failed to award milestone:", milestoneErr)
+            }
+          }
+        }
+      } catch (awardErr) {
+        console.error("Failed to award points:", awardErr)
+        // Non-critical - don't block the flow
+      }
+
       // Invalidate queries so homepage shows updated progress
       if (programId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.methodUsage(programId) })
@@ -209,6 +261,48 @@ export function MethodDetailPage() {
         accessToken
       )
       console.log("Method usage created:", result)
+
+      // Award points for completing the method
+      try {
+        const awardResult = await awardPointsMutation.mutateAsync({
+          data: { activityType: "method", activityId: method.id },
+          accessToken
+        })
+        setRewardToast(awardResult)
+
+        // Check for program milestone after method completion
+        if (programId && programData) {
+          const newCompletedCount = (programData.completedMethods || 0) + 1
+          const milestone = checkProgramMilestones(
+            newCompletedCount,
+            programData.totalMethods || 0,
+            programData.milestonesAwarded || []
+          )
+
+          if (milestone) {
+            // Award milestone points
+            try {
+              const milestoneResult = await awardPointsMutation.mutateAsync({
+                data: {
+                  activityType: "programMilestone",
+                  programId: programId,
+                  milestone: milestone.milestone
+                },
+                accessToken
+              })
+              // Show milestone toast after method toast
+              setTimeout(() => {
+                setMilestoneToast(milestoneResult)
+              }, 3500)  // Wait for method toast to close
+            } catch (milestoneErr) {
+              console.error("Failed to award milestone:", milestoneErr)
+            }
+          }
+        }
+      } catch (awardErr) {
+        console.error("Failed to award points:", awardErr)
+        // Non-critical - don't block the flow
+      }
 
       // Invalidate queries so homepage shows updated progress
       if (programId) {
@@ -300,6 +394,29 @@ export function MethodDetailPage() {
         onSubmit={handleSubmitFeedback}
         onSkip={handleSkipFeedback}
       />
+
+      {/* Reward Toast */}
+      {rewardToast && (
+        <RewardToast
+          pointsAwarded={rewardToast.pointsAwarded}
+          newBadges={rewardToast.newBadges}
+          levelUp={rewardToast.levelUp}
+          newLevel={rewardToast.newLevel}
+          onClose={() => setRewardToast(null)}
+        />
+      )}
+
+      {/* Milestone Toast */}
+      {milestoneToast && (
+        <RewardToast
+          pointsAwarded={milestoneToast.pointsAwarded}
+          newBadges={milestoneToast.newBadges}
+          levelUp={milestoneToast.levelUp}
+          newLevel={milestoneToast.newLevel}
+          milestone={milestoneToast.milestone}
+          onClose={() => setMilestoneToast(null)}
+        />
+      )}
     </div>
   )
 }

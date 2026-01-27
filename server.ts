@@ -71,12 +71,18 @@ async function setupRoutes() {
   const { default: refreshHandler } = await import("./api/auth/refresh.js")
   const { default: meHandler } = await import("./api/auth/me.js")
   const { default: setPasswordHandler } = await import("./api/auth/set-password.js")
+  const { default: magicLinkHandler } = await import("./api/auth/magic-link.js")
+  const { default: verifyTokenHandler } = await import("./api/auth/verify.js")
+  const { default: verifyCodeHandler } = await import("./api/auth/verify-code.js")
 
   app.post("/api/auth/login", wrapVercelHandler(loginHandler))
   app.post("/api/auth/logout", wrapVercelHandler(logoutHandler))
   app.post("/api/auth/refresh", wrapVercelHandler(refreshHandler))
   app.get("/api/auth/me", wrapVercelHandler(meHandler))
   app.post("/api/auth/set-password", wrapVercelHandler(setPasswordHandler))
+  app.post("/api/auth/magic-link", wrapVercelHandler(magicLinkHandler))
+  app.get("/api/auth/verify", wrapVercelHandler(verifyTokenHandler))
+  app.post("/api/auth/verify-code", wrapVercelHandler(verifyCodeHandler))
 
   // Users routes
   const { default: usersHandler } = await import("./api/users/index.js")

@@ -10,12 +10,12 @@ Create JWT handling utilities and authentication API endpoints.
 
 ### Tasks
 
-- [ ] Install jose library for JWT handling
-- [ ] Create JWT utility functions (sign, verify, decode)
-- [ ] Create POST /api/auth/login endpoint
-- [ ] Create POST /api/auth/logout endpoint
-- [ ] Create POST /api/auth/refresh endpoint
-- [ ] Create GET /api/auth/me endpoint
+- [x] Install jose library for JWT handling
+- [x] Create JWT utility functions (sign, verify, decode)
+- [x] Create POST /api/auth/login endpoint
+- [x] Create POST /api/auth/logout endpoint
+- [x] Create POST /api/auth/refresh endpoint
+- [x] Create GET /api/auth/me endpoint
 
 ### Technical Details
 
@@ -275,11 +275,11 @@ Create auth context for state management across the app.
 
 ### Tasks
 
-- [ ] Create AuthContext with user state and methods
-- [ ] Create AuthProvider component
-- [ ] Create useAuth hook
-- [ ] Add token storage and auto-refresh logic
-- [ ] Add auth initialization on app load
+- [x] Create AuthContext with user state and methods
+- [x] Create AuthProvider component
+- [x] Create useAuth hook
+- [x] Add token storage and auto-refresh logic
+- [x] Add auth initialization on app load
 
 ### Technical Details
 
@@ -429,12 +429,12 @@ Create protected route component and login page UI.
 
 ### Tasks
 
-- [ ] Install react-router-dom for routing
-- [ ] Create ProtectedRoute component
-- [ ] Create login page with form
-- [ ] Add form validation with react-hook-form + zod
-- [ ] Style login page for mobile-first design
-- [ ] Add loading and error states
+- [x] Install react-router-dom for routing
+- [x] Create ProtectedRoute component
+- [x] Create login page with form
+- [x] Add form validation with react-hook-form + zod
+- [x] Style login page for mobile-first design
+- [x] Add loading and error states
 
 ### Technical Details
 

@@ -55,12 +55,36 @@ export interface LoginResponse {
   email?: string
 }
 
+export interface MagicLinkResponse {
+  message: string
+}
+
+export interface VerifyResponse {
+  user: User
+  accessToken: string
+}
+
 export const api = {
   auth: {
     setPassword: (userId: string, email: string, password: string) =>
       request<SetPasswordResponse>("/auth/set-password", {
         method: "POST",
         body: JSON.stringify({ userId, email, password })
+      }),
+
+    requestMagicLink: (email: string) =>
+      request<MagicLinkResponse>("/auth/magic-link", {
+        method: "POST",
+        body: JSON.stringify({ email })
+      }),
+
+    verifyToken: (token: string) =>
+      request<VerifyResponse>(`/auth/verify?token=${encodeURIComponent(token)}`),
+
+    verifyCode: (email: string, code: string) =>
+      request<VerifyResponse>("/auth/verify-code", {
+        method: "POST",
+        body: JSON.stringify({ email, code })
       })
   },
 

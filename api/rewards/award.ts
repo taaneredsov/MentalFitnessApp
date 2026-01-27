@@ -215,8 +215,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Store old level for comparison later
-    const oldLevel = currentRewards.level
+    // Calculate level based on actual stored points (totalPoints is a formula field)
+    // We don't calculate levelUp because points from habits/milestones don't persist to the formula
+    // The formula only counts method usage, so level changes only happen when methods are completed
+    const currentLevel = calculateLevel(currentRewards.totalPoints)
 
     // Build milestones list for badge checks
     const milestonesReached: number[] = []
@@ -245,8 +247,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       streakBonusPoints += POINTS.streakMonth
     }
 
+    // Note: finalTotal is only used for display, not for actual level calculation
+    // since totalPoints is a formula field in Airtable that only counts method usage
     const finalTotal = newTotal + streakBonusPoints
-    const finalLevel = calculateLevel(finalTotal)
 
     // Build update fields (totalPoints is now a formula field in Airtable)
     const updateFields: Record<string, unknown> = {
@@ -308,8 +311,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       pointsAwarded: pointsAwarded + streakBonusPoints,
       newTotal: finalTotal,
       newBadges,
-      levelUp: finalLevel > oldLevel,
-      newLevel: finalLevel,
+      // Level is based on totalPoints formula field which only counts method usage
+      // Non-method activities (milestones, habits, streaks) don't affect the formula
+      // so we never claim levelUp for those - the level display comes from Airtable
+      levelUp: false,
+      newLevel: currentLevel,
       currentStreak: streakResult.isNewDay ? newStreak : currentRewards.currentStreak,
       longestStreak: newLongestStreak,
       // Include milestone info if this was a milestone award

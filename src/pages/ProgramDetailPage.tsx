@@ -1,8 +1,12 @@
 import { useParams, useNavigate } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import { useProgram, useMethodUsage } from "@/hooks/queries"
+import { queryKeys } from "@/lib/query-keys"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { getProgramStatus, parseWeeksFromDuration, getActivityProgress } from "@/types/program"
+import { PullToRefreshWrapper } from "@/components/PullToRefresh"
+import { MilestoneProgress } from "@/components/rewards"
+import { getProgramStatus } from "@/types/program"
 import {
   ArrowLeft,
   Calendar,
@@ -47,6 +51,7 @@ function StatusBadge({ status }: { status: string }) {
 export function ProgramDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
 
   // Use React Query for data (cached)
   const { data: program, isLoading: programLoading, error: programError } = useProgram(id || "")
@@ -54,6 +59,15 @@ export function ProgramDetailPage() {
 
   const isLoading = programLoading
   const error = programError ? "Kon programma niet laden" : null
+
+  const handleRefresh = async () => {
+    if (id) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: queryKeys.program(id) }),
+        queryClient.invalidateQueries({ queryKey: queryKeys.methodUsage(id) })
+      ])
+    }
+  }
 
   if (isLoading) {
     return (
@@ -78,8 +92,9 @@ export function ProgramDetailPage() {
   const status = getProgramStatus(program)
 
   return (
-    <div className="px-4 py-6 space-y-6">
-      <div className="flex items-center gap-4">
+    <PullToRefreshWrapper onRefresh={handleRefresh}>
+      <div className="px-4 py-6 space-y-6">
+        <div className="flex items-center gap-4">
         <Button variant="ghost" size="icon" onClick={() => navigate("/programs")}>
           <ArrowLeft className="h-5 w-5" />
         </Button>
@@ -121,41 +136,38 @@ export function ProgramDetailPage() {
             </div>
           </div>
 
-          {program.sessionTime > 0 && (
-            <div className="flex items-center gap-3">
-              <Clock className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Tijd per sessie</p>
-                <p className="font-medium">{program.sessionTime} minuten</p>
+          {(() => {
+            const durations = program.methodDetails
+              .map(m => m.duration)
+              .filter(d => d > 0)
+            if (durations.length === 0) return null
+            const minDuration = Math.min(...durations)
+            const maxDuration = Math.max(...durations)
+            return (
+              <div className="flex items-center gap-3">
+                <Clock className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Tijd per sessie</p>
+                  <p className="font-medium">
+                    {minDuration === maxDuration
+                      ? `${minDuration} minuten`
+                      : `${minDuration} - ${maxDuration} minuten`}
+                  </p>
+                </div>
               </div>
+            )
+          })()}
+
+          {/* Milestone Progress */}
+          {program.totalMethods > 0 && (
+            <div className="pt-2 border-t">
+              <MilestoneProgress
+                completedMethods={program.completedMethods}
+                totalMethods={program.totalMethods}
+                milestonesAwarded={program.milestonesAwarded || []}
+              />
             </div>
           )}
-
-          {/* Activity Progress */}
-          {(() => {
-            const weeks = parseWeeksFromDuration(program.duration)
-            const totalActivities = weeks * program.frequency
-            const completedActivities = program.methodUsageCount || 0
-            const progress = getActivityProgress(program)
-
-            if (totalActivities > 0) {
-              return (
-                <div className="space-y-2 pt-2 border-t">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Voortgang</span>
-                    <span className="font-medium">{completedActivities} van {totalActivities} activiteiten</span>
-                  </div>
-                  <div className="h-2 bg-muted rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-primary rounded-full transition-all"
-                      style={{ width: `${progress}%` }}
-                    />
-                  </div>
-                </div>
-              )
-            }
-            return null
-          })()}
         </CardContent>
       </Card>
 
@@ -298,6 +310,7 @@ export function ProgramDetailPage() {
           </CardContent>
         </Card>
       )}
-    </div>
+      </div>
+    </PullToRefreshWrapper>
   )
 }

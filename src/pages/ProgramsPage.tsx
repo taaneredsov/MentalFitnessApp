@@ -1,8 +1,11 @@
 import { useState } from "react"
 import { useNavigate } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/AuthContext"
 import { usePrograms } from "@/hooks/queries"
+import { queryKeys } from "@/lib/query-keys"
 import { ProgramCard } from "@/components/ProgramCard"
+import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { Button } from "@/components/ui/button"
 import {
   Dialog,
@@ -71,12 +74,19 @@ function ProgramSection({
 export function ProgramsPage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const [showWizard, setShowWizard] = useState(false)
   const [wizardType, setWizardType] = useState<"manual" | "ai" | null>(null)
 
   // Use React Query for programs data (cached)
   const { data: programs = [], isLoading, error: programsError } = usePrograms(user?.id)
   const error = programsError ? "Kon programma's niet laden" : null
+
+  const handleRefresh = async () => {
+    if (user?.id) {
+      await queryClient.invalidateQueries({ queryKey: queryKeys.programs(user.id) })
+    }
+  }
 
   const handleProgramClick = (id: string) => {
     navigate(`/programs/${id}`)
@@ -118,9 +128,10 @@ export function ProgramsPage() {
     grouped.finished.length > 0
 
   return (
-    <div className="px-4 py-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h2 className="text-2xl font-bold">Programma's</h2>
+    <PullToRefreshWrapper onRefresh={handleRefresh}>
+      <div className="px-4 py-6 space-y-6">
+        <div className="flex items-center justify-between">
+          <h2 className="text-2xl font-bold">Programma's</h2>
         <Button onClick={() => setShowWizard(true)}>
           <Plus className="h-4 w-4 mr-2" />
           Nieuw Programma
@@ -218,5 +229,6 @@ export function ProgramsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </PullToRefreshWrapper>
   )
 }

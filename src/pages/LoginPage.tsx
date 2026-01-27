@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
-import { ArrowLeft } from "lucide-react"
+import { ArrowLeft, Mail } from "lucide-react"
 
 const emailSchema = z.object({
   email: z.string().email("Voer een geldig e-mailadres in")
@@ -127,38 +127,52 @@ export function LoginPage() {
         </CardHeader>
         <CardContent>
           {step === "email" ? (
-            <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-4">
-              {error && (
-                <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
-                  {error}
-                </div>
-              )}
-
-              <div className="space-y-2">
-                <Label htmlFor="email">E-mailadres</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="jouw@email.com"
-                  autoComplete="email"
-                  autoFocus
-                  {...emailForm.register("email")}
-                />
-                {emailForm.formState.errors.email && (
-                  <p className="text-sm text-red-500">
-                    {emailForm.formState.errors.email.message}
-                  </p>
+            <div className="space-y-6">
+              <form onSubmit={emailForm.handleSubmit(onEmailSubmit)} className="space-y-4">
+                {error && (
+                  <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
+                    {error}
+                  </div>
                 )}
-              </div>
 
-              <Button
-                type="submit"
-                className="w-full"
-                disabled={isCheckingEmail}
-              >
-                {isCheckingEmail ? "Controleren..." : "Doorgaan"}
-              </Button>
-            </form>
+                <div className="space-y-2">
+                  <Label htmlFor="email">E-mailadres</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    placeholder="jouw@email.com"
+                    autoComplete="email"
+                    autoFocus
+                    {...emailForm.register("email")}
+                  />
+                  {emailForm.formState.errors.email && (
+                    <p className="text-sm text-red-500">
+                      {emailForm.formState.errors.email.message}
+                    </p>
+                  )}
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  disabled={isCheckingEmail}
+                >
+                  {isCheckingEmail ? "Controleren..." : "Doorgaan"}
+                </Button>
+              </form>
+
+              <div className="pt-2 border-t">
+                <Button
+                  type="button"
+                  variant="ghost"
+                  onClick={() => navigate("/login")}
+                  className="w-full text-muted-foreground"
+                >
+                  <Mail className="h-4 w-4 mr-2" />
+                  Inloggen met email link
+                </Button>
+              </div>
+            </div>
           ) : (
             <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-4">
               {error && (

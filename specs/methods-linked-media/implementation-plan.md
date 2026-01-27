@@ -10,9 +10,9 @@ Add field mappings for the Media table and update the Methods field to reference
 
 ### Tasks
 
-- [ ] Add MEDIA_FIELDS constant with field IDs from Media table
-- [ ] Update METHOD_FIELDS.media to use correct linked field ID
-- [ ] Create transformMedia function to transform media records
+- [x] Add MEDIA_FIELDS constant with field IDs from Media table
+- [x] Update METHOD_FIELDS.media to use correct linked field ID
+- [x] Create transformMedia function to transform media records
 
 ### Technical Details
 
@@ -54,8 +54,8 @@ Modify the methods API to fetch linked media records from the Media table.
 
 ### Tasks
 
-- [ ] Update `api/methods/[id].ts` to fetch linked media records from Media table
-- [ ] Update transformMethod to return media as linked record IDs
+- [x] Update `api/methods/[id].ts` to fetch linked media records from Media table
+- [x] Update transformMethod to return media as linked record IDs
 
 ### Technical Details
 
@@ -112,9 +112,9 @@ Update the MethodDetail type and simplify MethodDetailPage to show only required
 
 ### Tasks
 
-- [ ] Update MethodDetail interface to include mediaDetails
-- [ ] Update MediaItem interface for linked media structure
-- [ ] Simplify MethodDetailPage to show: name, duration, description, media players
+- [x] Update MethodDetail interface to include mediaDetails
+- [x] Update MediaItem interface for linked media structure
+- [x] Simplify MethodDetailPage to show: name, duration, description, media players
 
 ### Technical Details
 

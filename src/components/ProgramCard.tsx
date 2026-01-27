@@ -1,6 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card"
 import type { Program, ProgramStatus } from "@/types/program"
-import { getActivityProgress } from "@/types/program"
 import { Calendar, Clock, Target } from "lucide-react"
 
 interface ProgramCardProps {
@@ -41,7 +40,10 @@ function formatDate(dateStr: string): string {
 }
 
 export function ProgramCard({ program, status, onClick }: ProgramCardProps) {
-  const progress = status === "running" ? getActivityProgress(program) : null
+  // Calculate progress from totalMethods and completedMethods (method-based tracking)
+  const progress = status === "running" && program.totalMethods && program.totalMethods > 0
+    ? Math.min(100, Math.round((program.completedMethods || 0) / program.totalMethods * 100))
+    : null
 
   return (
     <Card
@@ -67,12 +69,27 @@ export function ProgramCard({ program, status, onClick }: ProgramCardProps) {
             <Target className="h-4 w-4" />
             <span>{program.frequency}x per week</span>
           </div>
-          {program.sessionTime > 0 && (
-            <div className="flex items-center gap-1">
-              <Clock className="h-4 w-4" />
-              <span>{program.sessionTime} min</span>
-            </div>
-          )}
+          {(() => {
+            // methodDetails may not be present in list view
+            const methodDetails = (program as any).methodDetails
+            if (!methodDetails || methodDetails.length === 0) return null
+            const durations = methodDetails
+              .map((m: any) => m.duration)
+              .filter((d: number) => d > 0)
+            if (durations.length === 0) return null
+            const minDuration = Math.min(...durations)
+            const maxDuration = Math.max(...durations)
+            return (
+              <div className="flex items-center gap-1">
+                <Clock className="h-4 w-4" />
+                <span>
+                  {minDuration === maxDuration
+                    ? `${minDuration} min`
+                    : `${minDuration}-${maxDuration} min`}
+                </span>
+              </div>
+            )
+          })()}
         </div>
 
         {progress !== null && (

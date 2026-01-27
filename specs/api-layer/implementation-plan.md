@@ -10,10 +10,10 @@ Configure the Airtable SDK and create reusable client utilities.
 
 ### Tasks
 
-- [ ] Install Airtable SDK and dependencies
-- [ ] Create Airtable client configuration
-- [ ] Create TypeScript types for User table
-- [ ] Build generic CRUD helper functions
+- [x] Install Airtable SDK and dependencies
+- [x] Create Airtable client configuration
+- [x] Create TypeScript types for User table
+- [x] Build generic CRUD helper functions
 
 ### Technical Details
 
@@ -135,10 +135,10 @@ Create serverless API endpoints for user operations.
 
 ### Tasks
 
-- [ ] Create GET /api/users/[email] endpoint (lookup by email)
-- [ ] Create POST /api/users endpoint (create user with password)
-- [ ] Create PATCH /api/users/[id] endpoint (update user)
-- [ ] Add password hashing utility
+- [x] Create GET /api/users/[email] endpoint (lookup by email)
+- [x] Create POST /api/users endpoint (create user with password)
+- [x] Create PATCH /api/users/[id] endpoint (update user)
+- [x] Add password hashing utility
 
 ### Technical Details
 
@@ -313,9 +313,9 @@ Create a typed API client for use in React components.
 
 ### Tasks
 
-- [ ] Create fetch wrapper with error handling
-- [ ] Create typed API client functions for user operations
-- [ ] Add response type definitions
+- [x] Create fetch wrapper with error handling
+- [x] Create typed API client functions for user operations
+- [x] Add response type definitions
 
 ### Technical Details
 

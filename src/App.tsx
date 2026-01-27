@@ -3,6 +3,9 @@ import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { AppLayout } from "@/components/AppLayout"
 import { DebugPanel } from "@/components/DebugPanel"
 import { LoginPage } from "@/pages/LoginPage"
+import { MagicLinkPage } from "@/pages/MagicLinkPage"
+import { VerifyCodePage } from "@/pages/VerifyCodePage"
+import { VerifyTokenPage } from "@/pages/VerifyTokenPage"
 import { FirstTimeUserPage } from "@/pages/FirstTimeUserPage"
 import { SetPasswordPage } from "@/pages/SetPasswordPage"
 import { HomePage } from "@/pages/HomePage"
@@ -20,7 +23,10 @@ function App() {
     <>
       {isDebugMode && <DebugPanel />}
       <Routes>
-      <Route path="/login" element={<LoginPage />} />
+      <Route path="/login" element={<MagicLinkPage />} />
+      <Route path="/auth/code" element={<VerifyCodePage />} />
+      <Route path="/auth/verify" element={<VerifyTokenPage />} />
+      <Route path="/login/password" element={<LoginPage />} />
       <Route path="/first-time" element={<FirstTimeUserPage />} />
       <Route path="/set-password" element={<SetPasswordPage />} />
       <Route

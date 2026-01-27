@@ -86,16 +86,13 @@ export function FullScheduleSection({
 
   const totalSessions = schedule.length
 
-  const handleSessionClick = (session: Programmaplanning) => {
-    // Navigate to first method of the session
-    if (session.methodIds.length > 0) {
-      navigate(`/methods/${session.methodIds[0]}`, {
-        state: {
-          programmaplanningId: session.id,
-          programId
-        }
-      })
-    }
+  const handleMethodClick = (methodId: string, session: Programmaplanning) => {
+    navigate(`/methods/${methodId}`, {
+      state: {
+        programmaplanningId: session.id,
+        programId
+      }
+    })
   }
 
   return (
@@ -148,9 +145,7 @@ export function FullScheduleSection({
                         flex items-start gap-3 p-3 rounded-lg transition-colors
                         ${isPast ? "bg-muted/30 opacity-60" : "bg-muted/50"}
                         ${isToday ? "ring-2 ring-primary ring-offset-2" : ""}
-                        ${!isPast ? "cursor-pointer hover:bg-muted" : ""}
                       `}
-                      onClick={() => !isPast && handleSessionClick(session)}
                     >
                       {/* Completion status */}
                       <div className="mt-0.5">
@@ -188,13 +183,16 @@ export function FullScheduleSection({
                             {methods.map(m => {
                               const isMethodCompleted = session.completedMethodIds?.includes(m.id) ?? false
                               return (
-                                <span
+                                <button
                                   key={m.id}
-                                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
+                                  type="button"
+                                  onClick={() => !isPast && handleMethodClick(m.id, session)}
+                                  disabled={isPast}
+                                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
                                     isMethodCompleted
                                       ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                                       : "bg-muted text-muted-foreground"
-                                  }`}
+                                  } ${!isPast ? "cursor-pointer hover:bg-primary/20 hover:text-primary" : ""}`}
                                 >
                                   {isMethodCompleted ? (
                                     <CheckCircle className="h-3 w-3" />
@@ -202,7 +200,7 @@ export function FullScheduleSection({
                                     <Circle className="h-3 w-3" />
                                   )}
                                   {m.name}
-                                </span>
+                                </button>
                               )
                             })}
                           </div>

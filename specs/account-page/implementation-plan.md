@@ -10,9 +10,9 @@ Add an API endpoint to fetch company names by their Airtable record IDs.
 
 ### Tasks
 
-- [ ] Add company table configuration to Airtable client
-- [ ] Create GET /api/companies/lookup endpoint
-- [ ] Add company lookup function to frontend API client
+- [x] Add company table configuration to Airtable client
+- [x] Create GET /api/companies/lookup endpoint
+- [x] Add company lookup function to frontend API client
 
 ### Technical Details
 
@@ -46,7 +46,7 @@ Update the bottom navigation to show "Account" instead of "Tab 3".
 
 ### Tasks
 
-- [ ] Update BottomNav tab label from "Tab 3" to "Account"
+- [x] Update BottomNav tab label from "Tab 3" to "Account"
 
 ### Technical Details
 
@@ -71,11 +71,11 @@ Build the Account page component with user details display.
 
 ### Tasks
 
-- [ ] Create AccountPage component with user info display
-- [ ] Add company name fetching with useEffect
-- [ ] Add loading state for company lookup
-- [ ] Include logout button
-- [ ] Remove old Tab3Page component
+- [x] Create AccountPage component with user info display
+- [x] Add company name fetching with useEffect
+- [x] Add loading state for company lookup
+- [x] Include logout button
+- [x] Remove old Tab3Page component
 
 ### Technical Details
 

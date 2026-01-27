@@ -68,7 +68,11 @@ export const USER_FIELDS = {
   longestStreak: "fldUI14lfcoJAI329",    // Langste Streak (Number)
   lastActiveDate: "fldwl4wC7pT4hKZVN",   // Laatste Actieve Dag (Date)
   badges: "fldMbIUw4uzjNKYy9",           // Badges (Long text - JSON array)
-  level: "fldBp9BHyhbiGxK8V"             // Niveau (Number)
+  level: "fldBp9BHyhbiGxK8V",            // Niveau (Number)
+  // Magic link fields
+  magicLinkToken: "fldjMwmUXqn0AmmXB",   // Magic Link Token (Single line text)
+  magicLinkCode: "fldQxk69kS7coP4Ih",    // Magic Link Code (Single line text)
+  magicLinkExpiry: "fld44oMkQTlsuLxVq"   // Magic Link Expiry (Single line text - ISO timestamp)
 }
 
 // Company table field IDs (Bedrijven) - use for reading/writing
@@ -93,7 +97,6 @@ export const PROGRAM_FIELDS = {
   frequency: "fldIGX4ZfG9LyYgMt",       // Frequentie per week (Count)
   goals: "fldo1Lc26dqEkUkwU",           // Doelstellingen (Link)
   methods: "fldvcpSF78ATEk12U",         // Mentale methode (Link)
-  sessionTime: "fldEWZ3BpI7ueG9ai",     // Tijd per sessie (Rollup)
   notes: "fldAUf1ENHtF8NRPl",           // Notities
   methodUsage: "fldXNUYtU4KG84ZMX",     // Methodegebruik (Link)
   milestonesAwarded: "fldQu0mHYeNj4mury" // Behaalde Mijlpalen (Long text - JSON array)
@@ -205,7 +208,11 @@ export const FIELD_NAMES = {
     longestStreak: "Langste Streak",
     lastActiveDate: "Laatste Actieve Dag",
     badges: "Badges",
-    level: "Niveau"
+    level: "Niveau",
+    // Magic link fields
+    magicLinkToken: "Magic Link Token",
+    magicLinkCode: "Magic Link Code",
+    magicLinkExpiry: "Magic Link Expiry"
   },
   habitUsage: {
     user: "Gebruikers",
@@ -229,7 +236,6 @@ export const FIELD_NAMES = {
     frequency: "Frequentie per week",
     goals: "Doelstellingen",
     methods: "Mentale methode",
-    sessionTime: "Tijd per sessie (min)",
     notes: "Notities"
   },
   goal: {
@@ -335,7 +341,6 @@ export function transformProgram(record) {
     frequency: fields[PROGRAM_FIELDS.frequency] || 0,
     goals: fields[PROGRAM_FIELDS.goals] || [],
     methods: fields[PROGRAM_FIELDS.methods] || [],
-    sessionTime: fields[PROGRAM_FIELDS.sessionTime] || 0,
     notes: fields[PROGRAM_FIELDS.notes],
     methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length,
     milestonesAwarded

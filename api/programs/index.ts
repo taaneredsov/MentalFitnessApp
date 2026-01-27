@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { transformProgram, PROGRAM_FIELDS } from "../_lib/field-mappings.js"
+import { transformProgram, transformProgrammaplanning, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS, METHOD_USAGE_FIELDS } from "../_lib/field-mappings.js"
 
 /**
  * GET /api/programs?userId=recXXX - Returns all programs for a user
@@ -38,7 +38,72 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const programs = userPrograms.map(record => transformProgram(record as any))
 
-    return sendSuccess(res, programs)
+    // If no programs, return early
+    if (programs.length === 0) {
+      return sendSuccess(res, programs)
+    }
+
+    // Fetch all programmaplanning records to calculate accurate progress
+    const allScheduleRecords = await base(tables.programmaplanning)
+      .select({
+        returnFieldsByFieldId: true
+      })
+      .all()
+
+    const allSchedule = allScheduleRecords.map(r => transformProgrammaplanning(r as any))
+
+    // Collect all methodUsageIds to fetch completed method mappings
+    const allMethodUsageIds = allSchedule.flatMap(s => s.methodUsageIds || [])
+
+    // Fetch Method Usage records to map usage -> method
+    let methodUsageToMethodMap = new Map<string, string>()
+    if (allMethodUsageIds.length > 0) {
+      // Batch into chunks of 100 to avoid formula length limits
+      const chunks = []
+      for (let i = 0; i < allMethodUsageIds.length; i += 100) {
+        chunks.push(allMethodUsageIds.slice(i, i + 100))
+      }
+
+      for (const chunk of chunks) {
+        const usageFormula = `OR(${chunk.map(uid => `RECORD_ID() = "${uid}"`).join(",")})`
+        const usageRecords = await base(tables.methodUsage)
+          .select({
+            filterByFormula: usageFormula,
+            returnFieldsByFieldId: true
+          })
+          .all()
+
+        for (const record of usageRecords) {
+          const methodIds = record.fields[METHOD_USAGE_FIELDS.method] as string[] | undefined
+          if (methodIds?.[0]) {
+            methodUsageToMethodMap.set(record.id, methodIds[0])
+          }
+        }
+      }
+    }
+
+    // Calculate progress for each program
+    const programsWithProgress = programs.map(program => {
+      // Filter schedule for this program
+      const programSchedule = allSchedule.filter(s => s.programId === program.id)
+
+      // Calculate totalMethods and completedMethods
+      const totalMethods = programSchedule.reduce((sum, s) => sum + (s.methodIds?.length || 0), 0)
+      const completedMethods = programSchedule.reduce((sum, s) => {
+        const completedCount = (s.methodUsageIds || [])
+          .filter(usageId => methodUsageToMethodMap.has(usageId))
+          .length
+        return sum + completedCount
+      }, 0)
+
+      return {
+        ...program,
+        totalMethods,
+        completedMethods
+      }
+    })
+
+    return sendSuccess(res, programsWithProgress)
   } catch (error) {
     return handleApiError(res, error)
   }

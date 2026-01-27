@@ -1,6 +1,7 @@
 import { LogOut } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
 import { Button } from "@/components/ui/button"
+import { PointsDisplay } from "@/components/rewards"
 import appIcon from "/pwa-512x512.svg"
 
 export function AppHeader() {
@@ -13,14 +14,17 @@ export function AppHeader() {
           <img src={appIcon} alt="Mental Fitness" className="h-8 w-8" />
           <h1 className="text-lg font-semibold">Mental Fitness</h1>
         </div>
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={logout}
-          aria-label="Logout"
-        >
-          <LogOut className="h-5 w-5" />
-        </Button>
+        <div className="flex items-center gap-2">
+          <PointsDisplay />
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={logout}
+            aria-label="Logout"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
+        </div>
       </div>
     </header>
   )

@@ -10,10 +10,10 @@ Implement pull-to-refresh on the HomePage with React Query integration.
 
 ### Tasks
 
-- [ ] Install `pulltorefreshjs` package
-- [ ] Create reusable `PullToRefresh` wrapper component
-- [ ] Integrate pull-to-refresh on HomePage
-- [ ] Connect refresh action to React Query cache invalidation
+- [x] Install `pulltorefreshjs` package
+- [x] Create reusable `PullToRefresh` wrapper component
+- [x] Integrate pull-to-refresh on HomePage
+- [x] Connect refresh action to React Query cache invalidation
 
 ### Technical Details
 
@@ -93,10 +93,10 @@ Refine the UX with better animations and accessibility support.
 
 ### Tasks
 
-- [ ] Add reduced-motion support (respect `prefers-reduced-motion`)
-- [ ] Style the loading indicator to match app theme
-- [ ] Add haptic feedback on mobile (if supported)
-- [ ] Test on iOS Safari and Android Chrome PWA
+- [x] Add reduced-motion support (respect `prefers-reduced-motion`)
+- [x] Style the loading indicator to match app theme
+- [x] Add haptic feedback on mobile (if supported)
+- [x] Test on iOS Safari and Android Chrome PWA
 
 ### Technical Details
 
@@ -151,4 +151,6 @@ onRefresh: async () => {
 | `package.json` | Add `pulltorefreshjs` dependency |
 | `src/components/PullToRefresh.tsx` | Create new component |
 | `src/pages/HomePage.tsx` | Wrap content with PullToRefreshWrapper |
+| `src/pages/ProgramsPage.tsx` | Wrap content with PullToRefreshWrapper |
+| `src/pages/ProgramDetailPage.tsx` | Wrap content with PullToRefreshWrapper |
 | `src/index.css` | Add PTR styling |

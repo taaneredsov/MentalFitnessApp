@@ -1,11 +1,13 @@
 import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
-import { useCompanies } from "@/hooks/queries"
+import { useCompanies, useUserRewards } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { ChangePasswordForm } from "@/components/ChangePasswordForm"
-import { LogOut, User, Mail, Building2, KeyRound } from "lucide-react"
+import { LevelProgress, StreakCounter, BadgeGrid } from "@/components/rewards"
+import { formatPoints } from "@/lib/rewards-utils"
+import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star } from "lucide-react"
 
 export function AccountPage() {
   const { user, logout } = useAuth()
@@ -13,6 +15,9 @@ export function AccountPage() {
 
   // Use React Query for company names (cached)
   const { data: companyMap, isLoading: isLoadingCompanies } = useCompanies(user?.company)
+
+  // Fetch user rewards
+  const { data: rewards, isLoading: isLoadingRewards } = useUserRewards()
 
   const companyNames = useMemo(() => {
     if (!companyMap || !user?.company) return []
@@ -64,6 +69,50 @@ export function AccountPage() {
               )}
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Rewards Section */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Trophy className="h-5 w-5" />
+            Beloningen
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {isLoadingRewards ? (
+            <p className="text-muted-foreground">Laden...</p>
+          ) : rewards ? (
+            <div className="space-y-6">
+              {/* Level Progress */}
+              <div className="flex justify-center">
+                <LevelProgress totalPoints={rewards.totalPoints} level={rewards.level} />
+              </div>
+
+              {/* Streak Counter */}
+              <div className="flex justify-center py-2 border-t border-b">
+                <StreakCounter
+                  currentStreak={rewards.currentStreak}
+                  longestStreak={rewards.longestStreak}
+                />
+              </div>
+
+              {/* Total Points */}
+              <div className="flex items-center justify-center gap-2 text-center">
+                <Star className="h-5 w-5 text-yellow-500" />
+                <span className="text-lg font-semibold">{formatPoints(rewards.totalPoints)} punten</span>
+              </div>
+
+              {/* Badges */}
+              <div>
+                <h4 className="font-medium mb-3">Badges</h4>
+                <BadgeGrid earnedBadges={rewards.badges} />
+              </div>
+            </div>
+          ) : (
+            <p className="text-muted-foreground">Geen beloningsgegevens beschikbaar</p>
+          )}
         </CardContent>
       </Card>
 

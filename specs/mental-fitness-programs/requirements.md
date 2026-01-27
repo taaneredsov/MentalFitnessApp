@@ -72,6 +72,34 @@ Find the next day in the weekly schedule (starting from today).
 ## Related Tables (Airtable)
 
 - Programs: `tblqW4xeCx1tprNgX`
+- Programmaplanning: `tbl2PHUaonvs1MYRx` (scheduled sessions)
 - Days of Week: `tblS3gleG8cSlWOJ3`
 - Goals: `tbl6ngkyNrv0LFzGb`
 - Methods: `tblB0QvbGg3zWARt4`
+
+## Integration with Other Specs
+
+### Programmaplanning (Scheduled Sessions)
+
+For AI-generated programs, the schedule is stored in **Programmaplanning** records:
+- Each record = one scheduled session (specific date + methods)
+- Links back to parent Program
+- Tracks completion via `methodUsage` field
+
+### Related Specs
+
+| Spec | Relationship |
+|------|--------------|
+| **method-usage-tracking** | When user completes a method from schedule, creates Method Usage linked to Programmaplanning |
+| **activity-based-progress** | Progress = completed Programmaplanning / total Programmaplanning |
+
+### Schedule Display
+
+When showing a program's schedule:
+1. **AI-generated programs**: Use Programmaplanning records (specific dates with methods)
+2. **Legacy programs**: Use Days of Week field (generic weekly schedule)
+
+The schedule should show:
+- Date (from Programmaplanning.date)
+- Methods planned for that session
+- Completion status (checkmark if Programmaplanning.methodUsage has records)
