@@ -112,15 +112,20 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
   }
 
   // Verify the goal belongs to the user
+  // Note: .find() returns field names, not IDs, so we use the field name directly
   try {
     const goalRecord = await base(tables.personalGoals).find(body.personalGoalId)
     const goalFields = goalRecord.fields as Record<string, unknown>
-    const goalUserIds = goalFields[PERSONAL_GOAL_FIELDS.user] as string[] | undefined
+    // Use field name "Gebruikers" since .find() doesn't support returnFieldsByFieldId
+    const goalUserIds = goalFields["Gebruikers"] as string[] | undefined
+
+    console.log("[personal-goal-usage] Goal ownership check - goalUserIds:", goalUserIds, "tokenUserId:", tokenUserId)
 
     if (!goalUserIds?.includes(tokenUserId)) {
       return sendError(res, "Cannot complete another user's personal goal", 403)
     }
   } catch (error) {
+    console.error("[personal-goal-usage] Goal lookup error:", error)
     return sendError(res, "Personal goal not found", 404)
   }
 
