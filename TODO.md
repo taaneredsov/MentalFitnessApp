@@ -82,7 +82,7 @@
   - `Persoonlijke Doelen Score` (formula) - fldVDpa3GOFSWTYly
   - `Goede Gewoontes Score` (formula) - fldpW5r0j9aHREqaK
 - **Program table** (Mentale Fitnessprogramma's):
-  - `Status` (single select: Actief/Gepland/Afgewerkt) - FIELD_ID_NEEDED
+  - `Status` (single select: Actief/Gepland/Afgewerkt) - fldJcgvXDr2LDin14
 
 ### Key Files
 - `src/components/ScoreWidgets.tsx` - 3-score widget display
