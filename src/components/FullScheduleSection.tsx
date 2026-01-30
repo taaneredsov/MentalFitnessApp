@@ -1,7 +1,7 @@
 import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { ChevronDown, ChevronUp, Check, Calendar, CheckCircle, Circle } from "lucide-react"
+import { ChevronDown, ChevronUp, Check, Calendar, CheckCircle, Circle, Pencil } from "lucide-react"
 import type { Programmaplanning, Method } from "@/types/program"
 
 interface FullScheduleSectionProps {
@@ -9,6 +9,8 @@ interface FullScheduleSectionProps {
   methodDetails: Method[]
   programId: string
   startDate: string
+  isEditable?: boolean
+  onEditSession?: (session: Programmaplanning) => void
 }
 
 interface ScheduleByWeek {
@@ -38,7 +40,9 @@ export function FullScheduleSection({
   schedule,
   methodDetails,
   programId,
-  startDate
+  startDate,
+  isEditable = false,
+  onEditSession
 }: FullScheduleSectionProps) {
   const [isExpanded, setIsExpanded] = useState(false)
   const navigate = useNavigate()
@@ -207,12 +211,28 @@ export function FullScheduleSection({
                         )}
                       </div>
 
-                      {/* Duration */}
-                      {methods.length > 0 && (
-                        <span className="text-xs text-muted-foreground whitespace-nowrap">
-                          {methods.reduce((sum, m) => sum + (m.duration || 0), 0)} min
-                        </span>
-                      )}
+                      {/* Duration and Edit */}
+                      <div className="flex items-center gap-2">
+                        {methods.length > 0 && (
+                          <span className="text-xs text-muted-foreground whitespace-nowrap">
+                            {methods.reduce((sum, m) => sum + (m.duration || 0), 0)} min
+                          </span>
+                        )}
+                        {/* Edit button - only for future sessions when editable */}
+                        {isEditable && !isPast && !isToday && onEditSession && (
+                          <button
+                            type="button"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              onEditSession(session)
+                            }}
+                            className="p-1.5 hover:bg-primary/10 rounded-md transition-colors"
+                            aria-label={`Bewerk sessie van ${formatDate(session.date)}`}
+                          >
+                            <Pencil className="h-4 w-4 text-primary" />
+                          </button>
+                        )}
+                      </div>
                     </div>
                   )
                 })}

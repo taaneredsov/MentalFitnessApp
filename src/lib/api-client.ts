@@ -1,5 +1,5 @@
 import type { User } from "@/types/user"
-import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest, PersonalGoal, CreatePersonalGoalData, UpdatePersonalGoalData } from "@/types/program"
+import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest, PersonalGoal, CreatePersonalGoalData, UpdatePersonalGoalData, Programmaplanning, UpdateProgrammaplanningData } from "@/types/program"
 import type { UserRewards, AwardRequest, AwardResponse } from "@/types/rewards"
 
 const API_BASE = "/api"
@@ -189,6 +189,15 @@ export const api = {
     confirm: (data: AIConfirmRequest, accessToken: string) =>
       request<AIGenerateResponse>("/programs/confirm", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    updateSchedule: (programId: string, planningId: string, data: UpdateProgrammaplanningData, accessToken: string) =>
+      request<Programmaplanning>(`/programs/${encodeURIComponent(programId)}/schedule/${encodeURIComponent(planningId)}`, {
+        method: "PATCH",
         headers: {
           Authorization: `Bearer ${accessToken}`
         },

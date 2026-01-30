@@ -123,6 +123,13 @@ export interface UpdatePersonalGoalData {
   status?: "Actief" | "Gearchiveerd"
 }
 
+// Programmaplanning Update Types
+export interface UpdateProgrammaplanningData {
+  methods: string[]  // Method record IDs (required, min 1)
+  goals?: string[]   // Goal record IDs (optional)
+  notes?: string     // Session notes (optional)
+}
+
 // AI Program Generation Types
 export interface AIGenerateRequest {
   userId: string

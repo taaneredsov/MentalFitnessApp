@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
-import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData } from "@/types/program"
+import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData } from "@/types/program"
 import type { AwardRequest } from "@/types/rewards"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -118,6 +118,22 @@ export function useUpdateProgram() {
       // Invalidate the specific program
       queryClient.invalidateQueries({ queryKey: queryKeys.program(variables.id) })
       // Also invalidate all programs lists so homepage updates
+      queryClient.invalidateQueries({ queryKey: ["programs"] })
+    }
+  })
+}
+
+export function useUpdateProgrammaplanning(programId: string) {
+  const queryClient = useQueryClient()
+  const { accessToken } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ planningId, data }: { planningId: string; data: UpdateProgrammaplanningData }) =>
+      api.programs.updateSchedule(programId, planningId, data, accessToken!),
+    onSuccess: () => {
+      // Invalidate program detail to refresh schedule
+      queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
+      // Also invalidate programs list
       queryClient.invalidateQueries({ queryKey: ["programs"] })
     }
   })

@@ -1,13 +1,16 @@
+import { useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { useProgram, useMethodUsage } from "@/hooks/queries"
+import { useProgram, useMethodUsage, useUpdateProgrammaplanning } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { MilestoneProgress } from "@/components/rewards"
 import { FullScheduleSection } from "@/components/FullScheduleSection"
+import { SessionEditDialog } from "@/components/SessionEditDialog"
 import { getProgramStatus } from "@/types/program"
+import type { Programmaplanning } from "@/types/program"
 import {
   ArrowLeft,
   Calendar,
@@ -54,9 +57,15 @@ export function ProgramDetailPage() {
   const navigate = useNavigate()
   const queryClient = useQueryClient()
 
+  // State for session editing
+  const [editingSession, setEditingSession] = useState<Programmaplanning | null>(null)
+
   // Use React Query for data (cached)
   const { data: program, isLoading: programLoading, error: programError } = useProgram(id || "")
   const { data: recentActivities = [] } = useMethodUsage(id || "", 2)
+
+  // Mutation for updating session
+  const updateSessionMutation = useUpdateProgrammaplanning(id || "")
 
   const isLoading = programLoading
   const error = programError ? "Kon programma niet laden" : null
@@ -68,6 +77,14 @@ export function ProgramDetailPage() {
         queryClient.invalidateQueries({ queryKey: queryKeys.methodUsage(id) })
       ])
     }
+  }
+
+  const handleSaveSession = async (planningId: string, methodIds: string[]) => {
+    await updateSessionMutation.mutateAsync({
+      planningId,
+      data: { methods: methodIds }
+    })
+    setEditingSession(null)
   }
 
   if (isLoading) {
@@ -179,6 +196,8 @@ export function ProgramDetailPage() {
           methodDetails={program.methodDetails}
           programId={program.id}
           startDate={program.startDate}
+          isEditable={status === "running"}
+          onEditSession={setEditingSession}
         />
       )}
 
@@ -300,6 +319,16 @@ export function ProgramDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Session Edit Dialog */}
+      <SessionEditDialog
+        open={!!editingSession}
+        onOpenChange={(open) => !open && setEditingSession(null)}
+        session={editingSession}
+        availableMethods={program.methodDetails}
+        onSave={handleSaveSession}
+        isSaving={updateSessionMutation.isPending}
+      />
       </div>
     </PullToRefreshWrapper>
   )

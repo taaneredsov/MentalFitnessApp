@@ -20,5 +20,8 @@ export const queryKeys = {
   habitUsage: (userId: string, date: string) => ["habitUsage", userId, date] as const,
 
   // Dynamic data - short cache (1 minute)
-  methodUsage: (programId: string) => ["methodUsage", programId] as const
+  methodUsage: (programId: string) => ["methodUsage", programId] as const,
+
+  // Programmaplanning - for session editing
+  programmaplanning: (programId: string, planningId: string) => ["programmaplanning", programId, planningId] as const
 }
