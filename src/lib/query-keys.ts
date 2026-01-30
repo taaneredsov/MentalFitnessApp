@@ -11,6 +11,10 @@ export const queryKeys = {
   programs: (userId: string) => ["programs", userId] as const,
   program: (id: string) => ["program", id] as const,
 
+  // Personal goals - medium cache (5 minutes)
+  personalGoals: (userId: string) => ["personalGoals", userId] as const,
+  personalGoalUsage: (userId: string, date: string) => ["personalGoalUsage", userId, date] as const,
+
   // Rewards data - short cache (1 minute)
   rewards: ["rewards"] as const,
   habitUsage: (userId: string, date: string) => ["habitUsage", userId, date] as const,

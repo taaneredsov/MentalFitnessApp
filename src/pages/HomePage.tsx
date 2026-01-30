@@ -22,9 +22,9 @@ import {
 } from "lucide-react"
 import { InstallPrompt } from "@/components/InstallPrompt"
 import { AIProgramWizard } from "@/components/AIProgramWizard"
-import { FullScheduleSection } from "@/components/FullScheduleSection"
 import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { GoodHabitsSection } from "@/components/GoodHabitsSection"
+import { PersonalGoalsSection } from "@/components/PersonalGoalsSection"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -305,15 +305,6 @@ export function HomePage() {
             </Card>
           )}
 
-          {/* Full Schedule View */}
-          {runningProgram.schedule.length > 0 && (
-            <FullScheduleSection
-              schedule={runningProgram.schedule}
-              methodDetails={runningProgram.methodDetails}
-              programId={runningProgram.id}
-              startDate={runningProgram.startDate}
-            />
-          )}
         </section>
         ) : (
           <section className="grid gap-4">
@@ -330,6 +321,10 @@ export function HomePage() {
             </Card>
           </section>
         )}
+
+        <section className="grid gap-4">
+          <PersonalGoalsSection />
+        </section>
 
         <section className="grid gap-4">
           <GoodHabitsSection />

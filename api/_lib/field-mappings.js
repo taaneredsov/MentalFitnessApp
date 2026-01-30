@@ -48,7 +48,10 @@ export const TABLES = {
   programPrompts: process.env.AIRTABLE_TABLE_PROGRAM_PROMPTS || "tblHmI6cSujof3KHu", // Programma opbouw prompts
   programmaplanning: process.env.AIRTABLE_TABLE_PROGRAMMAPLANNING || "tbl2PHUaonvs1MYRx", // Programmaplanning
   experienceLevels: process.env.AIRTABLE_TABLE_EXPERIENCE_LEVELS || "tblt5lzx2Msw1aKxv",  // Ervaringsniveaus
-  habitUsage: process.env.AIRTABLE_TABLE_HABIT_USAGE || "tblpWiRiseAZ7jfHm"   // Gewoontegebruik
+  habitUsage: process.env.AIRTABLE_TABLE_HABIT_USAGE || "tblpWiRiseAZ7jfHm",   // Gewoontegebruik
+  // Personal Goals tables
+  personalGoals: process.env.AIRTABLE_TABLE_PERSONAL_GOALS || "tblbjDv35B50ZKG9w", // Persoonlijke doelen
+  personalGoalUsage: process.env.AIRTABLE_TABLE_PERSONAL_GOAL_USAGE || "tbl8eJeQtMnIF5EJo" // Persoonlijk Doelgebruik
 }
 
 // User table field IDs (Gebruikers) - use for reading/writing
@@ -191,6 +194,22 @@ export const HABIT_USAGE_FIELDS = {
   date: "fldL34wbT2NxYPUKh"        // Datum (date YYYY-MM-DD)
 }
 
+// Personal Goals table field IDs (Persoonlijke doelen - tblbjDv35B50ZKG9w)
+export const PERSONAL_GOAL_FIELDS = {
+  name: "fldJgnovQb0fukTHy",        // Naam (single line text)
+  description: "fldIa30JSumth6urq", // Beschrijving (multiline text)
+  user: "fld430TQiorQDQqfT",        // Gebruikers (link to Users)
+  status: "fldppY7CetkUqYeTU",      // Status (single select: Actief/Gearchiveerd)
+  createdAt: "fldVYfcER59IGdFg8"    // Aangemaakt op (created time - computed)
+}
+
+// Personal Goal Usage table field IDs (Persoonlijk Doelgebruik - tbl8eJeQtMnIF5EJo)
+export const PERSONAL_GOAL_USAGE_FIELDS = {
+  user: "fldlSHZh0ECrWMRV9",        // Gebruikers (link to Users)
+  personalGoal: "fldGwiJAk7FRirOqY", // Persoonlijke doelen (link to Personal Goals)
+  date: "fldC2lY17qPmMsI5x"         // Datum (date YYYY-MM-DD)
+}
+
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs)
 export const FIELD_NAMES = {
   user: {
@@ -262,6 +281,18 @@ export const FIELD_NAMES = {
     methods: "Beoogde methodes",
     goals: "Doelstelling(en)",
     notes: "Opmerkingen"
+  },
+  personalGoal: {
+    name: "Naam",
+    description: "Beschrijving",
+    user: "Gebruikers",
+    status: "Status",
+    createdAt: "Aangemaakt op"
+  },
+  personalGoalUsage: {
+    user: "Gebruikers",
+    personalGoal: "Persoonlijke doelen",
+    date: "Datum"
   }
 }
 
@@ -507,5 +538,33 @@ export function transformHabitUsage(record) {
     userId: fields[HABIT_USAGE_FIELDS.user]?.[0],
     methodId: fields[HABIT_USAGE_FIELDS.method]?.[0],
     date: fields[HABIT_USAGE_FIELDS.date]
+  }
+}
+
+/**
+ * Transform Airtable personal goal record to clean PersonalGoal object
+ */
+export function transformPersonalGoal(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    name: fields[PERSONAL_GOAL_FIELDS.name],
+    description: fields[PERSONAL_GOAL_FIELDS.description],
+    userId: fields[PERSONAL_GOAL_FIELDS.user]?.[0],
+    status: fields[PERSONAL_GOAL_FIELDS.status] || "Actief",
+    createdAt: fields[PERSONAL_GOAL_FIELDS.createdAt]
+  }
+}
+
+/**
+ * Transform Airtable personal goal usage record to clean PersonalGoalUsage object
+ */
+export function transformPersonalGoalUsage(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    userId: fields[PERSONAL_GOAL_USAGE_FIELDS.user]?.[0],
+    personalGoalId: fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal]?.[0],
+    date: fields[PERSONAL_GOAL_USAGE_FIELDS.date]
   }
 }

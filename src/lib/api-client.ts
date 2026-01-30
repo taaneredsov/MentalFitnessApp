@@ -1,5 +1,5 @@
 import type { User } from "@/types/user"
-import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest } from "@/types/program"
+import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest, PersonalGoal, CreatePersonalGoalData, UpdatePersonalGoalData } from "@/types/program"
 import type { UserRewards, AwardRequest, AwardResponse } from "@/types/rewards"
 
 const API_BASE = "/api"
@@ -259,6 +259,59 @@ export const api = {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
+      })
+  },
+
+  personalGoals: {
+    list: (accessToken: string) =>
+      request<PersonalGoal[]>("/personal-goals", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    create: (data: CreatePersonalGoalData, accessToken: string) =>
+      request<PersonalGoal>("/personal-goals", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    update: (id: string, data: UpdatePersonalGoalData, accessToken: string) =>
+      request<PersonalGoal>(`/personal-goals/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    delete: (id: string, accessToken: string) =>
+      request<void>(`/personal-goals/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
+  },
+
+  personalGoalUsage: {
+    get: (userId: string, date: string, accessToken: string) =>
+      request<Record<string, { today: number; total: number }>>(`/personal-goal-usage?userId=${encodeURIComponent(userId)}&date=${encodeURIComponent(date)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    create: (data: { userId: string; personalGoalId: string; date: string }, accessToken: string) =>
+      request<{ id: string; pointsAwarded: number; todayCount: number; totalCount: number }>("/personal-goal-usage", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
       })
   }
 }

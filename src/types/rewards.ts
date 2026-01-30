@@ -47,6 +47,7 @@ export const POINTS = {
   sessionBonus: 5,
   habit: 5,
   habitDayBonus: 5,
+  personalGoal: 10,  // Bonus points for completing a personal goal
   streakWeek: 50,
   streakMonth: 200,
   program: 100,

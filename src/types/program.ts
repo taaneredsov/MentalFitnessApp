@@ -99,6 +99,27 @@ export interface MethodUsage {
 
 export type ProgramStatus = "planned" | "running" | "finished"
 
+// Personal Goals Types
+export interface PersonalGoal {
+  id: string
+  name: string
+  description?: string
+  userId: string
+  status: "Actief" | "Gearchiveerd"
+  createdAt?: string
+}
+
+export interface CreatePersonalGoalData {
+  name: string
+  description?: string
+}
+
+export interface UpdatePersonalGoalData {
+  name?: string
+  description?: string
+  status?: "Actief" | "Gearchiveerd"
+}
+
 // AI Program Generation Types
 export interface AIGenerateRequest {
   userId: string

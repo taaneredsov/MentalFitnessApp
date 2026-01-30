@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
-import type { CreateProgramData } from "@/types/program"
+import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData } from "@/types/program"
 import type { AwardRequest } from "@/types/rewards"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -268,5 +268,135 @@ export function useDeleteHabitUsage() {
       }
     }
     // Don't invalidate habitUsage on success - optimistic update is correct
+  })
+}
+
+// Personal Goals hooks
+
+export function usePersonalGoals() {
+  const { user, accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.personalGoals(user?.id || ""),
+    queryFn: () => api.personalGoals.list(accessToken!),
+    enabled: !!user?.id && !!accessToken,
+    staleTime: CACHE_MEDIUM
+  })
+}
+
+export function usePersonalGoalUsage(userId: string | undefined, date: string) {
+  const { accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.personalGoalUsage(userId || "", date),
+    queryFn: () => api.personalGoalUsage.get(userId!, date, accessToken!),
+    enabled: !!userId && !!accessToken && !!date,
+    staleTime: CACHE_SHORT
+  })
+}
+
+export function useCreatePersonalGoal() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ data, accessToken }: { data: CreatePersonalGoalData; accessToken: string }) =>
+      api.personalGoals.create(data, accessToken),
+    onSuccess: () => {
+      // Invalidate personal goals list
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalGoals(user.id) })
+      }
+    }
+  })
+}
+
+export function useUpdatePersonalGoal() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+      accessToken
+    }: {
+      id: string
+      data: UpdatePersonalGoalData
+      accessToken: string
+    }) => api.personalGoals.update(id, data, accessToken),
+    onSuccess: () => {
+      // Invalidate personal goals list
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalGoals(user.id) })
+      }
+    }
+  })
+}
+
+export function useDeletePersonalGoal() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ id, accessToken }: { id: string; accessToken: string }) =>
+      api.personalGoals.delete(id, accessToken),
+    onSuccess: () => {
+      // Invalidate personal goals list
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.personalGoals(user.id) })
+      }
+    }
+  })
+}
+
+type GoalCounts = Record<string, { today: number; total: number }>
+
+export function useCompletePersonalGoal() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      data,
+      accessToken
+    }: {
+      data: { userId: string; personalGoalId: string; date: string }
+      accessToken: string
+    }) => api.personalGoalUsage.create(data, accessToken),
+    // Optimistic update: immediately increment counts
+    onMutate: async (variables) => {
+      const queryKey = queryKeys.personalGoalUsage(variables.data.userId, variables.data.date)
+
+      // Cancel any outgoing refetches
+      await queryClient.cancelQueries({ queryKey })
+
+      // Snapshot previous value for rollback
+      const previousData = queryClient.getQueryData<GoalCounts>(queryKey)
+
+      // Optimistically update cache - increment counts
+      queryClient.setQueryData<GoalCounts>(queryKey, (old = {}) => {
+        const goalId = variables.data.personalGoalId
+        const current = old[goalId] || { today: 0, total: 0 }
+        return {
+          ...old,
+          [goalId]: {
+            today: current.today + 1,
+            total: current.total + 1
+          }
+        }
+      })
+
+      return { previousData, queryKey }
+    },
+    onError: (_error, _variables, context) => {
+      // Rollback on error
+      if (context?.previousData !== undefined) {
+        queryClient.setQueryData(context.queryKey, context.previousData)
+      }
+    },
+    onSuccess: () => {
+      // Invalidate rewards cache to reflect point changes
+      queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+    }
   })
 }
