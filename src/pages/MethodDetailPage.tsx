@@ -349,7 +349,7 @@ export function MethodDetailPage() {
 
       {/* Header with photo */}
       {method.photo && (
-        <div className="rounded-xl overflow-hidden -mx-4 -mt-2">
+        <div className="overflow-hidden -mx-4 -mt-2">
           <img
             src={method.photo}
             alt={method.name}
