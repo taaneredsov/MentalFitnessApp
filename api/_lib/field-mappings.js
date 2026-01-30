@@ -108,7 +108,8 @@ export const PROGRAM_FIELDS = {
   notes: "fldAUf1ENHtF8NRPl",           // Notities
   methodUsage: "fldXNUYtU4KG84ZMX",     // Methodegebruik (Link)
   milestonesAwarded: "fldQu0mHYeNj4mury", // Behaalde Mijlpalen (Long text - JSON array)
-  status: "fldJcgvXDr2LDin14"           // Status (Single select: Actief/Gepland/Afgewerkt)
+  status: "fldJcgvXDr2LDin14",          // Status (Single select: Actief/Gepland/Afgewerkt)
+  creationType: "fldC7QjG65RAnplH2"      // Type Programma Creatie (Single select: Manueel/AI)
 }
 
 // Goals table field IDs (Doelstellingen)
@@ -382,7 +383,8 @@ export function transformProgram(record) {
     notes: fields[PROGRAM_FIELDS.notes],
     methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length,
     milestonesAwarded,
-    status: fields[PROGRAM_FIELDS.status] || null  // Actief/Gepland/Afgewerkt
+    status: fields[PROGRAM_FIELDS.status] || null,  // Actief/Gepland/Afgewerkt
+    creationType: fields[PROGRAM_FIELDS.creationType] || "Manueel"  // Manueel/AI
   }
 }
 

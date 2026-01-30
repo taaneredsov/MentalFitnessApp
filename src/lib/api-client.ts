@@ -202,6 +202,24 @@ export const api = {
           Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify(data)
+      }),
+
+    regenerateSchedule: (
+      programId: string,
+      data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple"; force?: boolean },
+      accessToken: string
+    ) =>
+      request<{
+        program: Program
+        preservedSessions: number
+        regeneratedSessions: number
+        deletedSessions: number
+      }>(`/programs/${encodeURIComponent(programId)}/regenerate-schedule`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
       })
   },
 

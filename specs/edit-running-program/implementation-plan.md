@@ -195,7 +195,7 @@ const handleAdd = (methodId: string) => {
 const canSave = selectedMethodIds.length >= 1
 ```
 
-## Phase 4: Integrate Edit UI into ProgramDetailPage ✅ COMPLETE
+## Phase 4: Integrate Edit UI into ProgramDetailPage ✅ COMPLETE (ScrollArea fix applied)
 
 Add edit buttons and integrate the dialog into the existing program detail page.
 
@@ -271,16 +271,16 @@ const handleSaveSession = async (planningId: string, methodIds: string[]) => {
 />
 ```
 
-## Phase 5: Program-Level Edit (Goals & Notes)
+## Phase 5: Program-Level Edit (Goals & Notes) ✅ COMPLETE
 
 Add ability to edit program goals and notes.
 
 ### Tasks
 
-- [ ] Create `src/components/ProgramEditDialog.tsx` for editing goals and notes
-- [ ] Add edit button to program header section in `ProgramDetailPage.tsx`
-- [ ] Use existing `useUpdateProgram` mutation
-- [ ] Only show for "Actief" programs
+- [x] Create `src/components/ProgramEditDialog.tsx` for editing goals and notes
+- [x] Add edit button to program header section in `ProgramDetailPage.tsx`
+- [x] Use existing `useUpdateProgram` mutation
+- [x] Show for both "Actief" and "Gepland" programs (running and planned status)
 
 ### Technical Details
 
@@ -340,12 +340,12 @@ const handleSave = async (data: { goals: string[], notes?: string }) => {
 
 After implementation, verify:
 
-- [ ] Future sessions show edit icon, past sessions don't
-- [ ] Edit dialog opens with current methods pre-selected
-- [ ] Can remove methods (but not below 1)
-- [ ] Can add methods from available pool
-- [ ] Save updates Airtable and refreshes UI
-- [ ] Program edit dialog shows current goals and notes
-- [ ] Only "Actief" programs show edit options
-- [ ] Error states handled gracefully
-- [ ] Loading states shown during save
+- [x] Future sessions show edit icon, past sessions don't
+- [x] Edit dialog opens with current methods pre-selected
+- [x] Can remove methods (but not below 1)
+- [x] Can add methods from available pool
+- [x] Save updates Airtable and refreshes UI
+- [x] Program edit dialog shows current goals and notes
+- [x] Both "Actief" and "Gepland" programs show edit options
+- [x] Error states handled gracefully
+- [x] Loading states shown during save

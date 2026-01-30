@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { useProgram, useMethodUsage, useUpdateProgrammaplanning } from "@/hooks/queries"
+import { useProgram, useMethodUsage, useUpdateProgrammaplanning, useGoals, useDays, useUpdateProgram, useRegenerateSchedule } from "@/hooks/queries"
+import { useAuth } from "@/contexts/AuthContext"
 import { queryKeys } from "@/lib/query-keys"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
@@ -9,6 +10,7 @@ import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { MilestoneProgress } from "@/components/rewards"
 import { FullScheduleSection } from "@/components/FullScheduleSection"
 import { SessionEditDialog } from "@/components/SessionEditDialog"
+import { ProgramEditDialog } from "@/components/ProgramEditDialog"
 import { getProgramStatus } from "@/types/program"
 import type { Programmaplanning } from "@/types/program"
 import {
@@ -20,7 +22,8 @@ import {
   CheckCircle2,
   ChevronRight,
   History,
-  Timer
+  Timer,
+  Pencil
 } from "lucide-react"
 
 function formatDate(dateStr: string): string {
@@ -56,16 +59,25 @@ export function ProgramDetailPage() {
   const { id } = useParams<{ id: string }>()
   const navigate = useNavigate()
   const queryClient = useQueryClient()
+  const { accessToken } = useAuth()
 
   // State for session editing
   const [editingSession, setEditingSession] = useState<Programmaplanning | null>(null)
+  // State for program editing
+  const [showProgramEdit, setShowProgramEdit] = useState(false)
 
   // Use React Query for data (cached)
   const { data: program, isLoading: programLoading, error: programError } = useProgram(id || "")
   const { data: recentActivities = [] } = useMethodUsage(id || "", 2)
+  const { data: allGoals = [] } = useGoals()
+  const { data: allDays = [] } = useDays()
 
   // Mutation for updating session
   const updateSessionMutation = useUpdateProgrammaplanning(id || "")
+  // Mutation for updating program
+  const updateProgramMutation = useUpdateProgram()
+  // Mutation for regenerating schedule
+  const regenerateMutation = useRegenerateSchedule(id || "")
 
   const isLoading = programLoading
   const error = programError ? "Kon programma niet laden" : null
@@ -86,6 +98,29 @@ export function ProgramDetailPage() {
     })
     setEditingSession(null)
   }
+
+  const handleSaveProgram = async (data: { goals: string[]; daysOfWeek: string[]; notes?: string }) => {
+    if (!id || !accessToken) return
+    await updateProgramMutation.mutateAsync({
+      id,
+      data,
+      accessToken
+    })
+    setShowProgramEdit(false)
+  }
+
+  const handleRegenerateProgram = async (data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple" }) => {
+    await regenerateMutation.mutateAsync(data)
+    setShowProgramEdit(false)
+  }
+
+  // Calculate number of future sessions (dates after today)
+  const futureSessions = program?.schedule.filter(s => {
+    const sessionDate = new Date(s.date)
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    return sessionDate > today
+  }).length || 0
 
   if (isLoading) {
     return (
@@ -112,12 +147,25 @@ export function ProgramDetailPage() {
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
       <div className="px-4 py-6 space-y-6">
-        <div className="flex items-center gap-4">
-        <Button variant="ghost" size="icon" onClick={() => navigate("/programs")}>
-          <ArrowLeft className="h-5 w-5" />
-        </Button>
-        <h2 className="text-2xl font-bold flex-1">Programma Details</h2>
-        <StatusBadge status={status} />
+        <div className="space-y-3">
+        <div className="flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate("/programs")}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h2 className="text-xl font-bold flex-1">Programma Details</h2>
+          <StatusBadge status={status} />
+        </div>
+        {(status === "running" || status === "planned") && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => setShowProgramEdit(true)}
+          >
+            <Pencil className="h-4 w-4 mr-2" />
+            Bewerk programma
+          </Button>
+        )}
       </div>
 
       {/* Program Info */}
@@ -196,7 +244,7 @@ export function ProgramDetailPage() {
           methodDetails={program.methodDetails}
           programId={program.id}
           startDate={program.startDate}
-          isEditable={status === "running"}
+          isEditable={status === "running" || status === "planned"}
           onEditSession={setEditingSession}
         />
       )}
@@ -328,6 +376,20 @@ export function ProgramDetailPage() {
         availableMethods={program.methodDetails}
         onSave={handleSaveSession}
         isSaving={updateSessionMutation.isPending}
+      />
+
+      {/* Program Edit Dialog */}
+      <ProgramEditDialog
+        open={showProgramEdit}
+        onOpenChange={setShowProgramEdit}
+        program={program}
+        allGoals={allGoals}
+        allDays={allDays}
+        onSave={handleSaveProgram}
+        onRegenerate={handleRegenerateProgram}
+        isSaving={updateProgramMutation.isPending}
+        isRegenerating={regenerateMutation.isPending}
+        futureSessions={futureSessions}
       />
       </div>
     </PullToRefreshWrapper>

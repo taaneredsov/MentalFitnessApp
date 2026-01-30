@@ -8,7 +8,6 @@ import {
   DialogFooter
 } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
-import { ScrollArea } from "@/components/ui/scroll-area"
 import { X, Plus, Clock, Loader2 } from "lucide-react"
 import type { Programmaplanning, Method } from "@/types/program"
 
@@ -218,7 +217,7 @@ export function SessionEditDialog({
                 {totalTime} min totaal
               </span>
             </div>
-            <ScrollArea className="max-h-[25vh]">
+            <div className="max-h-[25vh] overflow-y-auto">
               <div className="space-y-2 pr-4">
                 {selectedMethods.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic p-3">
@@ -235,7 +234,7 @@ export function SessionEditDialog({
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </div>
 
           {/* Divider */}
@@ -244,7 +243,7 @@ export function SessionEditDialog({
           {/* Add Methods Section */}
           <div className="space-y-2 flex-1 min-h-0">
             <h4 className="text-sm font-medium">Methode toevoegen</h4>
-            <ScrollArea className="max-h-[25vh]">
+            <div className="max-h-[25vh] overflow-y-auto">
               <div className="space-y-2 pr-4">
                 {methodsToAdd.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic p-3">
@@ -260,7 +259,7 @@ export function SessionEditDialog({
                   ))
                 )}
               </div>
-            </ScrollArea>
+            </div>
           </div>
         </div>
 

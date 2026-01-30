@@ -139,6 +139,22 @@ export function useUpdateProgrammaplanning(programId: string) {
   })
 }
 
+export function useRegenerateSchedule(programId: string) {
+  const queryClient = useQueryClient()
+  const { accessToken } = useAuth()
+
+  return useMutation({
+    mutationFn: (data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple"; force?: boolean }) =>
+      api.programs.regenerateSchedule(programId, data, accessToken!),
+    onSuccess: () => {
+      // Invalidate program detail to refresh schedule
+      queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
+      // Also invalidate programs list
+      queryClient.invalidateQueries({ queryKey: ["programs"] })
+    }
+  })
+}
+
 export function useRecordMethodUsage() {
   const queryClient = useQueryClient()
 

@@ -180,7 +180,7 @@ export function ProgramsPage() {
               {!wizardType
                 ? "Hoe wil je je programma samenstellen?"
                 : wizardType === "ai"
-                ? "Laat AI een gepersonaliseerd programma voor je maken."
+                ? "Laat automatisch een gepersonaliseerd programma voor je maken."
                 : "Maak stap voor stap je eigen programma."}
             </DialogDescription>
           </DialogHeader>
@@ -194,9 +194,9 @@ export function ProgramsPage() {
               >
                 <Sparkles className="mr-3 h-5 w-5 shrink-0" />
                 <div className="text-left min-w-0">
-                  <div className="font-semibold">AI Programma (Aanbevolen)</div>
+                  <div className="font-semibold">Automatisch Programma (Aanbevolen)</div>
                   <div className="text-sm font-normal opacity-80">
-                    Laat AI een gepersonaliseerd schema maken op basis van je doelen
+                    Laat automatisch een gepersonaliseerd schema maken op basis van je doelen
                   </div>
                 </div>
               </Button>

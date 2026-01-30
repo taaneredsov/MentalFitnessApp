@@ -1,4 +1,5 @@
 export type AirtableProgramStatus = "Actief" | "Gepland" | "Afgewerkt"
+export type ProgramCreationType = "Manueel" | "AI"
 
 export interface Program {
   id: string
@@ -16,6 +17,7 @@ export interface Program {
   totalMethods?: number  // Total methods scheduled in program
   completedMethods?: number  // Methods completed so far
   status?: AirtableProgramStatus | null  // Actief/Gepland/Afgewerkt (Airtable field)
+  creationType?: ProgramCreationType  // Manueel/AI - how the program was created
 }
 
 export interface Programmaplanning {

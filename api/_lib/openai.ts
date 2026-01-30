@@ -67,6 +67,15 @@ export interface AIMethod {
 }
 
 /**
+ * Context for program edit/regeneration
+ */
+export interface EditContext {
+  isEdit: boolean
+  completedMethods: string[]      // Method IDs the user has already completed
+  preservedSessionCount: number   // Number of past sessions being preserved
+}
+
+/**
  * Input for building the AI prompt
  */
 export interface AIPromptInput {
@@ -76,6 +85,7 @@ export interface AIPromptInput {
   methods: AIMethod[]
   trainingDates: TrainingDate[]
   duration: string
+  editContext?: EditContext  // Optional context when regenerating an existing program
 }
 
 /**
@@ -193,7 +203,7 @@ function getSystemPrompt(
  * Build the system prompt for GPT-4o with training dates and frequency rules
  */
 export function buildSystemPrompt(input: AIPromptInput): string {
-  const { goals, programPrompts, systemPrompts, methods, trainingDates, duration } = input
+  const { goals, programPrompts, systemPrompts, methods, trainingDates, duration, editContext } = input
 
   // Get dynamic system prompts (with fallbacks)
   const introPrompt = getSystemPrompt(systemPrompts, "intro")
@@ -246,8 +256,21 @@ export function buildSystemPrompt(input: AIPromptInput): string {
     .map(d => `- Datum: "${d.date}", Dag: "${d.dayOfWeek}", DayID: "${d.dayId}"`)
     .join("\n")
 
-  return `${introPrompt}
+  // Build edit context section if this is a program edit
+  const editContextSection = editContext?.isEdit
+    ? `
+## PROGRAMMA AANPASSING:
+Dit is een AANPASSING van een bestaand programma, GEEN nieuw programma.
+- ${editContext.preservedSessionCount} eerdere sessies worden behouden
+- De gebruiker heeft al ${editContext.completedMethods.length} methodes voltooid
+- Bouw voort op de voortgang van de gebruiker
+- Vermijd te veel herhaling van recent voltooide methodes
+- Focus op progressie en nieuwe uitdagingen
+`
+    : ""
 
+  return `${introPrompt}
+${editContextSection}
 ## Gebruiker's Doelstellingen:
 ${goalDescriptions}
 
