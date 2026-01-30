@@ -55,30 +55,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Collect all methodUsageIds to fetch completed method mappings
     const allMethodUsageIds = allSchedule.flatMap(s => s.methodUsageIds || [])
 
+    // Also fetch ALL method_usage records to find those linked directly to programs
+    // (preserved completions from regenerated schedules)
+    const allMethodUsageRecords = await base(tables.methodUsage)
+      .select({
+        returnFieldsByFieldId: true
+      })
+      .all()
+
+    // Build a map of program ID -> preserved method usage IDs (linked to program but not to any session)
+    const programPreservedUsageIds = new Map<string, string[]>()
+    for (const record of allMethodUsageRecords) {
+      const programIds = record.fields[METHOD_USAGE_FIELDS.program] as string[] | undefined
+      if (programIds?.[0] && !allMethodUsageIds.includes(record.id)) {
+        const existing = programPreservedUsageIds.get(programIds[0]) || []
+        existing.push(record.id)
+        programPreservedUsageIds.set(programIds[0], existing)
+      }
+    }
+
     // Fetch Method Usage records to map usage -> method
     let methodUsageToMethodMap = new Map<string, string>()
-    if (allMethodUsageIds.length > 0) {
-      // Batch into chunks of 100 to avoid formula length limits
-      const chunks = []
-      for (let i = 0; i < allMethodUsageIds.length; i += 100) {
-        chunks.push(allMethodUsageIds.slice(i, i + 100))
-      }
-
-      for (const chunk of chunks) {
-        const usageFormula = `OR(${chunk.map(uid => `RECORD_ID() = "${uid}"`).join(",")})`
-        const usageRecords = await base(tables.methodUsage)
-          .select({
-            filterByFormula: usageFormula,
-            returnFieldsByFieldId: true
-          })
-          .all()
-
-        for (const record of usageRecords) {
-          const methodIds = record.fields[METHOD_USAGE_FIELDS.method] as string[] | undefined
-          if (methodIds?.[0]) {
-            methodUsageToMethodMap.set(record.id, methodIds[0])
-          }
-        }
+    // Build map from all usage records we already fetched
+    for (const record of allMethodUsageRecords) {
+      const methodIds = record.fields[METHOD_USAGE_FIELDS.method] as string[] | undefined
+      if (methodIds?.[0]) {
+        methodUsageToMethodMap.set(record.id, methodIds[0])
       }
     }
 
@@ -89,12 +91,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       // Calculate totalMethods and completedMethods
       const totalMethods = programSchedule.reduce((sum, s) => sum + (s.methodIds?.length || 0), 0)
-      const completedMethods = programSchedule.reduce((sum, s) => {
+      const sessionCompletedMethods = programSchedule.reduce((sum, s) => {
         const completedCount = (s.methodUsageIds || [])
           .filter(usageId => methodUsageToMethodMap.has(usageId))
           .length
         return sum + completedCount
       }, 0)
+
+      // Add preserved completions (linked directly to program)
+      const preservedUsageIds = programPreservedUsageIds.get(program.id) || []
+      const preservedCompletedMethods = preservedUsageIds.filter(uid => methodUsageToMethodMap.has(uid)).length
+      const completedMethods = sessionCompletedMethods + preservedCompletedMethods
 
       return {
         ...program,

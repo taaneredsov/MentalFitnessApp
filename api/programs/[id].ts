@@ -109,10 +109,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Collect all methodUsageIds from the schedule to fetch completed method IDs
     const allMethodUsageIds = rawSchedule.flatMap(s => s.methodUsageIds || [])
 
+    // Also fetch method_usage records linked directly to the program (preserved from deleted sessions)
+    // This handles the case where a future session was completed, then the schedule was regenerated
+    const programDirectUsageRecords = await base(tables.methodUsage)
+      .select({
+        returnFieldsByFieldId: true
+      })
+      .all()
+
+    // Filter to find method_usage records linked to this program
+    const programDirectUsageIds = programDirectUsageRecords
+      .filter(r => {
+        const programIds = r.fields[METHOD_USAGE_FIELDS.program] as string[] | undefined
+        return programIds?.includes(id)
+      })
+      .map(r => r.id)
+
+    // Combine all method usage IDs (from sessions + direct program link)
+    const combinedMethodUsageIds = [...new Set([...allMethodUsageIds, ...programDirectUsageIds])]
+
     // Fetch Method Usage records to get the completed method IDs
     let methodUsageToMethodMap = new Map<string, string>()
-    if (allMethodUsageIds.length > 0) {
-      const usageFormula = `OR(${allMethodUsageIds.map(uid => `RECORD_ID() = "${uid}"`).join(",")})`
+    if (combinedMethodUsageIds.length > 0) {
+      const usageFormula = `OR(${combinedMethodUsageIds.map(uid => `RECORD_ID() = "${uid}"`).join(",")})`
       const usageRecords = await base(tables.methodUsage)
         .select({
           filterByFormula: usageFormula,
@@ -128,6 +147,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         }
       }
     }
+
+    // Count preserved completions (those linked directly to program but not to any session)
+    const preservedCompletionMethodIds = programDirectUsageIds
+      .filter(uid => !allMethodUsageIds.includes(uid))
+      .map(uid => methodUsageToMethodMap.get(uid))
+      .filter((mid): mid is string => !!mid)
 
     // Add completedMethodIds to each session
     const schedule = rawSchedule.map(session => ({
@@ -146,8 +171,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }).length
 
     // Method-based progress for more granular tracking
+    // Include both session-linked completions AND preserved completions (linked directly to program)
     const totalMethods = schedule.reduce((sum, s) => sum + (s.methodIds?.length || 0), 0)
-    const completedMethods = schedule.reduce((sum, s) => sum + (s.completedMethodIds?.length || 0), 0)
+    const sessionCompletedMethods = schedule.reduce((sum, s) => sum + (s.completedMethodIds?.length || 0), 0)
+    const completedMethods = sessionCompletedMethods + preservedCompletionMethodIds.length
 
     return sendSuccess(res, {
       ...program,
@@ -158,7 +185,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       totalSessions,
       completedSessions,
       totalMethods,
-      completedMethods
+      completedMethods,
+      preservedCompletions: preservedCompletionMethodIds.length  // For debugging
     })
   } catch (error) {
     return handleApiError(res, error)

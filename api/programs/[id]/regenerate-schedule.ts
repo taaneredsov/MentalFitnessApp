@@ -260,6 +260,29 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, `${sessionsWithUsage.length} future session(s) have completed activities. Pass force=true to delete them.`, 409)
     }
 
+    // Before deleting sessions with completions, preserve the method_usage records by linking them to the program directly
+    // This prevents progress from being lost when we delete the programmaplanning sessions
+    const methodUsageIdsToPreserve = sessionsWithUsage.flatMap(s => s.methodUsageIds)
+    if (methodUsageIdsToPreserve.length > 0) {
+      console.log(`[regenerate-schedule] Preserving ${methodUsageIdsToPreserve.length} method_usage records by linking to program`)
+
+      // Update method_usage records to link to the program (fallback for deleted sessions)
+      // Note: We need METHOD_USAGE_FIELDS.program for this
+      const { METHOD_USAGE_FIELDS } = await import("../../_lib/field-mappings.js")
+
+      const BATCH_SIZE = 10
+      for (let i = 0; i < methodUsageIdsToPreserve.length; i += BATCH_SIZE) {
+        const batch = methodUsageIdsToPreserve.slice(i, i + BATCH_SIZE)
+        const updates = batch.map(usageId => ({
+          id: usageId,
+          fields: {
+            [METHOD_USAGE_FIELDS.program]: [id]  // Link to program as fallback
+          }
+        }))
+        await base(tables.methodUsage).update(updates)
+      }
+    }
+
     // Delete future Programmaplanning records
     if (futureSessions.length > 0) {
       await deleteProgramplanningRecords(futureSessions.map(s => s.id))

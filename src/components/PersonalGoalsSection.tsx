@@ -7,7 +7,7 @@ import { usePersonalGoals, usePersonalGoalUsage, useCompletePersonalGoal } from 
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
-import { Target, Plus, Star, Settings } from "lucide-react"
+import { Target, Plus, Star, Settings, Check } from "lucide-react"
 
 interface PersonalGoalsSectionProps {
   showManageLink?: boolean
@@ -182,8 +182,9 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
                       }}
                       disabled={completeGoalMutation.isPending}
                       className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                      aria-label="Doel afvinken"
                     >
-                      <Plus className="h-5 w-5" />
+                      <Check className="h-5 w-5" />
                     </button>
                   </div>
                 </div>

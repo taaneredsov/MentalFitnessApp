@@ -166,10 +166,11 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
     }
   })
 
-  // Award bonus points for completing the personal goal
+  // Points are counted automatically by Airtable formula (Personal Goals Score = usage count × 10)
+  // We only need to update streak fields here - do NOT add to bonusPoints (that would double count)
   const pointsAwarded = POINTS.personalGoal
 
-  // Fetch current user rewards and update
+  // Fetch current user rewards to update streak
   const userRecords = await base(tables.users)
     .select({
       filterByFormula: `RECORD_ID() = "${body.userId}"`,
@@ -211,17 +212,14 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
       console.log("[personal-goal-usage] Streak update - lastActive:", lastActive, "today:", today, "newStreak:", newStreak)
     }
 
-    // Update user: add bonus points and update streak
-    const newBonusPoints = (currentRewards.bonusPoints || 0) + pointsAwarded
-
+    // Update user streak fields only (points are counted by Airtable formula automatically)
     await base(tables.users).update(body.userId, {
-      [USER_FIELDS.bonusPoints]: newBonusPoints,
       [USER_FIELDS.currentStreak]: newStreak,
       [USER_FIELDS.longestStreak]: newLongestStreak,
       [USER_FIELDS.lastActiveDate]: today
     })
 
-    console.log("[personal-goal-usage] Updated user bonusPoints:", newBonusPoints, "(+", pointsAwarded, ")")
+    console.log("[personal-goal-usage] Updated user streak fields")
   }
 
   return sendSuccess(res, {
