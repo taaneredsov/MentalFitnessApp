@@ -284,3 +284,19 @@ export function getSessionProgress(programDetail: ProgramDetail): number {
   const progress = Math.round((completedMethods / totalMethods) * 100)
   return Math.min(progress, 100) // Cap at 100%
 }
+
+/**
+ * Check if any program in the list is currently running
+ * Used to enforce the one-active-program limit
+ */
+export function hasRunningProgram(programs: Program[]): boolean {
+  return programs.some(p => getProgramStatus(p) === "running")
+}
+
+/**
+ * Get the currently running program from a list
+ * Returns undefined if no program is running
+ */
+export function getRunningProgram(programs: Program[]): Program | undefined {
+  return programs.find(p => getProgramStatus(p) === "running")
+}

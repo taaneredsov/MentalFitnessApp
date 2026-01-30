@@ -110,6 +110,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 /**
+ * Check if a program is currently running based on dates
+ */
+function isProgramRunning(startDate: string, endDate: string): boolean {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split("T")[0]
+
+  return startDate <= todayStr && endDate >= todayStr
+}
+
+/**
  * POST /api/programs - Create a new program
  * Body: { userId, startDate, duration, goals?, daysOfWeek, methods?, notes? }
  */
@@ -126,6 +137,29 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     }
     if (!body.duration) {
       return sendError(res, "duration is required", 400)
+    }
+
+    // Check for existing running program (one-active-program limit)
+    const existingRecords = await base(tables.programs)
+      .select({
+        returnFieldsByFieldId: true
+      })
+      .all()
+
+    // Filter to this user's programs and check if any are running
+    const userRunningProgram = existingRecords.find(record => {
+      const userIds = record.fields[PROGRAM_FIELDS.user] as string[] | undefined
+      if (!userIds?.includes(body.userId)) return false
+
+      const startDate = record.fields[PROGRAM_FIELDS.startDate] as string | undefined
+      const endDate = record.fields[PROGRAM_FIELDS.endDate] as string | undefined
+      if (!startDate || !endDate) return false
+
+      return isProgramRunning(startDate, endDate)
+    })
+
+    if (userRunningProgram) {
+      return sendError(res, "Je hebt al een actief programma. Voltooi dit eerst voordat je een nieuw programma start.", 409)
     }
 
     // Build fields object for Airtable

@@ -47,11 +47,11 @@
 **Goal**: Prevent users from having more than one running program at a time.
 
 ### Implementation Tasks
-- [ ] Add `hasRunningProgram()` helper to `src/types/program.ts`
-- [ ] Add `getRunningProgram()` helper to `src/types/program.ts`
-- [ ] Update `src/pages/HomePage.tsx` to check for running program before showing wizard
-- [ ] Create blocking message UI when user has running program
-- [ ] Add backend validation in program creation API (409 Conflict response)
+- [x] Add `hasRunningProgram()` helper to `src/types/program.ts`
+- [x] Add `getRunningProgram()` helper to `src/types/program.ts`
+- [x] Update `src/pages/HomePage.tsx` to check for running program before showing wizard
+- [x] Create blocking message UI when user has running program
+- [x] Add backend validation in program creation API (409 Conflict response)
 
 ### Verification
 - [ ] User with running program sees "active program" message instead of wizard

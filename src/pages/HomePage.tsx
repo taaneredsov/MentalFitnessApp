@@ -4,12 +4,15 @@ import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/AuthContext"
 import { usePrograms, useProgram } from "@/hooks/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Button } from "@/components/ui/button"
 import type { Programmaplanning } from "@/types/program"
 import {
   getProgramStatus,
   getNextScheduledDay,
   formatNextDay,
-  getSessionProgress
+  getSessionProgress,
+  hasRunningProgram,
+  getRunningProgram
 } from "@/types/program"
 import {
   Calendar,
@@ -100,8 +103,12 @@ export function HomePage() {
   const isLoading = programsLoading || (runningProgramBasic && detailLoading)
   const hasNoPrograms = !programsLoading && programs.length === 0
 
-  // Auto-show onboarding for first-time users
-  const shouldShowOnboarding = showOnboarding || (hasNoPrograms && !programsLoading)
+  // Check if user already has a running program (for one-active-program limit)
+  const userHasRunningProgram = !programsLoading && hasRunningProgram(programs)
+  const currentRunningProgram = getRunningProgram(programs)
+
+  // Auto-show onboarding for first-time users (only if no running program)
+  const shouldShowOnboarding = !userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading))
 
   const handleOnboardingComplete = (programId: string) => {
     setShowOnboarding(false)
@@ -130,6 +137,41 @@ export function HomePage() {
   const todaysSessionTime = useMemo(() => {
     return todaysMethods.reduce((sum, m) => sum + (m.duration || 0), 0)
   }, [todaysMethods])
+
+  // Show blocking message if user tries to create program while having one running
+  if (showOnboarding && userHasRunningProgram && currentRunningProgram) {
+    return (
+      <div className="py-6 px-4 space-y-6">
+        <section>
+          <h2 className="text-2xl font-bold mb-1">Welkom terug, {firstName}!</h2>
+        </section>
+
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-lg">Je hebt al een actief programma</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <p className="text-muted-foreground">
+              Je kunt slechts één programma tegelijk volgen. Voltooi of bewerk je huidige programma eerst.
+            </p>
+            <div className="flex gap-3">
+              <Button
+                onClick={() => navigate(`/programs/${currentRunningProgram.id}`)}
+              >
+                Bekijk huidig programma
+              </Button>
+              <Button
+                variant="outline"
+                onClick={() => setShowOnboarding(false)}
+              >
+                Terug
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
 
   // Show onboarding wizard for first-time users
   if (shouldShowOnboarding) {
