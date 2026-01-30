@@ -1,9 +1,9 @@
 import { useUserRewards } from "@/hooks/queries"
-import { formatPoints } from "@/lib/rewards-utils"
 
 /**
- * Small pill showing streak and points in the header
- * Format: 🔥12 ⭐340
+ * Small pill showing streak in the header
+ * Format: 🔥12
+ * Note: Total points removed - scores now shown in ScoreWidgets on HomePage
  */
 export function PointsDisplay() {
   const { data: rewards, isLoading } = useUserRewards()
@@ -12,17 +12,16 @@ export function PointsDisplay() {
     return null
   }
 
+  // Only show if user has a streak
+  if (rewards.currentStreak === 0) {
+    return null
+  }
+
   return (
     <div className="flex items-center gap-2 px-2 py-1 rounded-full bg-muted/50 text-sm font-medium">
-      {rewards.currentStreak > 0 && (
-        <span className="flex items-center gap-0.5">
-          <span>🔥</span>
-          <span>{rewards.currentStreak}</span>
-        </span>
-      )}
       <span className="flex items-center gap-0.5">
-        <span>⭐</span>
-        <span>{formatPoints(rewards.totalPoints)}</span>
+        <span>🔥</span>
+        <span>{rewards.currentStreak}</span>
       </span>
     </div>
   )

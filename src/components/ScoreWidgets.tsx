@@ -11,15 +11,15 @@ interface ScoreCardProps {
 
 function ScoreCard({ title, score, icon, color }: ScoreCardProps) {
   return (
-    <Card className="flex-1">
-      <CardContent className="pt-4 pb-4">
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center`}>
+    <Card className="flex-1 min-w-0">
+      <CardContent className="p-3">
+        <div className="flex flex-col items-center gap-2">
+          <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center shrink-0`}>
             {icon}
           </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground truncate">{title}</p>
-            <p className="text-xl font-bold">{score}</p>
+          <div className="text-center min-w-0 w-full">
+            <p className="text-[10px] text-muted-foreground truncate">{title}</p>
+            <p className="text-lg font-bold">{score}</p>
           </div>
         </div>
       </CardContent>
@@ -32,10 +32,10 @@ export function ScoreWidgets() {
 
   if (isLoading) {
     return (
-      <div className="flex gap-3">
+      <div className="flex gap-2">
         {[1, 2, 3].map(i => (
-          <Card key={i} className="flex-1">
-            <CardContent className="pt-4 pb-4 flex items-center justify-center h-[72px]">
+          <Card key={i} className="flex-1 min-w-0">
+            <CardContent className="p-3 flex items-center justify-center h-[88px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </CardContent>
           </Card>
@@ -47,7 +47,7 @@ export function ScoreWidgets() {
   if (!rewards) return null
 
   return (
-    <div className="flex gap-3">
+    <div className="flex gap-2">
       <ScoreCard
         title="Mental Fitness"
         score={rewards.mentalFitnessScore}
@@ -55,13 +55,13 @@ export function ScoreWidgets() {
         color="bg-primary"
       />
       <ScoreCard
-        title="Persoonlijke Doelen"
+        title="Pers. Doelen"
         score={rewards.personalGoalsScore}
         icon={<Target className="h-5 w-5 text-orange-50" />}
         color="bg-orange-500"
       />
       <ScoreCard
-        title="Goede Gewoontes"
+        title="Gewoontes"
         score={rewards.goodHabitsScore}
         icon={<Heart className="h-5 w-5 text-pink-50" />}
         color="bg-pink-500"
