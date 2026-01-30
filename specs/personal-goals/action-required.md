@@ -8,11 +8,15 @@ Manual steps that must be completed by a human.
   - Personal Goals: `tblbjDv35B50ZKG9w`
   - Personal Goal Usage: `tbl8eJeQtMnIF5EJo`
 
-- [ ] **Get Airtable field IDs** - Need to retrieve field IDs from Airtable for both tables to add to field-mappings.js
+- [x] **Get Airtable field IDs** - Field IDs retrieved and added to field-mappings.js
 
-## During Implementation
+## Known Issues (2026-01-30)
 
-None required - all implementation can be automated.
+- [ ] **BUG: Score registration not working** - Personal goal completions are not being saved. Debug steps:
+  1. Check browser console for error messages
+  2. Check Vercel dev server logs for API errors
+  3. Verify Airtable field IDs are correct
+  4. Test API directly via curl
 
 ## After Implementation
 
@@ -20,4 +24,4 @@ None required - all implementation can be automated.
 
 ---
 
-> **Note:** These tasks are also listed in context within `implementation-plan.md`
+> **Note:** The personal goals feature was implemented but the score registration is not working. This is the #1 priority bug to fix before Friday demo.
