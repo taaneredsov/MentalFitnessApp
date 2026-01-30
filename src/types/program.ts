@@ -1,3 +1,5 @@
+export type AirtableProgramStatus = "Actief" | "Gepland" | "Afgewerkt"
+
 export interface Program {
   id: string
   name?: string
@@ -13,6 +15,7 @@ export interface Program {
   milestonesAwarded?: string[]  // Milestones already awarded (e.g., ["25", "50"])
   totalMethods?: number  // Total methods scheduled in program
   completedMethods?: number  // Methods completed so far
+  status?: AirtableProgramStatus | null  // Actief/Gepland/Afgewerkt (Airtable field)
 }
 
 export interface Programmaplanning {

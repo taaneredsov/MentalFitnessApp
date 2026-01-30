@@ -73,6 +73,10 @@ export const USER_FIELDS = {
   lastActiveDate: "fldwl4wC7pT4hKZVN",   // Laatste Actieve Dag (Date)
   badges: "fldMbIUw4uzjNKYy9",           // Badges (Long text - JSON array)
   level: "fldBp9BHyhbiGxK8V",            // Niveau (Number)
+  // Split score fields (all Formula fields)
+  mentalFitnessScore: "fldMTUjMC2vcY0HWA",    // Mental Fitness Score (# methodes * 10 + bonuspoints)
+  personalGoalsScore: "fldVDpa3GOFSWTYly",    // Persoonlijke Doelen Score (# completions * 10)
+  goodHabitsScore: "fldpW5r0j9aHREqaK",       // Goede Gewoontes Score (# completions * 5)
   // Magic link fields
   magicLinkToken: "fldjMwmUXqn0AmmXB",   // Magic Link Token (Single line text)
   magicLinkCode: "fldQxk69kS7coP4Ih",    // Magic Link Code (Single line text)
@@ -103,7 +107,8 @@ export const PROGRAM_FIELDS = {
   methods: "fldvcpSF78ATEk12U",         // Mentale methode (Link)
   notes: "fldAUf1ENHtF8NRPl",           // Notities
   methodUsage: "fldXNUYtU4KG84ZMX",     // Methodegebruik (Link)
-  milestonesAwarded: "fldQu0mHYeNj4mury" // Behaalde Mijlpalen (Long text - JSON array)
+  milestonesAwarded: "fldQu0mHYeNj4mury", // Behaalde Mijlpalen (Long text - JSON array)
+  status: "fldJcgvXDr2LDin14"           // Status (Single select: Actief/Gepland/Afgewerkt)
 }
 
 // Goals table field IDs (Doelstellingen)
@@ -256,7 +261,8 @@ export const FIELD_NAMES = {
     frequency: "Frequentie per week",
     goals: "Doelstellingen",
     methods: "Mentale methode",
-    notes: "Notities"
+    notes: "Notities",
+    status: "Status"
   },
   goal: {
     name: "Doelstelling Naam",
@@ -375,7 +381,8 @@ export function transformProgram(record) {
     methods: fields[PROGRAM_FIELDS.methods] || [],
     notes: fields[PROGRAM_FIELDS.notes],
     methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length,
-    milestonesAwarded
+    milestonesAwarded,
+    status: fields[PROGRAM_FIELDS.status] || null  // Actief/Gepland/Afgewerkt
   }
 }
 
@@ -524,7 +531,11 @@ export function transformUserRewards(record) {
     longestStreak: fields[USER_FIELDS.longestStreak] || 0,
     lastActiveDate: fields[USER_FIELDS.lastActiveDate] || null,
     badges,
-    level: fields[USER_FIELDS.level] || 1
+    level: fields[USER_FIELDS.level] || 1,
+    // Split scores (all formula fields, read-only)
+    mentalFitnessScore: fields[USER_FIELDS.mentalFitnessScore] || 0,
+    personalGoalsScore: fields[USER_FIELDS.personalGoalsScore] || 0,
+    goodHabitsScore: fields[USER_FIELDS.goodHabitsScore] || 0
   }
 }
 

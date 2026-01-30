@@ -124,6 +124,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const weeks = parseInt(body.duration.match(/(\d+)/)?.[1] || "1", 10)
     const weeklySessionTime = Math.round(totalDuration / weeks)
 
+    // Determine initial program status based on start date
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const todayStr = today.toISOString().split("T")[0]
+    const initialStatus = body.startDate <= todayStr ? "Actief" : "Gepland"
+
     // Create program in Airtable
     const programFields: Record<string, unknown> = {
       [PROGRAM_FIELDS.user]: [body.userId],
@@ -131,7 +137,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [PROGRAM_FIELDS.duration]: body.duration,
       [PROGRAM_FIELDS.daysOfWeek]: body.daysOfWeek,
       [PROGRAM_FIELDS.goals]: body.goals,
-      [PROGRAM_FIELDS.methods]: Array.from(methodIds)
+      [PROGRAM_FIELDS.methods]: Array.from(methodIds),
+      [PROGRAM_FIELDS.status]: initialStatus
     }
 
     // Add AI program summary as notes

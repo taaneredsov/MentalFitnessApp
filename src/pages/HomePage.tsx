@@ -28,6 +28,7 @@ import { AIProgramWizard } from "@/components/AIProgramWizard"
 import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { GoodHabitsSection } from "@/components/GoodHabitsSection"
 import { PersonalGoalsSection } from "@/components/PersonalGoalsSection"
+import { ScoreWidgets } from "@/components/ScoreWidgets"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -201,6 +202,8 @@ export function HomePage() {
             Welkom bij je persoonlijke mentale fitness-coach.
           </p>
         </section>
+
+        <ScoreWidgets />
 
         <InstallPrompt />
 

@@ -8,6 +8,10 @@ export interface UserRewards {
   lastActiveDate: string | null
   badges: string[]
   level: number
+  // Split scores (calculated by Airtable formulas)
+  mentalFitnessScore: number
+  personalGoalsScore: number
+  goodHabitsScore: number
 }
 
 /**

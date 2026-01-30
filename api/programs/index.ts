@@ -121,6 +121,19 @@ function isProgramRunning(startDate: string, endDate: string): boolean {
 }
 
 /**
+ * Determine program status based on start date
+ * - "Actief" if startDate is today or in the past
+ * - "Gepland" if startDate is in the future
+ */
+function getInitialProgramStatus(startDate: string): "Actief" | "Gepland" {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const todayStr = today.toISOString().split("T")[0]
+
+  return startDate <= todayStr ? "Actief" : "Gepland"
+}
+
+/**
  * POST /api/programs - Create a new program
  * Body: { userId, startDate, duration, goals?, daysOfWeek, methods?, notes? }
  */
@@ -166,7 +179,8 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
     const fields: Record<string, unknown> = {
       [PROGRAM_FIELDS.user]: [body.userId],
       [PROGRAM_FIELDS.startDate]: body.startDate,
-      [PROGRAM_FIELDS.duration]: body.duration
+      [PROGRAM_FIELDS.duration]: body.duration,
+      [PROGRAM_FIELDS.status]: getInitialProgramStatus(body.startDate)
     }
 
     // Optional fields
