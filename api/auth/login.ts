@@ -35,22 +35,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const record = records[0] as any
     const passwordHash = record.fields[USER_FIELDS.passwordHash]
-    const lastLogin = record.fields[USER_FIELDS.lastLogin]
 
-    // First-time user: no password hash AND no last login
-    // This indicates a newly created user who needs to set up their password
-    if (!passwordHash && !lastLogin) {
+    // User has no password set - needs to create one (first-time setup)
+    // This applies regardless of lastLogin (user may have used magic link before)
+    if (!passwordHash) {
       return sendSuccess(res, {
         needsPasswordSetup: true,
         userId: record.id,
         email: record.fields[USER_FIELDS.email]
       })
-    }
-
-    // User has last login but no password - account is in invalid state
-    // This shouldn't happen in normal operation, so show an error
-    if (!passwordHash && lastLogin) {
-      return sendError(res, "Account niet correct geconfigureerd. Neem contact op met beheerder.", 400)
     }
 
     // Password is required for users with existing password

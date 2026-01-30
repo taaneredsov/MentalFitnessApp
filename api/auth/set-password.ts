@@ -40,16 +40,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const record = records[0] as any
     const fields = record.fields
     const existingHash = fields[USER_FIELDS.passwordHash]
-    const lastLogin = fields[USER_FIELDS.lastLogin]
 
-    // Security: only allow setting password for first-time users
-    // (no password hash AND no last login)
+    // Security: only allow setting password if user doesn't have one yet
+    // (regardless of lastLogin - user may have used magic link before)
     if (existingHash) {
       return sendError(res, "Password already set. Use change password instead.", 400)
-    }
-
-    if (lastLogin) {
-      return sendError(res, "Account niet correct geconfigureerd. Neem contact op met beheerder.", 400)
     }
 
     // Verify email matches

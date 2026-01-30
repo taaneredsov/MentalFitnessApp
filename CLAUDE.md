@@ -104,3 +104,9 @@ Password: testpassword123
 
 - Repo: github.com/taaneredsov/MentalFitnessApp
 - Project Board: github.com/users/taaneredsov/projects/7
+
+## Deployment
+
+**Production URL**: https://mfa.drvn.be
+
+For deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md). Always reference that file when deploying to the Hetzner server.
