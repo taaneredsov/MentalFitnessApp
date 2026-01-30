@@ -277,13 +277,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Determine goals to use
     const goalIds = body.goals || program.goals
 
-    // Calculate tomorrow as start date for new schedule
+    // Calculate the start date for new schedule:
+    // - For planned programs (start date in future), use the original start date
+    // - For active programs (start date in past), use tomorrow
     const tomorrow = new Date(today)
     tomorrow.setDate(tomorrow.getDate() + 1)
     const tomorrowStr = tomorrow.toISOString().split("T")[0]
 
-    // Calculate new training dates from tomorrow to program end
-    const trainingDates = calculateTrainingDates(tomorrowStr, program.endDate, days)
+    const startDateForSchedule = program.startDate > todayStr
+      ? program.startDate
+      : tomorrowStr
+
+    // Calculate new training dates from start to program end
+    const trainingDates = calculateTrainingDates(startDateForSchedule, program.endDate, days)
 
     let newSchedule: ScheduleDay[] = []
 

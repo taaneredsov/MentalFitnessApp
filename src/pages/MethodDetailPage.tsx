@@ -347,27 +347,41 @@ export function MethodDetailPage() {
         Terug
       </Button>
 
+      {/* Header with photo */}
+      {method.photo && (
+        <div className="rounded-xl overflow-hidden -mx-4 -mt-2">
+          <img
+            src={method.photo}
+            alt={method.name}
+            className="w-full h-48 object-cover"
+          />
+        </div>
+      )}
+
       {/* Title */}
       <h1 className="text-2xl font-bold">{method.name}</h1>
 
-      {/* Duration */}
-      <div className="flex items-center gap-2 text-muted-foreground">
-        <Clock className="h-4 w-4" />
-        <span>{method.duration} minuten</span>
+      {/* Meta info */}
+      <div className="flex items-center gap-3 text-sm text-muted-foreground">
+        <div className="flex items-center gap-1.5">
+          <Clock className="h-4 w-4" />
+          <span>{method.duration} minuten</span>
+        </div>
+        {method.experienceLevel && (
+          <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-xs">
+            {method.experienceLevel}
+          </span>
+        )}
       </div>
 
       {/* Description */}
       {method.description && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Beschrijving</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="text-muted-foreground whitespace-pre-wrap">
-              {method.description}
-            </p>
-          </CardContent>
-        </Card>
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Beschrijving</h2>
+          <p className="text-foreground leading-relaxed whitespace-pre-wrap">
+            {method.description}
+          </p>
+        </div>
       )}
 
       {/* Media */}

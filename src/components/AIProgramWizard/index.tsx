@@ -2,7 +2,7 @@ import { useState } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { useAuth } from "@/contexts/AuthContext"
-import { useGoals, useDays } from "@/hooks/queries"
+import { useGoals, useDays, usePrograms } from "@/hooks/queries"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
@@ -38,8 +38,9 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
   // Use React Query for reference data (cached)
   const { data: goalsData = [], isLoading: goalsLoading } = useGoals()
   const { data: daysData = [], isLoading: daysLoading } = useDays()
+  const { data: programsData = [], isLoading: programsLoading } = usePrograms(user?.id)
 
-  const isLoading = goalsLoading || daysLoading
+  const isLoading = goalsLoading || daysLoading || programsLoading
 
   const updateState = (updates: Partial<AIWizardState>) => {
     setState((prev) => ({ ...prev, ...updates }))
@@ -236,6 +237,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
       updateState={updateState}
       goalsData={goalsData}
       daysData={daysData}
+      existingPrograms={programsData}
       isLoading={isLoading}
       onGenerate={handleGenerate}
       onCancel={onCancel}

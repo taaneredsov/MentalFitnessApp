@@ -1,14 +1,35 @@
+import { useMemo } from "react"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Check, Loader2, Sparkles } from "lucide-react"
+import { Check, Loader2, Sparkles, AlertTriangle } from "lucide-react"
 import { DURATION_OPTIONS, DAY_ORDER, AI_WIZARD_STEPS, type AIInputFormProps } from "./types"
+
+/**
+ * Calculate end date based on start date and duration string (e.g., "4 weken")
+ */
+function calculateEndDate(startDate: string, duration: string): string {
+  const match = duration.match(/(\d+)/)
+  const weeks = match ? parseInt(match[1], 10) : 4
+  const start = new Date(startDate)
+  const end = new Date(start)
+  end.setDate(end.getDate() + (weeks * 7) - 1)
+  return end.toISOString().split("T")[0]
+}
+
+/**
+ * Check if two date ranges overlap
+ */
+function dateRangesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+  return start1 <= end2 && end1 >= start2
+}
 
 export function AIInputForm({
   state,
   updateState,
   goalsData,
   daysData,
+  existingPrograms,
   isLoading,
   onGenerate,
   onCancel
@@ -48,9 +69,32 @@ export function AIInputForm({
     }
   }
 
+  // Check for overlapping programs in Step 1
+  const overlapCheck = useMemo(() => {
+    if (!state.startDate || !state.duration) return null
+
+    const newEndDate = calculateEndDate(state.startDate, state.duration)
+
+    // Check against active/planned programs
+    for (const program of existingPrograms) {
+      if (program.status !== "Actief" && program.status !== "Gepland") continue
+
+      if (program.startDate && program.endDate) {
+        if (dateRangesOverlap(state.startDate, newEndDate, program.startDate, program.endDate)) {
+          return {
+            hasOverlap: true,
+            programName: program.name || "Naamloos programma"
+          }
+        }
+      }
+    }
+
+    return { hasOverlap: false, programName: null }
+  }, [state.startDate, state.duration, existingPrograms])
+
   // Validation per step
   const canProceedStep0 = state.goals.length > 0
-  const canProceedStep1 = state.startDate && state.duration
+  const canProceedStep1 = state.startDate && state.duration && !overlapCheck?.hasOverlap
   const canProceedStep2 = state.daysOfWeek.length > 0
 
   if (isLoading) {
@@ -190,6 +234,18 @@ export function AIInputForm({
             </select>
           </div>
 
+          {/* Overlap warning */}
+          {overlapCheck?.hasOverlap && (
+            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-sm text-amber-800 dark:text-amber-200">
+                  Dit programma overlapt met <strong>{overlapCheck.programName}</strong>. Kies andere datums.
+                </p>
+              </div>
+            </div>
+          )}
+
           <div className="flex justify-between pt-4">
             <Button variant="outline" onClick={goBack}>
               Terug
@@ -203,44 +259,35 @@ export function AIInputForm({
 
       {/* Step 2: Training Days */}
       {state.step === 2 && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-2">
+        <div className="space-y-6">
+          <div className="flex justify-between">
             {sortedDays.map((day) => {
               const isSelected = state.daysOfWeek.includes(day.id)
+              const shortName = day.name.slice(0, 2)
               return (
                 <button
                   key={day.id}
                   onClick={() => toggleDay(day.id)}
-                  className={`p-3 rounded-lg border transition-colors text-center ${
+                  title={day.name}
+                  className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
                     isSelected
-                      ? "border-primary bg-primary/5 font-medium"
-                      : "border-border hover:border-primary/50"
+                      ? "bg-primary text-primary-foreground"
+                      : "bg-muted text-muted-foreground hover:bg-muted/80"
                   }`}
                 >
-                  <div className="flex items-center justify-center gap-2">
-                    <div
-                      className={`w-5 h-5 rounded border flex items-center justify-center ${
-                        isSelected
-                          ? "bg-primary border-primary text-primary-foreground"
-                          : "border-muted-foreground"
-                      }`}
-                    >
-                      {isSelected && <Check className="h-3 w-3" />}
-                    </div>
-                    <span>{day.name}</span>
-                  </div>
+                  {shortName}
                 </button>
               )
             })}
           </div>
 
-          {state.daysOfWeek.length > 0 && (
-            <p className="text-sm text-muted-foreground">
-              {state.daysOfWeek.length} dag{state.daysOfWeek.length !== 1 ? "en" : ""} per week geselecteerd
-            </p>
-          )}
+          <p className="text-sm text-muted-foreground text-center">
+            {state.daysOfWeek.length === 0
+              ? "Selecteer minimaal 1 dag"
+              : `${state.daysOfWeek.length} dag${state.daysOfWeek.length !== 1 ? "en" : ""} per week geselecteerd`}
+          </p>
 
-          <div className="flex justify-between pt-4">
+          <div className="flex justify-between pt-2">
             <Button variant="outline" onClick={goBack}>
               Terug
             </Button>

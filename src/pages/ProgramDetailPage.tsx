@@ -109,7 +109,7 @@ export function ProgramDetailPage() {
     setShowProgramEdit(false)
   }
 
-  const handleRegenerateProgram = async (data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple" }) => {
+  const handleRegenerateProgram = async (data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple"; force?: boolean }) => {
     await regenerateMutation.mutateAsync(data)
     setShowProgramEdit(false)
   }

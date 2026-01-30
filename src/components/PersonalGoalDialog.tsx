@@ -138,18 +138,19 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
             <p className="text-sm text-destructive">{error}</p>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="flex flex-col gap-2 sm:flex-col">
+            <Button type="submit" disabled={isPending} className="w-full">
+              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isEditing ? "Opslaan" : "Toevoegen"}
+            </Button>
             <Button
               type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isPending}
+              className="w-full"
             >
               Annuleren
-            </Button>
-            <Button type="submit" disabled={isPending}>
-              {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              {isEditing ? "Opslaan" : "Toevoegen"}
             </Button>
           </DialogFooter>
         </form>

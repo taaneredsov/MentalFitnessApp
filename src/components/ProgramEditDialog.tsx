@@ -20,7 +20,7 @@ interface ProgramEditDialogProps {
   allGoals: Goal[]
   allDays: Day[]
   onSave: (data: { goals: string[]; daysOfWeek: string[]; notes?: string }) => Promise<void>
-  onRegenerate: (data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple" }) => Promise<void>
+  onRegenerate: (data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple"; force?: boolean }) => Promise<void>
   isSaving?: boolean
   isRegenerating?: boolean
   futureSessions?: number  // Number of future sessions that will be regenerated
@@ -241,7 +241,8 @@ export function ProgramEditDialog({
     await onRegenerate({
       daysOfWeek: selectedDayIds,
       goals: goalsChanged ? selectedGoalIds : undefined,
-      regenerateMethod: method
+      regenerateMethod: method,
+      force: true  // Force regeneration even if future sessions have completed activities
     })
     setShowRegenerateConfirm(false)
   }
@@ -277,9 +278,9 @@ export function ProgramEditDialog({
             <div className="bg-muted/50 rounded-lg p-4 space-y-2">
               <p className="text-sm font-medium">Wat gebeurt er?</p>
               <ul className="text-sm text-muted-foreground space-y-1">
-                <li>• Voltooide sessies blijven behouden</li>
+                <li>• Voltooide sessies (t/m vandaag) blijven behouden</li>
                 <li>• {futureSessions} toekomstige sessie(s) worden herberekend</li>
-                <li>• Handmatige wijzigingen aan toekomstige sessies gaan verloren</li>
+                <li>• Activiteiten uitgevoerd op toekomstige sessies worden verwijderd</li>
               </ul>
             </div>
 

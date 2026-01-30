@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { verifyToken } from "../_lib/jwt.js"
-import { transformProgram, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS } from "../_lib/field-mappings.js"
+import { transformProgram, parseEuropeanDate, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS } from "../_lib/field-mappings.js"
 
 interface ScheduleMethod {
   methodId: string
@@ -58,6 +58,24 @@ async function createProgramplanningRecords(
 }
 
 /**
+ * Calculate end date based on start date and duration string (e.g., "4 weken")
+ */
+function calculateEndDate(startDate: string, duration: string): string {
+  const weeks = parseInt(duration.match(/(\d+)/)?.[1] || "4", 10)
+  const start = new Date(startDate)
+  const end = new Date(start)
+  end.setDate(end.getDate() + (weeks * 7) - 1)
+  return end.toISOString().split("T")[0]
+}
+
+/**
+ * Check if two date ranges overlap
+ */
+function dateRangesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+  return start1 <= end2 && end1 >= start2
+}
+
+/**
  * POST /api/programs/confirm - Save user-confirmed/edited program to Airtable
  * Body: { userId, goals[], startDate, duration, daysOfWeek[], editedSchedule[], programSummary? }
  */
@@ -109,6 +127,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
+    // Check for overlapping programs
+    const newEndDate = calculateEndDate(body.startDate, body.duration)
+    const existingPrograms = await base(tables.programs)
+      .select({
+        returnFieldsByFieldId: true
+      })
+      .all()
+
+    // Filter to user's active/planned programs and check for overlap
+    for (const record of existingPrograms) {
+      const userIds = record.fields[PROGRAM_FIELDS.user] as string[] | undefined
+      if (!userIds?.includes(body.userId)) continue
+
+      const status = record.fields[PROGRAM_FIELDS.status] as string | undefined
+      if (status !== "Actief" && status !== "Gepland") continue
+
+      const existingStart = record.fields[PROGRAM_FIELDS.startDate] as string
+      const existingEndRaw = record.fields[PROGRAM_FIELDS.endDate] as string
+      const existingEnd = parseEuropeanDate(existingEndRaw)
+
+      if (existingStart && existingEnd && dateRangesOverlap(body.startDate, newEndDate, existingStart, existingEnd)) {
+        const program = transformProgram(record as any)
+        return sendError(res, `Dit programma overlapt met een bestaand programma (${program.name || 'Naamloos'}). Kies andere datums.`, 409)
+      }
+    }
+
     // Extract unique method IDs from edited schedule
     const methodIds = new Set<string>()
     for (const day of body.editedSchedule) {
@@ -125,9 +169,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const weeklySessionTime = Math.round(totalDuration / weeks)
 
     // Determine initial program status based on start date
+    // Use local date formatting to avoid UTC timezone issues
     const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const todayStr = today.toISOString().split("T")[0]
+    const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
     const initialStatus = body.startDate <= todayStr ? "Actief" : "Gepland"
 
     // Create program in Airtable
@@ -138,7 +182,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [PROGRAM_FIELDS.daysOfWeek]: body.daysOfWeek,
       [PROGRAM_FIELDS.goals]: body.goals,
       [PROGRAM_FIELDS.methods]: Array.from(methodIds),
-      [PROGRAM_FIELDS.status]: initialStatus
+      [PROGRAM_FIELDS.status]: initialStatus,
+      [PROGRAM_FIELDS.creationType]: "AI"  // AI wizard creates AI programs
     }
 
     // Add AI program summary as notes

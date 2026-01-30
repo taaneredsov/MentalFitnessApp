@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { transformProgram, transformProgrammaplanning, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS, METHOD_USAGE_FIELDS } from "../_lib/field-mappings.js"
+import { transformProgram, transformProgrammaplanning, parseEuropeanDate, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS, METHOD_USAGE_FIELDS } from "../_lib/field-mappings.js"
 
 /**
  * GET /api/programs?userId=recXXX - Returns all programs for a user
@@ -110,14 +110,21 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 }
 
 /**
- * Check if a program is currently running based on dates
+ * Calculate end date based on start date and duration string (e.g., "4 weken")
  */
-function isProgramRunning(startDate: string, endDate: string): boolean {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().split("T")[0]
+function calculateEndDate(startDate: string, duration: string): string {
+  const weeks = parseInt(duration.match(/(\d+)/)?.[1] || "4", 10)
+  const start = new Date(startDate)
+  const end = new Date(start)
+  end.setDate(end.getDate() + (weeks * 7) - 1)
+  return end.toISOString().split("T")[0]
+}
 
-  return startDate <= todayStr && endDate >= todayStr
+/**
+ * Check if two date ranges overlap
+ */
+function dateRangesOverlap(start1: string, end1: string, start2: string, end2: string): boolean {
+  return start1 <= end2 && end1 >= start2
 }
 
 /**
@@ -126,9 +133,9 @@ function isProgramRunning(startDate: string, endDate: string): boolean {
  * - "Gepland" if startDate is in the future
  */
 function getInitialProgramStatus(startDate: string): "Actief" | "Gepland" {
+  // Use local date formatting to avoid UTC timezone issues
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().split("T")[0]
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
 
   return startDate <= todayStr ? "Actief" : "Gepland"
 }
@@ -152,27 +159,30 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "duration is required", 400)
     }
 
-    // Check for existing running program (one-active-program limit)
+    // Check for overlapping programs (active or planned)
+    const newEndDate = calculateEndDate(body.startDate, body.duration)
     const existingRecords = await base(tables.programs)
       .select({
         returnFieldsByFieldId: true
       })
       .all()
 
-    // Filter to this user's programs and check if any are running
-    const userRunningProgram = existingRecords.find(record => {
+    // Filter to this user's active/planned programs and check for overlap
+    for (const record of existingRecords) {
       const userIds = record.fields[PROGRAM_FIELDS.user] as string[] | undefined
-      if (!userIds?.includes(body.userId)) return false
+      if (!userIds?.includes(body.userId)) continue
 
-      const startDate = record.fields[PROGRAM_FIELDS.startDate] as string | undefined
-      const endDate = record.fields[PROGRAM_FIELDS.endDate] as string | undefined
-      if (!startDate || !endDate) return false
+      const status = record.fields[PROGRAM_FIELDS.status] as string | undefined
+      if (status !== "Actief" && status !== "Gepland") continue
 
-      return isProgramRunning(startDate, endDate)
-    })
+      const existingStart = record.fields[PROGRAM_FIELDS.startDate] as string
+      const existingEndRaw = record.fields[PROGRAM_FIELDS.endDate] as string
+      const existingEnd = parseEuropeanDate(existingEndRaw)
 
-    if (userRunningProgram) {
-      return sendError(res, "Je hebt al een actief programma. Voltooi dit eerst voordat je een nieuw programma start.", 409)
+      if (existingStart && existingEnd && dateRangesOverlap(body.startDate, newEndDate, existingStart, existingEnd)) {
+        const program = transformProgram(record as any)
+        return sendError(res, `Dit programma overlapt met een bestaand programma (${program.name || 'Naamloos'}). Kies andere datums.`, 409)
+      }
     }
 
     // Build fields object for Airtable
@@ -180,7 +190,8 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
       [PROGRAM_FIELDS.user]: [body.userId],
       [PROGRAM_FIELDS.startDate]: body.startDate,
       [PROGRAM_FIELDS.duration]: body.duration,
-      [PROGRAM_FIELDS.status]: getInitialProgramStatus(body.startDate)
+      [PROGRAM_FIELDS.status]: getInitialProgramStatus(body.startDate),
+      [PROGRAM_FIELDS.creationType]: "Manueel"  // Manual program creation
     }
 
     // Optional fields

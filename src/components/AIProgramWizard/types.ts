@@ -60,6 +60,7 @@ export interface AIInputFormProps {
   updateState: (updates: Partial<AIWizardState>) => void
   goalsData: Goal[]
   daysData: Day[]
+  existingPrograms: Program[]
   isLoading: boolean
   onGenerate: () => void
   onCancel: () => void

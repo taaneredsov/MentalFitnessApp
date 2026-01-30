@@ -1,8 +1,36 @@
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
-import { useMethods } from "@/hooks/queries"
-import { Card, CardContent } from "@/components/ui/card"
+import { useMethods, useGoals } from "@/hooks/queries"
+import { Card } from "@/components/ui/card"
 import type { Method } from "@/types/program"
-import { Loader2, Clock, Image as ImageIcon } from "lucide-react"
+import { Loader2, Clock, ChevronRight } from "lucide-react"
+
+function MethodThumbnail({ photo, name }: { photo?: string; name: string }) {
+  const [imgError, setImgError] = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
+
+  // Show fallback if no photo, error, or still loading with broken src
+  const showFallback = !photo || imgError
+
+  return (
+    <div className="w-full h-full relative">
+      {/* Fallback - always rendered underneath */}
+      <div className={`absolute inset-0 flex items-center justify-center bg-primary/10 p-4 ${showFallback ? 'opacity-100' : 'opacity-0'}`}>
+        <img src="/pwa-512x512.svg" alt="" className="w-full h-full opacity-60" />
+      </div>
+      {/* Actual image */}
+      {photo && !imgError && (
+        <img
+          src={photo}
+          alt={name}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgError(true)}
+        />
+      )}
+    </div>
+  )
+}
 
 function MethodCard({
   method,
@@ -16,32 +44,38 @@ function MethodCard({
       className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
       onClick={onClick}
     >
-      <div className="aspect-video bg-muted relative">
-        {method.photo ? (
-          <img
-            src={method.photo}
-            alt={method.name}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon className="h-12 w-12 text-muted-foreground/50" />
-          </div>
-        )}
-      </div>
-      <CardContent className="p-3">
-        <h3 className="font-medium line-clamp-1">{method.name}</h3>
-        <div className="flex items-center gap-1 text-sm text-muted-foreground mt-1">
-          <Clock className="h-3.5 w-3.5" />
-          <span>{method.duration} min</span>
-          {method.experienceLevel && (
-            <>
-              <span className="mx-1">•</span>
-              <span>{method.experienceLevel}</span>
-            </>
-          )}
+      <div className="flex gap-3 p-3">
+        {/* Thumbnail */}
+        <div className="w-20 h-20 rounded-lg bg-muted shrink-0 overflow-hidden">
+          <MethodThumbnail photo={method.photo} name={method.name} />
         </div>
-      </CardContent>
+
+        {/* Content */}
+        <div className="flex-1 min-w-0 flex flex-col justify-center">
+          <h3 className="font-medium text-sm line-clamp-1">{method.name}</h3>
+          {method.description && (
+            <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
+              {method.description}
+            </p>
+          )}
+          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1.5">
+            <div className="flex items-center gap-1">
+              <Clock className="h-3 w-3" />
+              <span>{method.duration} min</span>
+            </div>
+            {method.experienceLevel && (
+              <span className="px-1.5 py-0.5 rounded bg-muted text-[10px]">
+                {method.experienceLevel}
+              </span>
+            )}
+          </div>
+        </div>
+
+        {/* Chevron */}
+        <div className="flex items-center">
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        </div>
+      </div>
     </Card>
   )
 }
@@ -49,9 +83,19 @@ function MethodCard({
 export function MethodsPage() {
   const navigate = useNavigate()
 
-  // Use React Query for methods data (cached)
-  const { data: methods = [], isLoading, error: methodsError } = useMethods()
+  // Use React Query for methods and goals data (cached)
+  const { data: methods = [], isLoading: methodsLoading, error: methodsError } = useMethods()
+  const { data: goals = [], isLoading: goalsLoading } = useGoals()
+
+  const isLoading = methodsLoading || goalsLoading
   const error = methodsError ? "Kon methodes niet laden" : null
+
+  // Filter out methods linked to "Goede gewoontes" goal
+  const filteredMethods = useMemo(() => {
+    const habitsGoal = goals.find(g => g.name === "Goede gewoontes")
+    if (!habitsGoal) return methods
+    return methods.filter(m => !m.linkedGoalIds?.includes(habitsGoal.id))
+  }, [methods, goals])
 
   const handleMethodClick = (id: string) => {
     navigate(`/methods/${id}`)
@@ -77,15 +121,15 @@ export function MethodsPage() {
     <div className="px-4 py-6 space-y-6">
       <h2 className="text-2xl font-bold">Methodes</h2>
 
-      {methods.length === 0 ? (
+      {filteredMethods.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
             Geen methodes beschikbaar.
           </p>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
-          {methods.map(method => (
+        <div className="space-y-3">
+          {filteredMethods.map(method => (
             <MethodCard
               key={method.id}
               method={method}

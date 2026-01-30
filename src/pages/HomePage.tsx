@@ -71,6 +71,35 @@ function getNextScheduledSession(schedule: Programmaplanning[]): Programmaplanni
   }) || null
 }
 
+/**
+ * Method thumbnail with fallback on error
+ */
+function MethodThumbnail({ photo, name }: { photo?: string; name: string }) {
+  const [imgError, setImgError] = useState(false)
+  const [imgLoaded, setImgLoaded] = useState(false)
+
+  const showFallback = !photo || imgError
+
+  return (
+    <div className="w-12 h-12 rounded-xl overflow-hidden relative">
+      {/* Fallback - always rendered underneath */}
+      <div className={`absolute inset-0 flex items-center justify-center bg-primary/10 p-2 ${showFallback ? 'opacity-100' : 'opacity-0'}`}>
+        <img src="/pwa-512x512.svg" alt="" className="w-full h-full opacity-60" />
+      </div>
+      {/* Actual image */}
+      {photo && !imgError && (
+        <img
+          src={photo}
+          alt={name}
+          className={`absolute inset-0 w-full h-full object-cover transition-opacity ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
+          onLoad={() => setImgLoaded(true)}
+          onError={() => setImgError(true)}
+        />
+      )}
+    </div>
+  )
+}
+
 export function HomePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
@@ -308,13 +337,7 @@ export function HomePage() {
                             })
                           }}
                         >
-                          {method.photo && (
-                            <img
-                              src={method.photo}
-                              alt={method.name}
-                              className="w-12 h-12 rounded-xl object-cover"
-                            />
-                          )}
+                          <MethodThumbnail photo={method.photo} name={method.name} />
                           <div className="flex-1 min-w-0">
                             <p className={`font-semibold truncate ${isMethodCompleted ? "text-primary" : ""}`}>
                               {method.name}
@@ -380,10 +403,45 @@ export function HomePage() {
             <CardHeader className="pb-3">
               <CardTitle className="text-lg">Hulp & Informatie</CardTitle>
             </CardHeader>
-            <CardContent>
-              <p className="text-muted-foreground">
-                Veelgestelde vragen en handleidingen.
+            <CardContent className="space-y-4">
+              <p className="text-muted-foreground text-sm">
+                Heb je vragen over de app of je mentale fitnessprogramma? Hier vind je antwoorden.
               </p>
+              <div className="space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm">💡</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Hoe werkt het puntensysteem?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Verdien punten door methodes te voltooien (10 pts), gewoontes bij te houden (5 pts) en persoonlijke doelen te behalen (10 pts).
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm">🔥</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Wat is een streak?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Je streak telt het aantal opeenvolgende dagen dat je actief bent geweest. Blijf elke dag bezig om je streak te behouden!
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                    <span className="text-sm">📅</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Kan ik mijn programma aanpassen?</p>
+                    <p className="text-xs text-muted-foreground">
+                      Ja! Ga naar je programma details en tik op "Bewerk programma" om doelen, trainingsdagen of notities te wijzigen.
+                    </p>
+                  </div>
+                </div>
+              </div>
             </CardContent>
           </Card>
         </section>

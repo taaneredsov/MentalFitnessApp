@@ -2,6 +2,7 @@ import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { PersonalGoalDialog } from "@/components/PersonalGoalDialog"
 import { usePersonalGoals, usePersonalGoalUsage, useCompletePersonalGoal } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
@@ -24,6 +25,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
 
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null)
   const [recentlyCompleted, setRecentlyCompleted] = useState<string | null>(null)
+  const [showAddDialog, setShowAddDialog] = useState(false)
 
   const isLoading = isLoadingGoals || isLoadingUsage
 
@@ -56,32 +58,38 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
   // Don't render the section at all if no goals and not loading
   if (!isLoading && goals.length === 0) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              <CardTitle className="text-lg">Persoonlijke Doelen</CardTitle>
+      <>
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Target className="h-5 w-5 text-primary" />
+                <CardTitle className="text-lg">Persoonlijke Doelen</CardTitle>
+              </div>
+              {showManageLink && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-primary"
+                  onClick={() => setShowAddDialog(true)}
+                >
+                  <Plus className="h-4 w-4 mr-1" />
+                  Toevoegen
+                </Button>
+              )}
             </div>
-            {showManageLink && (
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-primary"
-                onClick={() => navigate("/account")}
-              >
-                <Plus className="h-4 w-4 mr-1" />
-                Toevoegen
-              </Button>
-            )}
-          </div>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-center py-4">
-            Geen persoonlijke doelen. Voeg je eerste toe!
-          </p>
-        </CardContent>
-      </Card>
+          </CardHeader>
+          <CardContent>
+            <p className="text-muted-foreground text-center py-4">
+              Geen persoonlijke doelen. Voeg je eerste toe!
+            </p>
+          </CardContent>
+        </Card>
+        <PersonalGoalDialog
+          open={showAddDialog}
+          onOpenChange={setShowAddDialog}
+        />
+      </>
     )
   }
 
@@ -94,14 +102,25 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
             <CardTitle className="text-lg">Persoonlijke Doelen</CardTitle>
           </div>
           {showManageLink && goals.length > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-muted-foreground"
-              onClick={() => navigate("/account")}
-            >
-              <Settings className="h-4 w-4" />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-primary"
+                onClick={() => setShowAddDialog(true)}
+              >
+                <Plus className="h-4 w-4 mr-1" />
+                Toevoegen
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground"
+                onClick={() => navigate("/account")}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+            </div>
           )}
         </div>
       </CardHeader>
@@ -182,6 +201,10 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
           })
         )}
       </CardContent>
+      <PersonalGoalDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+      />
     </Card>
   )
 }

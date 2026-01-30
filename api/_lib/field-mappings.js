@@ -340,7 +340,7 @@ export function transformCompany(record) {
  * Convert DD/MM/YYYY to ISO format YYYY-MM-DD
  * Airtable formula fields may return dates in European format
  */
-function parseEuropeanDate(dateStr) {
+export function parseEuropeanDate(dateStr) {
   if (!dateStr) return null
   // If already in ISO format (YYYY-MM-DD), return as-is
   if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) return dateStr
