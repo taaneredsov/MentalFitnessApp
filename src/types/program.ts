@@ -83,6 +83,7 @@ export interface Method {
   description?: string
   experienceLevel?: string
   optimalFrequency?: string[]  // Array of frequency options (Dagelijks, Wekelijks, etc.)
+  linkedGoalIds?: string[]  // Linked record IDs to Goals
   photo?: string
   media?: string[]  // Linked record IDs to Media table
 }
