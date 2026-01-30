@@ -35,7 +35,6 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
     setTimeout(() => setRecentlyCompleted(null), 2000)
 
     // Complete the goal
-    console.log("[PersonalGoalsSection] Completing goal:", goalId, "for user:", user.id, "date:", today)
     completeGoalMutation.mutate({
       data: {
         userId: user.id,
@@ -44,16 +43,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
       },
       accessToken
     }, {
-      onSuccess: (data) => {
-        console.log("[PersonalGoalsSection] Goal completed successfully:", data)
-      },
-      onError: (error) => {
-        console.error("[PersonalGoalsSection] Failed to complete goal:", error)
-        // Show detailed error to user for debugging
-        const errorDetails = error instanceof Error
-          ? `${error.name}: ${error.message}`
-          : JSON.stringify(error)
-        alert(`Fout bij registreren:\n\n${errorDetails}\n\nUser: ${user.id}\nGoal: ${goalId}\nDate: ${today}`)
+      onError: () => {
         setRecentlyCompleted(null)
       }
     })

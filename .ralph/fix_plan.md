@@ -8,37 +8,22 @@
 
 ---
 
-## Priority 1: CRITICAL - Personal Goals Bug Fix
+## Priority 1: CRITICAL - Personal Goals Bug Fix ✅ COMPLETE
 
 **Goal**: Fix the personal goals score registration so completions are saved to Airtable.
 
-### Debug Tasks
-- [~] Check Vercel dev server logs for API errors when completing a goal
-  - Enhanced logging added to API endpoint
-- [x] Verify Airtable field IDs in `api/_lib/field-mappings.js` match actual table
-  - Verified: All field IDs (PERSONAL_GOAL_USAGE_FIELDS, PERSONAL_GOAL_FIELDS, USER_FIELDS) are correct
-- [x] Test API directly with curl to isolate frontend vs backend issue
-  - Direct Airtable API calls work (create records, update bonusPoints)
-  - API endpoint responds correctly (returns proper JSON errors)
-- [~] Check if the error alert (added for debugging) shows any message
-  - Enhanced error alert with more details (shows userId, goalId, date)
+### Root Cause
+The `.find()` method returns field **names** (like "Gebruikers"), but the code was accessing by field **ID**. Fixed by using the field name directly in the ownership check.
 
-### Investigation Summary
-- All Airtable operations work when called directly via curl
-- Field IDs are verified correct against actual Airtable schema
-- API endpoint is reachable and returns proper JSON responses
-- Need user to test in app to see error details via alert
+### Fix Applied
+- Changed `goalFields[PERSONAL_GOAL_FIELDS.user]` to `goalFields["Gebruikers"]` in ownership check
+- Removed debug logging and alert code
 
-### Fix Tasks (based on diagnosis)
-- [~] Fix identified issue in `api/personal-goal-usage/index.ts`
-  - Added comprehensive logging to trace request flow
-- [ ] Verify fix works by completing a goal and checking Airtable
-- [ ] Remove debug alert from `src/components/PersonalGoalsSection.tsx`
-
-### Verification
-- [ ] Complete a personal goal via UI
-- [ ] Verify record created in Airtable `Persoonlijk doelgebruik` table
-- [ ] Verify count updates in UI without refresh
+### Verification ✅
+- [x] Complete a personal goal via UI - WORKS
+- [x] Record created in Airtable `Persoonlijk doelgebruik` table
+- [x] Count updates in UI without refresh
+- [x] Debug code removed
 
 ---
 
@@ -89,9 +74,9 @@
 ## Completion Checklist
 
 Before signaling EXIT:
-- [ ] Priority 1 complete (personal goals bug fixed)
-- [ ] Priority 2 complete (one active program limit)
-- [ ] TypeScript compiles: `npm run build`
+- [x] Priority 1 complete (personal goals bug fixed)
+- [x] Priority 2 complete (one active program limit)
+- [x] TypeScript compiles: `npm run build`
 - [ ] All changes committed to git
 - [ ] Push to GitHub
 
