@@ -90,17 +90,25 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
  * Allows multiple completions per day
  */
 async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
+  console.log("[personal-goal-usage] POST - raw body type:", typeof req.body)
+  console.log("[personal-goal-usage] POST - raw body:", JSON.stringify(req.body).slice(0, 500))
+
   const rawBody = parseBody(req)
+  console.log("[personal-goal-usage] POST - parsed body:", JSON.stringify(rawBody))
+
   const body = createUsageSchema.parse(rawBody)
+  console.log("[personal-goal-usage] POST - validated body:", JSON.stringify(body))
 
   // Verify the user is creating a record for themselves
   if (body.userId !== tokenUserId) {
-    return sendError(res, "Cannot create personal goal usage for another user", 403)
+    console.log("[personal-goal-usage] POST - userId mismatch: body.userId=", body.userId, "tokenUserId=", tokenUserId)
+    return sendError(res, `User ID mismatch: expected ${tokenUserId}, got ${body.userId}`, 403)
   }
 
   // Validate IDs
   if (!isValidRecordId(body.userId) || !isValidRecordId(body.personalGoalId)) {
-    return sendError(res, "Invalid ID format", 400)
+    console.log("[personal-goal-usage] POST - invalid ID format: userId=", body.userId, "goalId=", body.personalGoalId)
+    return sendError(res, `Invalid ID format: userId=${body.userId}, goalId=${body.personalGoalId}`, 400)
   }
 
   // Verify the goal belongs to the user
@@ -237,20 +245,26 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
  * POST: Creates a new usage record (allows multiple per day)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
+  console.log("[personal-goal-usage] Request received:", req.method, req.url)
+
   // Verify authentication
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith("Bearer ")) {
-    return sendError(res, "Unauthorized", 401)
+    console.log("[personal-goal-usage] No Bearer token in Authorization header")
+    return sendError(res, "Unauthorized - no token provided", 401)
   }
 
   const token = authHeader.slice(7)
   const payload = await verifyToken(token)
   if (!payload) {
-    return sendError(res, "Invalid token", 401)
+    console.log("[personal-goal-usage] Token verification failed")
+    return sendError(res, "Invalid or expired token", 401)
   }
 
+  const userId = payload.userId as string
+  console.log("[personal-goal-usage] Authenticated user:", userId)
+
   try {
-    const userId = payload.userId as string
     switch (req.method) {
       case "GET":
         return handleGet(req, res, userId)
@@ -260,8 +274,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         return sendError(res, "Method not allowed", 405)
     }
   } catch (error) {
+    console.error("[personal-goal-usage] Unhandled error:", error)
     if (error instanceof z.ZodError) {
-      return sendError(res, error.issues[0].message, 400)
+      const errorMsg = `Validation error: ${error.issues.map(i => i.message).join(", ")}`
+      console.log("[personal-goal-usage] Zod validation error:", errorMsg)
+      return sendError(res, errorMsg, 400)
     }
     return handleApiError(res, error)
   }

@@ -13,13 +13,25 @@
 **Goal**: Fix the personal goals score registration so completions are saved to Airtable.
 
 ### Debug Tasks
-- [ ] Check Vercel dev server logs for API errors when completing a goal
-- [ ] Verify Airtable field IDs in `api/_lib/field-mappings.js` match actual table
-- [ ] Test API directly with curl to isolate frontend vs backend issue
-- [ ] Check if the error alert (added for debugging) shows any message
+- [~] Check Vercel dev server logs for API errors when completing a goal
+  - Enhanced logging added to API endpoint
+- [x] Verify Airtable field IDs in `api/_lib/field-mappings.js` match actual table
+  - Verified: All field IDs (PERSONAL_GOAL_USAGE_FIELDS, PERSONAL_GOAL_FIELDS, USER_FIELDS) are correct
+- [x] Test API directly with curl to isolate frontend vs backend issue
+  - Direct Airtable API calls work (create records, update bonusPoints)
+  - API endpoint responds correctly (returns proper JSON errors)
+- [~] Check if the error alert (added for debugging) shows any message
+  - Enhanced error alert with more details (shows userId, goalId, date)
+
+### Investigation Summary
+- All Airtable operations work when called directly via curl
+- Field IDs are verified correct against actual Airtable schema
+- API endpoint is reachable and returns proper JSON responses
+- Need user to test in app to see error details via alert
 
 ### Fix Tasks (based on diagnosis)
-- [ ] Fix identified issue in `api/personal-goal-usage/index.ts`
+- [~] Fix identified issue in `api/personal-goal-usage/index.ts`
+  - Added comprehensive logging to trace request flow
 - [ ] Verify fix works by completing a goal and checking Airtable
 - [ ] Remove debug alert from `src/components/PersonalGoalsSection.tsx`
 
