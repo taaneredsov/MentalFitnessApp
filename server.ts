@@ -119,6 +119,13 @@ async function setupRoutes() {
   app.delete("/api/programs/:id", wrapVercelHandler(programByIdHandler))
   app.get("/api/programs/:id/methods", wrapVercelHandler(programMethodsHandler))
 
+  // Program schedule routes
+  const { default: regenerateScheduleHandler } = await import("./api/programs/[id]/regenerate-schedule.js")
+  const { default: schedulePlanningHandler } = await import("./api/programs/[id]/schedule/[planningId].js")
+
+  app.post("/api/programs/:id/regenerate-schedule", wrapVercelHandler(regenerateScheduleHandler))
+  app.patch("/api/programs/:id/schedule/:planningId", wrapVercelHandler(schedulePlanningHandler))
+
   // Methods routes
   const { default: methodsHandler } = await import("./api/methods/index.js")
   const { default: methodByIdHandler } = await import("./api/methods/[id].js")
@@ -157,6 +164,22 @@ async function setupRoutes() {
   app.get("/api/habit-usage", wrapVercelHandler(habitUsageHandler))
   app.post("/api/habit-usage", wrapVercelHandler(habitUsageHandler))
   app.delete("/api/habit-usage", wrapVercelHandler(habitUsageHandler))
+
+  // Personal goals routes
+  const { default: personalGoalsHandler } = await import("./api/personal-goals/index.js")
+  const { default: personalGoalByIdHandler } = await import("./api/personal-goals/[id].js")
+
+  app.get("/api/personal-goals", wrapVercelHandler(personalGoalsHandler))
+  app.post("/api/personal-goals", wrapVercelHandler(personalGoalsHandler))
+  app.get("/api/personal-goals/:id", wrapVercelHandler(personalGoalByIdHandler))
+  app.patch("/api/personal-goals/:id", wrapVercelHandler(personalGoalByIdHandler))
+  app.delete("/api/personal-goals/:id", wrapVercelHandler(personalGoalByIdHandler))
+
+  // Personal goal usage routes
+  const { default: personalGoalUsageHandler } = await import("./api/personal-goal-usage/index.js")
+
+  app.get("/api/personal-goal-usage", wrapVercelHandler(personalGoalUsageHandler))
+  app.post("/api/personal-goal-usage", wrapVercelHandler(personalGoalUsageHandler))
 
   // Cache routes
   const { default: cacheInvalidateHandler } = await import("./api/cache/invalidate.js")
