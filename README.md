@@ -64,3 +64,55 @@ JWT_SECRET=
 - `specs/api-layer/` - Airtable API integration
 - `specs/auth-system/` - JWT authentication
 - `specs/app-shell/` - Navigation and layout
+
+## Cache Invalidation (Testing)
+
+The app has multiple cache layers that can make testing new deployments challenging:
+- **Service Worker** - Caches static assets (Workbox)
+- **React Query** - Caches API responses (5-30 min)
+- **Browser Caches** - HTTP cache storage
+
+### Quick Cache Clear Methods
+
+| Method | URL Parameter | Effect |
+|--------|---------------|--------|
+| Nuclear clear | `?bust=all` | Clears all caches + service worker + reloads |
+| Service Worker only | `?bust=sw` | Unregisters SW + reloads |
+| React Query only | `?bust=rq` | Clears API cache (no reload) |
+| Debug panel | `?debug=true` | Shows debug panel with granular controls |
+
+### Usage Examples
+
+```
+# Clear everything and get fresh content
+https://mfa.drvn.be?bust=all
+
+# Open debug panel for granular control
+https://mfa.drvn.be?debug=true
+
+# Clear only API cache
+https://mfa.drvn.be?bust=rq
+```
+
+### Debug Panel Features
+
+When `?debug=true` is added to any URL, a debug panel appears showing:
+
+- **Build Info**: Version number, build hash, build timestamp
+- **Cache Status**:
+  - Service Worker state (active/waiting/none)
+  - Browser cache count
+  - React Query stats (total/stale queries)
+- **Actions**:
+  - Clear RQ - Clear React Query cache
+  - Clear SW - Unregister service worker
+  - Check Update - Force SW update check
+  - Clear All - Nuclear option
+
+### PWA Update Banner
+
+When a new version is deployed while the app is open (especially as installed PWA), an "Update beschikbaar" banner appears at the bottom. Tapping "Update" activates the new service worker and reloads.
+
+### Automatic Cache Clear on Version Change
+
+When the app version changes (detected via build hash), React Query cache is automatically cleared to prevent stale data issues.

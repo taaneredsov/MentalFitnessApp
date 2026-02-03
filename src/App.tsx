@@ -2,6 +2,7 @@ import { Routes, Route, useSearchParams } from "react-router-dom"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { AppLayout } from "@/components/AppLayout"
 import { DebugPanel } from "@/components/DebugPanel"
+import { PWAUpdatePrompt } from "@/components/PWAUpdatePrompt"
 import { LoginPage } from "@/pages/LoginPage"
 import { MagicLinkPage } from "@/pages/MagicLinkPage"
 import { VerifyCodePage } from "@/pages/VerifyCodePage"
@@ -14,13 +15,20 @@ import { ProgramDetailPage } from "@/pages/ProgramDetailPage"
 import { MethodsPage } from "@/pages/MethodsPage"
 import { MethodDetailPage } from "@/pages/MethodDetailPage"
 import { AccountPage } from "@/pages/AccountPage"
+import { useCacheBust } from "@/hooks/useCacheBust"
+import { useVersionCheck } from "@/hooks/useVersionCheck"
 
 function App() {
   const [searchParams] = useSearchParams()
   const isDebugMode = searchParams.get("debug") === "true"
 
+  // Cache management hooks
+  useCacheBust()
+  useVersionCheck()
+
   return (
     <>
+      <PWAUpdatePrompt />
       {isDebugMode && <DebugPanel />}
       <Routes>
       <Route path="/login" element={<MagicLinkPage />} />
