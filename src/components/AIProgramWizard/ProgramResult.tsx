@@ -1,10 +1,22 @@
+import { useEffect } from "react"
+import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle2, Clock, Calendar, Lightbulb, ArrowRight, Plus } from "lucide-react"
+import { CheckCircle2, Clock, Calendar, Lightbulb, Home, Plus } from "lucide-react"
 import type { ProgramResultProps } from "./types"
 
 export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramResultProps) {
+  const queryClient = useQueryClient()
   const { program, aiSchedule, weeklySessionTime, recommendations, programSummary } = result
+
+  // Preload homepage data while user reviews the result
+  useEffect(() => {
+    // Prefetch queries that homepage needs for instant navigation
+    queryClient.prefetchQuery({ queryKey: ["programs"] })
+    queryClient.prefetchQuery({ queryKey: ["goals"] })
+    queryClient.prefetchQuery({ queryKey: ["personal-goals"] })
+    queryClient.prefetchQuery({ queryKey: ["good-habits"] })
+  }, [queryClient])
 
   // Sort schedule by date (chronologically)
   const sortedSchedule = [...aiSchedule].sort((a, b) => {
@@ -60,9 +72,9 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   }
 
   return (
-    <div className="flex flex-col min-h-[calc(100vh-10rem)]">
+    <div className="flex flex-col h-[calc(100vh-12rem)] max-h-[700px]">
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto space-y-6 pb-4">
+      <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pb-2 relative">
         {/* Success Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-2">
@@ -168,14 +180,17 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
             </Card>
           </div>
         )}
+
+        {/* Scroll fade indicator */}
+        <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* Sticky footer with buttons */}
-      <div className="sticky bottom-0 bg-background border-t pt-4 mt-auto">
+      {/* Fixed footer with buttons */}
+      <div className="border-t pt-4 mt-2">
         <div className="flex gap-3">
           <Button onClick={onViewProgram} className="flex-1">
-            Bekijk Programma
-            <ArrowRight className="ml-2 h-4 w-4" />
+            <Home className="mr-2 h-4 w-4" />
+            Naar mijn startpagina
           </Button>
           <Button variant="outline" onClick={onCreateNew}>
             <Plus className="mr-2 h-4 w-4" />
