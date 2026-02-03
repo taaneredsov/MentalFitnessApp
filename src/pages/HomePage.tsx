@@ -128,6 +128,8 @@ export function HomePage() {
     if (state?.startTour && shouldShowTour) {
       // Clear the state to prevent re-triggering
       navigate(location.pathname, { replace: true, state: {} })
+      // Dismiss install prompt so it doesn't interfere with tour spotlight
+      sessionStorage.setItem("installPromptDismissed", "true")
       // Delay tour start to let page render
       setTimeout(() => setShowTour(true), 500)
     }
@@ -290,7 +292,8 @@ export function HomePage() {
           </p>
         </section>
 
-        <InstallPrompt />
+        {/* Hide install prompt during tour to avoid spotlight issues */}
+        {!showTour && <InstallPrompt />}
 
         {isLoading ? (
           <div className="flex items-center justify-center h-32">
