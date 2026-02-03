@@ -100,7 +100,7 @@ export function ScheduleReview({
       <div className="text-center space-y-2 pb-4">
         <h3 className="text-xl font-semibold">Controleer je programma</h3>
         <p className="text-sm text-muted-foreground">
-          Pas het schema aan voordat je het bevestigt.
+          Bekijk je schema hieronder en klik op <strong>Bevestig Programma</strong> om te starten.
         </p>
       </div>
 
