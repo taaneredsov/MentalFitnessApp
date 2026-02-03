@@ -74,6 +74,18 @@
 **Fix**: Use `overflow-x: clip` on html element only - prevents horizontal scroll without creating a scroll container
 **Prevention**: Never use `overflow-x: hidden` on body for iOS apps. Use `overflow-x: clip` instead, which clips without affecting scroll behavior.
 
+### 2026-02-03: iOS Video Forced Fullscreen
+**Mistake**: Video element without `playsInline` attribute
+**Symptom**: Video playback forces fullscreen on iOS, breaking feedback prompt UX
+**Fix**: Add `playsInline` and `webkit-playsinline=""` attributes to video element
+**Prevention**: Always add playsInline to video elements for mobile-first apps
+
+### 2026-02-03: Method Usage Registration Timing
+**Pattern**: Register method usage when feedback dialog OPENS, not when user clicks save/skip
+**Reason**: Users may dismiss dialog without interacting, but usage should still be recorded
+**Implementation**: Use `useEffect` watching `showFeedback` state, with `usageRegisteredRef` to prevent duplicates
+**Benefit**: Usage is always tracked, feedback/remarks are optional
+
 ---
 
 ## Deployment Checklist

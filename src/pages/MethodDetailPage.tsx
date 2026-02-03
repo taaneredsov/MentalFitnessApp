@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react"
+import { useState, useCallback, useRef, useEffect } from "react"
 import { useParams, useNavigate, useLocation } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
@@ -73,6 +73,8 @@ function MediaPlayer({ media, onComplete, isCompleted }: MediaPlayerProps) {
         <CardContent className="p-0">
           <video
             controls
+            playsInline
+            webkit-playsinline=""
             className="w-full aspect-video"
             preload="metadata"
             onTimeUpdate={handleTimeUpdate}
@@ -145,6 +147,9 @@ export function MethodDetailPage() {
   const [rewardToast, setRewardToast] = useState<AwardResponse | null>(null)
   const [milestoneToast, setMilestoneToast] = useState<AwardResponse | null>(null)
 
+  // Track if usage was already registered for this session to avoid duplicates
+  const usageRegisteredRef = useRef(false)
+
   const awardPointsMutation = useAwardPoints()
 
   const handleMediaComplete = useCallback((mediaId: string) => {
@@ -163,158 +168,97 @@ export function MethodDetailPage() {
     })
   }, [feedbackSubmitted])
 
-  const handleSubmitFeedback = async (remark: string) => {
-    if (!user?.id || !method?.id || !accessToken) {
-      console.error("Missing required data:", { userId: user?.id, methodId: method?.id, hasToken: !!accessToken })
-      setShowFeedback(false)
-      return
-    }
+  // Register method usage when feedback modal opens (not when user clicks save/skip)
+  // This ensures usage is recorded even if user dismisses the dialog
+  useEffect(() => {
+    if (!showFeedback || usageRegisteredRef.current) return
+    if (!user?.id || !method?.id || !accessToken) return
 
-    try {
-      console.log("Creating method usage:", { userId: user.id, methodId: method.id, programmaplanningId, programId, remark })
-      const result = await api.methodUsage.create(
-        {
-          userId: user.id,
-          methodId: method.id,
-          programmaplanningId: programmaplanningId || undefined,
-          programId: !programmaplanningId ? programId || undefined : undefined,  // Only use programId as fallback
-          remark: remark || undefined
-        },
-        accessToken
-      )
-      console.log("Method usage created:", result)
+    const registerUsage = async () => {
+      usageRegisteredRef.current = true
 
-      // Award points for completing the method
       try {
-        const awardResult = await awardPointsMutation.mutateAsync({
-          data: { activityType: "method", activityId: method.id },
+        console.log("Registering method usage on dialog open:", { userId: user.id, methodId: method.id, programmaplanningId, programId })
+        await api.methodUsage.create(
+          {
+            userId: user.id,
+            methodId: method.id,
+            programmaplanningId: programmaplanningId || undefined,
+            programId: !programmaplanningId ? programId || undefined : undefined
+          },
           accessToken
-        })
-        setRewardToast(awardResult)
+        )
 
-        // Check for program milestone after method completion
-        if (programId && programData) {
-          const newCompletedCount = (programData.completedMethods || 0) + 1
-          const milestone = checkProgramMilestones(
-            newCompletedCount,
-            programData.totalMethods || 0,
-            programData.milestonesAwarded || []
-          )
+        // Award points for completing the method
+        try {
+          const awardResult = await awardPointsMutation.mutateAsync({
+            data: { activityType: "method", activityId: method.id },
+            accessToken
+          })
+          setRewardToast(awardResult)
 
-          if (milestone) {
-            // Award milestone points
-            try {
-              const milestoneResult = await awardPointsMutation.mutateAsync({
-                data: {
-                  activityType: "programMilestone",
-                  programId: programId,
-                  milestone: milestone.milestone
-                },
-                accessToken
-              })
-              // Show milestone toast after method toast
-              setTimeout(() => {
-                setMilestoneToast(milestoneResult)
-              }, 3500)  // Wait for method toast to close
-            } catch (milestoneErr) {
-              console.error("Failed to award milestone:", milestoneErr)
+          // Check for program milestone after method completion
+          if (programId && programData) {
+            const newCompletedCount = (programData.completedMethods || 0) + 1
+            const milestone = checkProgramMilestones(
+              newCompletedCount,
+              programData.totalMethods || 0,
+              programData.milestonesAwarded || []
+            )
+
+            if (milestone) {
+              try {
+                const milestoneResult = await awardPointsMutation.mutateAsync({
+                  data: {
+                    activityType: "programMilestone",
+                    programId: programId,
+                    milestone: milestone.milestone
+                  },
+                  accessToken
+                })
+                setTimeout(() => {
+                  setMilestoneToast(milestoneResult)
+                }, 3500)
+              } catch (milestoneErr) {
+                console.error("Failed to award milestone:", milestoneErr)
+              }
             }
           }
+        } catch (awardErr) {
+          console.error("Failed to award points:", awardErr)
         }
-      } catch (awardErr) {
-        console.error("Failed to award points:", awardErr)
-        // Non-critical - don't block the flow
-      }
 
-      // Invalidate queries so homepage shows updated progress
-      if (programId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.methodUsage(programId) })
-        queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
+        // Invalidate queries so homepage shows updated progress
+        if (programId) {
+          queryClient.invalidateQueries({ queryKey: queryKeys.methodUsage(programId) })
+          queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
+        }
+        queryClient.invalidateQueries({ queryKey: ["programs"] })
+      } catch (err) {
+        console.error("Failed to register usage:", err)
+        // Reset flag so it can be retried if modal is reopened
+        usageRegisteredRef.current = false
       }
-      queryClient.invalidateQueries({ queryKey: ["programs"] })
-
-      setFeedbackSubmitted(true)
-      setShowFeedback(false)
-    } catch (err) {
-      console.error("Failed to save feedback:", err)
-      // Still close the modal even on error
-      setShowFeedback(false)
     }
+
+    registerUsage()
+  }, [showFeedback, user?.id, method?.id, accessToken, programmaplanningId, programId, programData, awardPointsMutation, queryClient])
+
+  // Submit feedback with optional remark (usage already registered)
+  const handleSubmitFeedback = async (remark: string) => {
+    // If user provided a remark, we could update the usage record here
+    // For now, remarks are logged but usage is already recorded
+    if (remark) {
+      console.log("User feedback remark:", remark)
+      // TODO: Implement API to update method usage with remark if needed
+    }
+    setFeedbackSubmitted(true)
+    setShowFeedback(false)
   }
 
-  const handleSkipFeedback = async () => {
-    if (!user?.id || !method?.id || !accessToken) {
-      console.error("Missing required data:", { userId: user?.id, methodId: method?.id, hasToken: !!accessToken })
-      setShowFeedback(false)
-      return
-    }
-
-    try {
-      console.log("Creating method usage (skip):", { userId: user.id, methodId: method.id, programmaplanningId, programId })
-      const result = await api.methodUsage.create(
-        {
-          userId: user.id,
-          methodId: method.id,
-          programmaplanningId: programmaplanningId || undefined,
-          programId: !programmaplanningId ? programId || undefined : undefined  // Only use programId as fallback
-        },
-        accessToken
-      )
-      console.log("Method usage created:", result)
-
-      // Award points for completing the method
-      try {
-        const awardResult = await awardPointsMutation.mutateAsync({
-          data: { activityType: "method", activityId: method.id },
-          accessToken
-        })
-        setRewardToast(awardResult)
-
-        // Check for program milestone after method completion
-        if (programId && programData) {
-          const newCompletedCount = (programData.completedMethods || 0) + 1
-          const milestone = checkProgramMilestones(
-            newCompletedCount,
-            programData.totalMethods || 0,
-            programData.milestonesAwarded || []
-          )
-
-          if (milestone) {
-            // Award milestone points
-            try {
-              const milestoneResult = await awardPointsMutation.mutateAsync({
-                data: {
-                  activityType: "programMilestone",
-                  programId: programId,
-                  milestone: milestone.milestone
-                },
-                accessToken
-              })
-              // Show milestone toast after method toast
-              setTimeout(() => {
-                setMilestoneToast(milestoneResult)
-              }, 3500)  // Wait for method toast to close
-            } catch (milestoneErr) {
-              console.error("Failed to award milestone:", milestoneErr)
-            }
-          }
-        }
-      } catch (awardErr) {
-        console.error("Failed to award points:", awardErr)
-        // Non-critical - don't block the flow
-      }
-
-      // Invalidate queries so homepage shows updated progress
-      if (programId) {
-        queryClient.invalidateQueries({ queryKey: queryKeys.methodUsage(programId) })
-        queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
-      }
-      queryClient.invalidateQueries({ queryKey: ["programs"] })
-
-      setFeedbackSubmitted(true)
-    } catch (err) {
-      console.error("Failed to save usage:", err)
-    }
+  // Skip feedback - usage already registered, just close modal
+  const handleSkipFeedback = () => {
+    setFeedbackSubmitted(true)
     setShowFeedback(false)
   }
 
