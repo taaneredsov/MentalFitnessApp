@@ -68,6 +68,12 @@
 **Reality**: User saw blue "Gepland" status badge - expected UI, not a bug
 **Prevention**: Before investigating, ask for screenshots or exact reproduction steps
 
+### 2026-02-03: iOS Scroll Broken by overflow-x-hidden
+**Mistake**: Added `overflow-x: hidden` to body/html to prevent horizontal scroll
+**Symptom**: Vertical scrolling completely broken on iOS Safari/PWA
+**Fix**: Use `overflow-x: clip` on html element only - prevents horizontal scroll without creating a scroll container
+**Prevention**: Never use `overflow-x: hidden` on body for iOS apps. Use `overflow-x: clip` instead, which clips without affecting scroll behavior.
+
 ---
 
 ## Deployment Checklist

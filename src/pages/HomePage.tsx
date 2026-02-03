@@ -83,12 +83,11 @@ export function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTour, setShowTour] = useState(false)
   const [onboardingInProgress, setOnboardingInProgress] = useState(false)
+  const [showWelcomeInWizard, setShowWelcomeInWizard] = useState(true)
 
-  // Onboarding state
+  // Onboarding state (for tour only now)
   const {
-    shouldShowWelcome,
     shouldShowTour,
-    markWelcomeSeen,
     markTourCompleted,
     markTourSkipped
   } = useOnboarding()
@@ -141,18 +140,18 @@ export function HomePage() {
   // Keep showing if onboardingInProgress is true (prevents auto-hide when program is created)
   const shouldShowOnboardingWizard = onboardingInProgress || (!userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading)))
 
-  // Check if we should show welcome screen first
-  const shouldShowWelcomeScreen = shouldShowOnboardingWizard && shouldShowWelcome
+  // Check if we should show welcome screen first (always show before wizard)
+  const shouldShowWelcomeScreen = shouldShowOnboardingWizard && showWelcomeInWizard
 
-  // Mark onboarding in progress when wizard shows (to prevent auto-hide)
+  // Reset welcome screen state when wizard closes
   useEffect(() => {
-    if (shouldShowOnboardingWizard && !shouldShowWelcome && !onboardingInProgress) {
-      setOnboardingInProgress(true)
+    if (!shouldShowOnboardingWizard) {
+      setShowWelcomeInWizard(true)
     }
-  }, [shouldShowOnboardingWizard, shouldShowWelcome, onboardingInProgress])
+  }, [shouldShowOnboardingWizard])
 
   const handleWelcomeStart = () => {
-    markWelcomeSeen()
+    setShowWelcomeInWizard(false)
     setOnboardingInProgress(true)
   }
 

@@ -80,7 +80,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
           />
         </div>
         <h1 className="text-2xl font-bold text-foreground mb-2">
-          Welkom bij je Mental Fitness reis
+          Nieuw programma maken
         </h1>
         <p className="text-muted-foreground">
           In een paar stappen maken we samen een programma dat bij jou past.
