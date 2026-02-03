@@ -64,12 +64,11 @@
 - [ ] Rewrite with specific dates and program names
 - [ ] Add visual distinction (red alert box)
 
-### M-4: Fix Video Auto-Fullscreen on Mobile
-**Priority**: MEDIUM-HIGH
-**Impact**: Poor user experience during method execution
-- [ ] Adjust video player config for inline playback
-- [ ] Test on iOS and Android
-- [ ] Add clear close button if needed
+### M-4: Fix Video Auto-Fullscreen on Mobile ✅ COMPLETED
+**Completed**: 2026-02-03
+- [x] Added `playsInline` attribute to video element
+- [x] Method usage now registers on dialog open (not submit/skip)
+- [x] Documented method usage points system in `/specs/method-usage-points/`
 
 ### M-5: Improve AI Method Selection Control
 **Priority**: HIGH - **BLOCKED BY C-1**
