@@ -33,8 +33,14 @@ export function LoginPage() {
   const [email, setEmail] = useState("")
   const [isCheckingEmail, setIsCheckingEmail] = useState(false)
 
+  // Get prefilled email from navigation state (e.g., from magic link page)
+  const prefilledEmail = (location.state as { email?: string })?.email || ""
+
   const emailForm = useForm<EmailFormData>({
-    resolver: zodResolver(emailSchema)
+    resolver: zodResolver(emailSchema),
+    defaultValues: {
+      email: prefilledEmail
+    }
   })
 
   const passwordForm = useForm<PasswordFormData>({

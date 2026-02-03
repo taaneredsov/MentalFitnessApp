@@ -132,7 +132,7 @@ export function MagicLinkPage() {
           <Button
             type="button"
             variant="ghost"
-            onClick={() => navigate("/login/password")}
+            onClick={() => navigate("/login/password", { state: { email } })}
             className="w-full text-muted-foreground"
           >
             <KeyRound className="h-4 w-4 mr-2" />
