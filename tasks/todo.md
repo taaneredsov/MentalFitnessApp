@@ -57,12 +57,13 @@
 
 ## Up Next: TIER 1 Must-Haves
 
-### M-3: Improve Overlap Warning Text Clarity
-**Priority**: MEDIUM-HIGH
-**Impact**: Users may accidentally create conflicting programs
-- [ ] Review current warning message
-- [ ] Rewrite with specific dates and program names
-- [ ] Add visual distinction (red alert box)
+### M-3: Improve Overlap Warning Text Clarity ✅ COMPLETED
+**Completed**: 2026-02-03
+- [x] Reviewed current warning message (amber, generic text)
+- [x] Rewrote with specific dates and program names
+- [x] Changed from amber to red styling for clearer visual distinction
+- [x] Shows: program name, status, date range, and actionable suggestion
+- Note: Manual wizard uses backend validation (could add frontend check later)
 
 ### M-4: Fix Video Auto-Fullscreen on Mobile ✅ COMPLETED
 **Completed**: 2026-02-03

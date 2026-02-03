@@ -69,6 +69,12 @@ export function AIInputForm({
     }
   }
 
+  // Format date for display (e.g., "15 jan 2026")
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr)
+    return date.toLocaleDateString("nl-NL", { day: "numeric", month: "short", year: "numeric" })
+  }
+
   // Check for overlapping programs in Step 1
   const overlapCheck = useMemo(() => {
     if (!state.startDate || !state.duration) return null
@@ -83,13 +89,16 @@ export function AIInputForm({
         if (dateRangesOverlap(state.startDate, newEndDate, program.startDate, program.endDate)) {
           return {
             hasOverlap: true,
-            programName: program.name || "Naamloos programma"
+            programName: program.name || "Naamloos programma",
+            programStartDate: program.startDate,
+            programEndDate: program.endDate,
+            programStatus: program.status
           }
         }
       }
     }
 
-    return { hasOverlap: false, programName: null }
+    return { hasOverlap: false, programName: null, programStartDate: null, programEndDate: null, programStatus: null }
   }, [state.startDate, state.duration, existingPrograms])
 
   // Validation per step
@@ -232,12 +241,22 @@ export function AIInputForm({
 
             {/* Overlap warning */}
             {overlapCheck?.hasOverlap && (
-              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+              <div className="bg-red-50 dark:bg-red-950/30 border border-red-300 dark:border-red-800 rounded-lg p-3">
                 <div className="flex items-start gap-2">
-                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                  <p className="text-sm text-amber-800 dark:text-amber-200">
-                    Dit programma overlapt met <strong>{overlapCheck.programName}</strong>. Kies andere datums.
-                  </p>
+                  <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
+                  <div className="text-sm text-red-800 dark:text-red-200 space-y-1">
+                    <p className="font-medium">
+                      Conflicterend programma gevonden
+                    </p>
+                    <p>
+                      Je hebt al een {overlapCheck.programStatus?.toLowerCase()} programma "<strong>{overlapCheck.programName}</strong>" van{" "}
+                      <strong>{formatDate(overlapCheck.programStartDate!)}</strong> t/m{" "}
+                      <strong>{formatDate(overlapCheck.programEndDate!)}</strong>.
+                    </p>
+                    <p className="text-red-600 dark:text-red-400">
+                      Kies een startdatum na {formatDate(overlapCheck.programEndDate!)} of verkort de duur.
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
