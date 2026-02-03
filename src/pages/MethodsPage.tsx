@@ -1,10 +1,11 @@
-import { useMemo } from "react"
+import { useState, useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMethods, useGoals } from "@/hooks/queries"
 import { Card } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
 import { MethodThumbnail } from "@/components/MethodThumbnail"
 import type { Method } from "@/types/program"
-import { Loader2, Clock, ChevronRight } from "lucide-react"
+import { Loader2, Clock, ChevronRight, Search, X } from "lucide-react"
 
 function MethodCard({
   method,
@@ -56,6 +57,7 @@ function MethodCard({
 
 export function MethodsPage() {
   const navigate = useNavigate()
+  const [searchQuery, setSearchQuery] = useState("")
 
   // Use React Query for methods and goals data (cached)
   const { data: methods = [], isLoading: methodsLoading, error: methodsError } = useMethods()
@@ -64,12 +66,39 @@ export function MethodsPage() {
   const isLoading = methodsLoading || goalsLoading
   const error = methodsError ? "Kon methodes niet laden" : null
 
+  // Goal lookup map for efficient filtering
+  const goalNameMap = useMemo(() => {
+    const map = new Map<string, string>()
+    goals.forEach(goal => map.set(goal.id, goal.name.toLowerCase()))
+    return map
+  }, [goals])
+
   // Filter out methods linked to "Goede gewoontes" goal
   const filteredMethods = useMemo(() => {
     const habitsGoal = goals.find(g => g.name === "Goede gewoontes")
     if (!habitsGoal) return methods
     return methods.filter(m => !m.linkedGoalIds?.includes(habitsGoal.id))
   }, [methods, goals])
+
+  // Search filter (on top of existing filter)
+  const searchedMethods = useMemo(() => {
+    if (!searchQuery.trim()) return filteredMethods
+
+    const query = searchQuery.toLowerCase().trim()
+
+    return filteredMethods.filter(method => {
+      // Match method name
+      if (method.name.toLowerCase().includes(query)) return true
+
+      // Match linked goal names
+      if (method.linkedGoalIds?.some(goalId => {
+        const goalName = goalNameMap.get(goalId)
+        return goalName?.includes(query)
+      })) return true
+
+      return false
+    })
+  }, [filteredMethods, searchQuery, goalNameMap])
 
   const handleMethodClick = (id: string) => {
     navigate(`/methods/${id}`)
@@ -95,15 +124,38 @@ export function MethodsPage() {
     <div className="px-4 py-6 space-y-6">
       <h2 className="text-2xl font-bold">Methodes</h2>
 
-      {filteredMethods.length === 0 ? (
+      {/* Search Input */}
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+        <Input
+          type="text"
+          placeholder="Zoek methodes..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-9 pr-9"
+        />
+        {searchQuery && (
+          <button
+            onClick={() => setSearchQuery("")}
+            className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+            aria-label="Zoekopdracht wissen"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        )}
+      </div>
+
+      {searchedMethods.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            Geen methodes beschikbaar.
+            {searchQuery.trim()
+              ? "Geen methodes gevonden voor deze zoekopdracht."
+              : "Geen methodes beschikbaar."}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredMethods.map(method => (
+          {searchedMethods.map(method => (
             <MethodCard
               key={method.id}
               method={method}
