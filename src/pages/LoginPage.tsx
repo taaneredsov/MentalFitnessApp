@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { ArrowLeft, Mail } from "lucide-react"
+import { InstallPrompt } from "@/components/InstallPrompt"
 
 const emailSchema = z.object({
   email: z.string().email("Voer een geldig e-mailadres in")
@@ -104,8 +105,10 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
-      <Card className="w-full max-w-sm">
+    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-background">
+      <div className="w-full max-w-sm space-y-4">
+        <InstallPrompt variant="prominent" />
+        <Card className="w-full">
         <CardHeader className="text-center">
           {step === "password" && (
             <button
@@ -208,6 +211,7 @@ export function LoginPage() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   )
 }

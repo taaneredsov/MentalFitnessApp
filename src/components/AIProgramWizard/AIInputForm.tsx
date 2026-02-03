@@ -106,198 +106,214 @@ export function AIInputForm({
   }
 
   return (
-    <div className="space-y-6">
-      {/* Step indicator */}
-      <div className="flex justify-center gap-2">
-        {AI_WIZARD_STEPS.map((_, index) => (
-          <div
-            key={index}
-            className={`flex items-center ${index > 0 ? "ml-2" : ""}`}
-          >
-            {index > 0 && (
-              <div
-                className={`w-8 h-0.5 mr-2 ${
-                  index <= state.step ? "bg-primary" : "bg-muted"
-                }`}
-              />
-            )}
+    <div className="flex flex-col h-[calc(100vh-12rem)] max-h-[600px]">
+      {/* Fixed header */}
+      <div className="space-y-4 pb-4">
+        {/* Step indicator */}
+        <div className="flex justify-center gap-2">
+          {AI_WIZARD_STEPS.map((_, index) => (
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-                index === state.step
-                  ? "bg-primary text-primary-foreground"
-                  : index < state.step
-                  ? "bg-primary/20 text-primary"
-                  : "bg-muted text-muted-foreground"
-              }`}
+              key={index}
+              className={`flex items-center ${index > 0 ? "ml-2" : ""}`}
             >
-              {index + 1}
+              {index > 0 && (
+                <div
+                  className={`w-8 h-0.5 mr-2 ${
+                    index <= state.step ? "bg-primary" : "bg-muted"
+                  }`}
+                />
+              )}
+              <div
+                className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+                  index === state.step
+                    ? "bg-primary text-primary-foreground"
+                    : index < state.step
+                    ? "bg-primary/20 text-primary"
+                    : "bg-muted text-muted-foreground"
+                }`}
+              >
+                {index + 1}
+              </div>
             </div>
+          ))}
+        </div>
+
+        {/* Step title */}
+        <div className="text-center">
+          <h3 className="text-lg font-semibold">{AI_WIZARD_STEPS[state.step].title}</h3>
+          <p className="text-sm text-muted-foreground">
+            {AI_WIZARD_STEPS[state.step].description}
+          </p>
+        </div>
+      </div>
+
+      {/* Scrollable content area */}
+      <div className="flex-1 overflow-y-auto min-h-0 relative">
+        {/* Step 0: Goals Selection */}
+        {state.step === 0 && (
+          <div className="space-y-2 pb-2">
+            {goalsData.length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">
+                Geen doelen beschikbaar.
+              </p>
+            ) : (
+              <>
+                {goalsData
+                  .filter((goal) => goal.name !== "Goede gewoontes")
+                  .map((goal) => {
+                  const isSelected = state.goals.includes(goal.id)
+                  return (
+                    <button
+                      key={goal.id}
+                      onClick={() => toggleGoal(goal.id)}
+                      className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                        isSelected
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:border-primary/50"
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div
+                          className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center ${
+                            isSelected
+                              ? "bg-primary border-primary text-primary-foreground"
+                              : "border-muted-foreground"
+                          }`}
+                        >
+                          {isSelected && <Check className="h-3 w-3" />}
+                        </div>
+                        <div>
+                          <p className="font-medium">{goal.name}</p>
+                          {goal.description && (
+                            <p className="text-sm text-muted-foreground mt-1">
+                              {goal.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </button>
+                  )
+                })}
+              </>
+            )}
           </div>
-        ))}
-      </div>
+        )}
 
-      {/* Step title */}
-      <div className="text-center">
-        <h3 className="text-lg font-semibold">{AI_WIZARD_STEPS[state.step].title}</h3>
-        <p className="text-sm text-muted-foreground">
-          {AI_WIZARD_STEPS[state.step].description}
-        </p>
-      </div>
-
-      {/* Step 0: Goals Selection */}
-      {state.step === 0 && (
-        <div className="space-y-4">
-          {goalsData.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">
-              Geen doelen beschikbaar.
-            </p>
-          ) : (
+        {/* Step 1: Start Date and Duration */}
+        {state.step === 1 && (
+          <div className="space-y-6 pb-2">
             <div className="space-y-2">
-              {goalsData
-                .filter((goal) => goal.name !== "Goede gewoontes")
-                .map((goal) => {
-                const isSelected = state.goals.includes(goal.id)
+              <Label htmlFor="startDate">Startdatum</Label>
+              <Input
+                id="startDate"
+                type="date"
+                value={state.startDate}
+                min={today}
+                onChange={(e) => updateState({ startDate: e.target.value })}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="duration">Duur van programma</Label>
+              <select
+                id="duration"
+                value={state.duration}
+                onChange={(e) => updateState({ duration: e.target.value })}
+                className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              >
+                <option value="">Selecteer duur...</option>
+                {DURATION_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value}>
+                    {opt.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* Overlap warning */}
+            {overlapCheck?.hasOverlap && (
+              <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                <div className="flex items-start gap-2">
+                  <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <p className="text-sm text-amber-800 dark:text-amber-200">
+                    Dit programma overlapt met <strong>{overlapCheck.programName}</strong>. Kies andere datums.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Step 2: Training Days */}
+        {state.step === 2 && (
+          <div className="space-y-6 pb-2">
+            <div className="flex justify-between">
+              {sortedDays.map((day) => {
+                const isSelected = state.daysOfWeek.includes(day.id)
+                const shortName = day.name.slice(0, 2)
                 return (
                   <button
-                    key={goal.id}
-                    onClick={() => toggleGoal(goal.id)}
-                    className={`w-full text-left p-4 rounded-lg border transition-colors ${
+                    key={day.id}
+                    onClick={() => toggleDay(day.id)}
+                    title={day.name}
+                    className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
                       isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
+                        ? "bg-primary text-primary-foreground"
+                        : "bg-muted text-muted-foreground hover:bg-muted/80"
                     }`}
                   >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center ${
-                          isSelected
-                            ? "bg-primary border-primary text-primary-foreground"
-                            : "border-muted-foreground"
-                        }`}
-                      >
-                        {isSelected && <Check className="h-3 w-3" />}
-                      </div>
-                      <div>
-                        <p className="font-medium">{goal.name}</p>
-                        {goal.description && (
-                          <p className="text-sm text-muted-foreground mt-1">
-                            {goal.description}
-                          </p>
-                        )}
-                      </div>
-                    </div>
+                    {shortName}
                   </button>
                 )
               })}
             </div>
-          )}
 
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={goBack}>
+            <p className="text-sm text-muted-foreground text-center">
+              {state.daysOfWeek.length === 0
+                ? "Selecteer minimaal 1 dag"
+                : `${state.daysOfWeek.length} dag${state.daysOfWeek.length !== 1 ? "en" : ""} per week geselecteerd`}
+            </p>
+          </div>
+        )}
+
+        {/* Scroll fade indicator */}
+        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent" />
+      </div>
+
+      {/* Fixed footer with buttons */}
+      <div className="border-t pt-4 mt-2 bg-background">
+        {state.step === 0 && (
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={goBack} className="flex-1">
               Annuleren
             </Button>
-            <Button onClick={goNext} disabled={!canProceedStep0}>
+            <Button onClick={goNext} disabled={!canProceedStep0} className="flex-1">
               Volgende
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* Step 1: Start Date and Duration */}
-      {state.step === 1 && (
-        <div className="space-y-6">
-          <div className="space-y-2">
-            <Label htmlFor="startDate">Startdatum</Label>
-            <Input
-              id="startDate"
-              type="date"
-              value={state.startDate}
-              min={today}
-              onChange={(e) => updateState({ startDate: e.target.value })}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <Label htmlFor="duration">Duur van programma</Label>
-            <select
-              id="duration"
-              value={state.duration}
-              onChange={(e) => updateState({ duration: e.target.value })}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-            >
-              <option value="">Selecteer duur...</option>
-              {DURATION_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {/* Overlap warning */}
-          {overlapCheck?.hasOverlap && (
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
-              <div className="flex items-start gap-2">
-                <AlertTriangle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  Dit programma overlapt met <strong>{overlapCheck.programName}</strong>. Kies andere datums.
-                </p>
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-between pt-4">
-            <Button variant="outline" onClick={goBack}>
+        )}
+        {state.step === 1 && (
+          <div className="flex gap-3">
+            <Button variant="outline" onClick={goBack} className="flex-1">
               Terug
             </Button>
-            <Button onClick={goNext} disabled={!canProceedStep1}>
+            <Button onClick={goNext} disabled={!canProceedStep1} className="flex-1">
               Volgende
             </Button>
           </div>
-        </div>
-      )}
-
-      {/* Step 2: Training Days */}
-      {state.step === 2 && (
-        <div className="space-y-6">
-          <div className="flex justify-between">
-            {sortedDays.map((day) => {
-              const isSelected = state.daysOfWeek.includes(day.id)
-              const shortName = day.name.slice(0, 2)
-              return (
-                <button
-                  key={day.id}
-                  onClick={() => toggleDay(day.id)}
-                  title={day.name}
-                  className={`w-10 h-10 rounded-full text-sm font-medium transition-colors ${
-                    isSelected
-                      ? "bg-primary text-primary-foreground"
-                      : "bg-muted text-muted-foreground hover:bg-muted/80"
-                  }`}
-                >
-                  {shortName}
-                </button>
-              )
-            })}
-          </div>
-
-          <p className="text-sm text-muted-foreground text-center">
-            {state.daysOfWeek.length === 0
-              ? "Selecteer minimaal 1 dag"
-              : `${state.daysOfWeek.length} dag${state.daysOfWeek.length !== 1 ? "en" : ""} per week geselecteerd`}
-          </p>
-
-          <div className="flex justify-between pt-2">
+        )}
+        {state.step === 2 && (
+          <div className="flex gap-3">
             <Button variant="outline" onClick={goBack}>
               Terug
             </Button>
-            <Button onClick={onGenerate} disabled={!canProceedStep2}>
+            <Button onClick={onGenerate} disabled={!canProceedStep2} className="flex-1">
               <Sparkles className="mr-2 h-4 w-4" />
               Maak mijn programmavoorstel
             </Button>
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }

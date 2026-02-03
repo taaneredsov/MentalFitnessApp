@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Mail, Loader2, ArrowRight, KeyRound } from "lucide-react"
 import { api } from "@/lib/api-client"
+import { InstallPrompt } from "@/components/InstallPrompt"
 
 export function MagicLinkPage() {
   const [email, setEmail] = useState("")
@@ -77,14 +78,16 @@ export function MagicLinkPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-      <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-2xl font-bold">Inloggen</h1>
-          <p className="text-muted-foreground">
-            Voer je email adres in om een login link te ontvangen
-          </p>
-        </div>
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-background">
+      <div className="w-full max-w-sm space-y-4">
+        <InstallPrompt variant="prominent" />
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <div className="text-center space-y-2">
+            <h1 className="text-2xl font-bold">Inloggen</h1>
+            <p className="text-muted-foreground">
+              Voer je email adres in om een login link te ontvangen
+            </p>
+          </div>
 
         <div className="space-y-4">
           <Input
@@ -136,7 +139,8 @@ export function MagicLinkPage() {
             Inloggen met wachtwoord
           </Button>
         </div>
-      </form>
+        </form>
+      </div>
     </div>
   )
 }

@@ -60,123 +60,128 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   }
 
   return (
-    <div className="space-y-6">
-      {/* Success Header */}
-      <div className="text-center space-y-2">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-2">
-          <CheckCircle2 className="w-8 h-8 text-green-600" />
+    <div className="flex flex-col min-h-[calc(100vh-10rem)]">
+      {/* Scrollable content */}
+      <div className="flex-1 overflow-y-auto space-y-6 pb-4">
+        {/* Success Header */}
+        <div className="text-center space-y-2">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-2">
+            <CheckCircle2 className="w-8 h-8 text-green-600" />
+          </div>
+          <h3 className="text-xl font-semibold">Je programma is klaar!</h3>
+          <p className="text-sm text-muted-foreground">
+            We hebben een gepersonaliseerd programma voor je samengesteld.
+          </p>
         </div>
-        <h3 className="text-xl font-semibold">Je programma is klaar!</h3>
-        <p className="text-sm text-muted-foreground">
-          We hebben een gepersonaliseerd programma voor je samengesteld.
-        </p>
-      </div>
 
-      {/* Program Summary Card */}
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base">Programma Overzicht</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <div className="flex items-center gap-3">
-            <Calendar className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">Start: {formatDate(effectiveStartDate)}</p>
-              <p className="text-xs text-muted-foreground">{program.duration}</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <Clock className="w-5 h-5 text-muted-foreground" />
-            <div>
-              <p className="text-sm font-medium">{weeklySessionTime} minuten per week</p>
-              <p className="text-xs text-muted-foreground">{aiSchedule.length} trainingsdagen</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Program Summary */}
-      {programSummary && (
+        {/* Program Summary Card */}
         <Card>
-          <CardContent className="py-3">
-            <p className="text-sm text-muted-foreground">{programSummary}</p>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base">Programma Overzicht</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center gap-3">
+              <Calendar className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">Start: {formatDate(effectiveStartDate)}</p>
+                <p className="text-xs text-muted-foreground">{program.duration}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Clock className="w-5 h-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm font-medium">{weeklySessionTime} minuten per week</p>
+                <p className="text-xs text-muted-foreground">{aiSchedule.length} trainingsdagen</p>
+              </div>
+            </div>
           </CardContent>
         </Card>
-      )}
 
-      {/* Date-based Schedule */}
-      <div className="space-y-3">
-        <h4 className="font-medium">Trainingsschema</h4>
-        <div className="space-y-2 max-h-64 overflow-y-auto">
-          {sortedSchedule.map((day, index) => {
-            const weekNum = getWeekNumber(day.date, effectiveStartDate)
-            const prevWeekNum = index > 0 ? getWeekNumber(sortedSchedule[index - 1].date, effectiveStartDate) : 0
-            const showWeekHeader = weekNum !== prevWeekNum
-
-            return (
-              <div key={`${day.date}-${day.dayId}`}>
-                {showWeekHeader && (
-                  <p className="text-xs font-medium text-muted-foreground mt-3 mb-1">
-                    Week {weekNum}
-                  </p>
-                )}
-                <Card>
-                  <CardContent className="py-3">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="font-medium">{formatScheduleDate(day.date, day.dayOfWeek)}</p>
-                        <div className="mt-1 space-y-1">
-                          {day.methods.map((method, methodIndex) => (
-                            <p key={methodIndex} className="text-sm text-muted-foreground">
-                              {method.methodName} ({method.duration} min)
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                      <span className="text-sm text-muted-foreground">
-                        {day.methods.reduce((sum, m) => sum + m.duration, 0)} min
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </div>
-            )
-          })}
-        </div>
-      </div>
-
-      {/* Recommendations */}
-      {recommendations.length > 0 && (
-        <div className="space-y-3">
-          <div className="flex items-center gap-2">
-            <Lightbulb className="w-5 h-5 text-yellow-500" />
-            <h4 className="font-medium">Aanbevelingen</h4>
-          </div>
+        {/* Program Summary */}
+        {programSummary && (
           <Card>
             <CardContent className="py-3">
-              <ul className="space-y-2">
-                {recommendations.map((rec, index) => (
-                  <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
-                    <span className="text-primary">•</span>
-                    {rec}
-                  </li>
-                ))}
-              </ul>
+              <p className="text-sm text-muted-foreground">{programSummary}</p>
             </CardContent>
           </Card>
-        </div>
-      )}
+        )}
 
-      {/* Action Buttons */}
-      <div className="flex flex-col sm:flex-row gap-3 pt-4">
-        <Button onClick={onViewProgram} className="flex-1">
-          Bekijk Programma
-          <ArrowRight className="ml-2 h-4 w-4" />
-        </Button>
-        <Button variant="outline" onClick={onCreateNew} className="flex-1">
-          <Plus className="mr-2 h-4 w-4" />
-          Nieuw Programma
-        </Button>
+        {/* Date-based Schedule */}
+        <div className="space-y-3">
+          <h4 className="font-medium">Trainingsschema</h4>
+          <div className="space-y-2">
+            {sortedSchedule.map((day, index) => {
+              const weekNum = getWeekNumber(day.date, effectiveStartDate)
+              const prevWeekNum = index > 0 ? getWeekNumber(sortedSchedule[index - 1].date, effectiveStartDate) : 0
+              const showWeekHeader = weekNum !== prevWeekNum
+
+              return (
+                <div key={`${day.date}-${day.dayId}`}>
+                  {showWeekHeader && (
+                    <p className="text-xs font-medium text-muted-foreground mt-3 mb-1">
+                      Week {weekNum}
+                    </p>
+                  )}
+                  <Card>
+                    <CardContent className="py-3">
+                      <div className="flex items-start justify-between">
+                        <div>
+                          <p className="font-medium">{formatScheduleDate(day.date, day.dayOfWeek)}</p>
+                          <div className="mt-1 space-y-1">
+                            {day.methods.map((method, methodIndex) => (
+                              <p key={methodIndex} className="text-sm text-muted-foreground">
+                                {method.methodName} ({method.duration} min)
+                              </p>
+                            ))}
+                          </div>
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          {day.methods.reduce((sum, m) => sum + m.duration, 0)} min
+                        </span>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {/* Recommendations */}
+        {recommendations.length > 0 && (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-5 h-5 text-yellow-500" />
+              <h4 className="font-medium">Aanbevelingen</h4>
+            </div>
+            <Card>
+              <CardContent className="py-3">
+                <ul className="space-y-2">
+                  {recommendations.map((rec, index) => (
+                    <li key={index} className="text-sm text-muted-foreground flex items-start gap-2">
+                      <span className="text-primary">•</span>
+                      {rec}
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+      </div>
+
+      {/* Sticky footer with buttons */}
+      <div className="sticky bottom-0 bg-background border-t pt-4 mt-auto">
+        <div className="flex gap-3">
+          <Button onClick={onViewProgram} className="flex-1">
+            Bekijk Programma
+            <ArrowRight className="ml-2 h-4 w-4" />
+          </Button>
+          <Button variant="outline" onClick={onCreateNew}>
+            <Plus className="mr-2 h-4 w-4" />
+            Nieuw
+          </Button>
+        </div>
       </div>
     </div>
   )

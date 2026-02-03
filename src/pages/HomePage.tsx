@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from "react"
-import { useNavigate } from "react-router-dom"
+import { useState, useMemo, useCallback, useEffect } from "react"
+import { useNavigate, useLocation } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/AuthContext"
 import { usePrograms, useProgram } from "@/hooks/queries"
@@ -29,6 +29,8 @@ import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { GoodHabitsSection } from "@/components/GoodHabitsSection"
 import { PersonalGoalsSection } from "@/components/PersonalGoalsSection"
 import { ScoreWidgets } from "@/components/ScoreWidgets"
+import { WelcomeScreen, GuidedTour, HOMEPAGE_TOUR_STEPS } from "@/components/Onboarding"
+import { useOnboarding } from "@/hooks/useOnboarding"
 
 function formatDate(dateStr: string): string {
   const date = new Date(dateStr)
@@ -103,10 +105,32 @@ function MethodThumbnail({ photo, name }: { photo?: string; name: string }) {
 export function HomePage() {
   const { user } = useAuth()
   const navigate = useNavigate()
+  const location = useLocation()
   const queryClient = useQueryClient()
   const [showOnboarding, setShowOnboarding] = useState(false)
+  const [showTour, setShowTour] = useState(false)
+
+  // Onboarding state
+  const {
+    shouldShowWelcome,
+    shouldShowTour,
+    markWelcomeSeen,
+    markTourCompleted,
+    markTourSkipped
+  } = useOnboarding()
 
   const firstName = user?.name?.split(" ")[0] || "there"
+
+  // Check if we should start the tour (coming from first program creation)
+  useEffect(() => {
+    const state = location.state as { startTour?: boolean } | null
+    if (state?.startTour && shouldShowTour) {
+      // Clear the state to prevent re-triggering
+      navigate(location.pathname, { replace: true, state: {} })
+      // Delay tour start to let page render
+      setTimeout(() => setShowTour(true), 500)
+    }
+  }, [location, shouldShowTour, navigate])
 
   // Pull-to-refresh handler
   const handleRefresh = useCallback(async () => {
@@ -138,11 +162,29 @@ export function HomePage() {
   const currentRunningProgram = getRunningProgram(programs)
 
   // Auto-show onboarding for first-time users (only if no running program)
-  const shouldShowOnboarding = !userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading))
+  const shouldShowOnboardingWizard = !userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading))
 
-  const handleOnboardingComplete = (programId: string) => {
+  // Check if we should show welcome screen first
+  const shouldShowWelcomeScreen = shouldShowOnboardingWizard && shouldShowWelcome
+
+  const handleWelcomeStart = () => {
+    markWelcomeSeen()
+  }
+
+  const handleOnboardingComplete = (_programId: string) => {
     setShowOnboarding(false)
-    navigate(`/programs/${programId}`)
+    // Navigate to homepage with tour trigger (instead of program detail)
+    navigate("/", { replace: true, state: { startTour: true } })
+  }
+
+  const handleTourComplete = () => {
+    markTourCompleted()
+    setShowTour(false)
+  }
+
+  const handleTourSkip = (step: number) => {
+    markTourSkipped(step)
+    setShowTour(false)
   }
 
   const nextDay = runningProgram
@@ -203,8 +245,13 @@ export function HomePage() {
     )
   }
 
-  // Show onboarding wizard for first-time users
-  if (shouldShowOnboarding) {
+  // Show welcome screen for first-time users
+  if (shouldShowWelcomeScreen) {
+    return <WelcomeScreen onStart={handleWelcomeStart} />
+  }
+
+  // Show onboarding wizard for first-time users (after welcome screen)
+  if (shouldShowOnboardingWizard) {
     return (
       <div className="py-6 px-4 space-y-6">
         <section>
@@ -232,8 +279,6 @@ export function HomePage() {
           </p>
         </section>
 
-        <ScoreWidgets />
-
         <InstallPrompt />
 
         {isLoading ? (
@@ -242,8 +287,92 @@ export function HomePage() {
           </div>
         ) : runningProgram ? (
           <section className="grid gap-4">
-          {/* Current Program Card */}
+          {/* TODAY'S ACTIVITY - Most Prominent */}
+          {nextDay && (
+            <Card data-tour="activity" className="border-primary/30 shadow-md">
+              <CardHeader className="pb-3 bg-primary/5 rounded-t-xl">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+                    <Sparkles className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">
+                      {nextDay.isToday
+                        ? "Activiteit van Vandaag"
+                        : "Volgende Activiteit"}
+                    </CardTitle>
+                    <p className="text-sm text-primary font-medium">
+                      {formatNextDay(nextDay)}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                {todaysMethods.length > 0 && (
+                  <div className="space-y-3">
+                    {todaysMethods.map(method => {
+                      const isMethodCompleted = nextSession?.completedMethodIds?.includes(method.id) ?? false
+                      return (
+                        <div
+                          key={method.id}
+                          className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
+                            isMethodCompleted
+                              ? "bg-primary/10 ring-2 ring-primary/30"
+                              : "bg-card shadow-sm border"
+                          }`}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            navigate(`/methods/${method.id}`, {
+                              state: {
+                                programmaplanningId: nextSession?.id,
+                                programId: runningProgram.id
+                              }
+                            })
+                          }}
+                        >
+                          <MethodThumbnail photo={method.photo} name={method.name} />
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-semibold truncate ${isMethodCompleted ? "text-primary" : ""}`}>
+                              {method.name}
+                            </p>
+                            {method.duration > 0 && (
+                              <p className="text-sm text-muted-foreground">
+                                {method.duration} min
+                              </p>
+                            )}
+                          </div>
+                          {isMethodCompleted ? (
+                            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                              <CheckCircle className="h-5 w-5 text-primary-foreground" />
+                            </div>
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                              <ChevronRight className="h-5 w-5 text-primary-foreground" />
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {todaysSessionTime > 0 && (
+                  <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
+                    <Clock className="h-4 w-4" />
+                    <span>Totaal: {todaysSessionTime} minuten</span>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          <div data-tour="scores">
+            <ScoreWidgets />
+          </div>
+
+          {/* Program Progress Card */}
           <Card
+            data-tour="progress"
             className="cursor-pointer hover:shadow-md transition-shadow"
             onClick={() => navigate(`/programs/${runningProgram.id}`)}
           >
@@ -290,92 +419,10 @@ export function HomePage() {
             </CardContent>
           </Card>
 
-          {/* Upcoming Activity Card */}
-          {nextDay && (
-            <Card>
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
-                    <Sparkles className="h-4 w-4 text-primary" />
-                  </div>
-                  <CardTitle className="text-lg">
-                    {nextDay.isToday
-                      ? "Activiteit van Vandaag"
-                      : "Volgende Activiteit"}
-                  </CardTitle>
-                </div>
-                {runningProgram.name && (
-                  <p className="text-muted-foreground mt-1">
-                    {runningProgram.name}
-                  </p>
-                )}
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="font-medium text-primary">
-                  {formatNextDay(nextDay)}
-                </p>
-
-                {todaysMethods.length > 0 && (
-                  <div className="space-y-3">
-                    {todaysMethods.map(method => {
-                      const isMethodCompleted = nextSession?.completedMethodIds?.includes(method.id) ?? false
-                      return (
-                        <div
-                          key={method.id}
-                          className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
-                            isMethodCompleted
-                              ? "bg-primary/10 ring-2 ring-primary/30"
-                              : "bg-card shadow-sm"
-                          }`}
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            navigate(`/methods/${method.id}`, {
-                              state: {
-                                programmaplanningId: nextSession?.id,
-                                programId: runningProgram.id  // Fallback for backward compatibility
-                              }
-                            })
-                          }}
-                        >
-                          <MethodThumbnail photo={method.photo} name={method.name} />
-                          <div className="flex-1 min-w-0">
-                            <p className={`font-semibold truncate ${isMethodCompleted ? "text-primary" : ""}`}>
-                              {method.name}
-                            </p>
-                            {method.duration > 0 && (
-                              <p className="text-sm text-muted-foreground">
-                                {method.duration} min
-                              </p>
-                            )}
-                          </div>
-                          {isMethodCompleted ? (
-                            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-                              <CheckCircle className="h-5 w-5 text-primary-foreground" />
-                            </div>
-                          ) : (
-                            <div className="w-10 h-10 rounded-xl bg-muted/50 flex items-center justify-center">
-                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
-                )}
-
-                {todaysSessionTime > 0 && (
-                  <div className="flex items-center gap-2 pt-2 border-t text-sm text-muted-foreground">
-                    <Clock className="h-4 w-4" />
-                    <span>Totaal: {todaysSessionTime} minuten</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
         </section>
         ) : (
           <section className="grid gap-4">
+            <ScoreWidgets />
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-base">Geen Actief Programma</CardTitle>
@@ -390,11 +437,11 @@ export function HomePage() {
           </section>
         )}
 
-        <section className="grid gap-4">
+        <section data-tour="goals" className="grid gap-4">
           <PersonalGoalsSection />
         </section>
 
-        <section className="grid gap-4">
+        <section data-tour="habits" className="grid gap-4">
           <GoodHabitsSection />
         </section>
 
@@ -446,6 +493,15 @@ export function HomePage() {
           </Card>
         </section>
       </div>
+
+      {/* Guided Tour */}
+      {showTour && (
+        <GuidedTour
+          steps={HOMEPAGE_TOUR_STEPS}
+          onComplete={handleTourComplete}
+          onSkip={handleTourSkip}
+        />
+      )}
     </PullToRefreshWrapper>
   )
 }

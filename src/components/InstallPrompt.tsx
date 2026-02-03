@@ -25,24 +25,32 @@ function isInStandaloneMode(): boolean {
   )
 }
 
-export function InstallPrompt() {
+interface InstallPromptProps {
+  variant?: "default" | "prominent"
+}
+
+export function InstallPrompt({ variant = "default" }: InstallPromptProps) {
   const [deferredPrompt, setDeferredPrompt] =
     useState<BeforeInstallPromptEvent | null>(null)
-  const [showIOSPrompt, setShowIOSPrompt] = useState(false)
-  const [dismissed, setDismissed] = useState(false)
+  // For prominent variant, start with true to show immediately
+  const [showMobilePrompt, setShowMobilePrompt] = useState(variant === "prominent")
+  const [dismissed, setDismissed] = useState(() => {
+    // Check sessionStorage on initial render
+    if (typeof window !== 'undefined') {
+      return sessionStorage.getItem("installPromptDismissed") === "true"
+    }
+    return false
+  })
+  const [isStandalone, setIsStandalone] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return isInStandaloneMode()
+    }
+    return false
+  })
 
   useEffect(() => {
-    // Check if already dismissed in this session
-    const wasDismissed = sessionStorage.getItem("installPromptDismissed")
-    if (wasDismissed) {
-      setDismissed(true)
-      return
-    }
-
-    // Don't show if already installed
-    if (isInStandaloneMode()) {
-      return
-    }
+    // Update standalone check (in case it changes)
+    setIsStandalone(isInStandaloneMode())
 
     // Handle Android/Chrome install prompt
     const handleBeforeInstallPrompt = (e: BeforeInstallPromptEvent) => {
@@ -52,24 +60,21 @@ export function InstallPrompt() {
 
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
 
-    // For iOS, show custom prompt after a short delay
-    if (isIOS()) {
+    // For default variant on iOS, show after delay
+    if (variant !== "prominent" && isIOS()) {
       const timer = setTimeout(() => {
-        setShowIOSPrompt(true)
+        setShowMobilePrompt(true)
       }, 2000)
       return () => {
         clearTimeout(timer)
-        window.removeEventListener(
-          "beforeinstallprompt",
-          handleBeforeInstallPrompt
-        )
+        window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
       }
     }
 
     return () => {
       window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt)
     }
-  }, [])
+  }, [variant])
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return
@@ -84,46 +89,63 @@ export function InstallPrompt() {
 
   const handleDismiss = () => {
     setDismissed(true)
-    setShowIOSPrompt(false)
+    setShowMobilePrompt(false)
     setDeferredPrompt(null)
     sessionStorage.setItem("installPromptDismissed", "true")
   }
 
   // Don't show if dismissed or already installed
-  if (dismissed || isInStandaloneMode()) {
+  if (dismissed || isStandalone) {
     return null
   }
+
+  const cardClassName = variant === "prominent"
+    ? "mb-4 border-primary/30 bg-primary/5 shadow-md"
+    : "mx-4 mb-4 border-primary/20 bg-primary/5"
 
   // Android/Chrome prompt
   if (deferredPrompt) {
     return (
-      <Card className="mx-4 mb-4 border-primary/20 bg-primary/5">
+      <Card className={cardClassName}>
         <CardContent className="pt-4">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <Download className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="font-medium">Installeer de app</p>
-              <p className="text-sm text-muted-foreground">
-                Voeg toe aan je startscherm voor snelle toegang
-              </p>
+              {variant === "prominent" ? (
+                <>
+                  <p className="font-semibold text-primary">Installeer eerst de app</p>
+                  <p className="text-sm text-muted-foreground">
+                    Voeg de app toe aan je startscherm voordat je inlogt, zodat je ingelogd blijft.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium">Installeer de app</p>
+                  <p className="text-sm text-muted-foreground">
+                    Voeg toe aan je startscherm voor snelle toegang
+                  </p>
+                </>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleDismiss}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            {variant !== "prominent" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleDismiss}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
           <div className="mt-3 flex gap-2">
-            <Button onClick={handleInstallClick} size="sm">
-              Installeren
+            <Button onClick={handleInstallClick} className={variant === "prominent" ? "flex-1" : ""}>
+              {variant === "prominent" ? "Installeer op startscherm" : "Installeren"}
             </Button>
-            <Button variant="ghost" size="sm" onClick={handleDismiss}>
-              Later
+            <Button variant="ghost" onClick={handleDismiss}>
+              {variant === "prominent" ? "Overslaan" : "Later"}
             </Button>
           </div>
         </CardContent>
@@ -131,50 +153,75 @@ export function InstallPrompt() {
     )
   }
 
-  // iOS prompt with instructions
-  if (showIOSPrompt && isIOS()) {
+  // Mobile prompt with instructions (iOS or Android without native prompt)
+  if (showMobilePrompt && !deferredPrompt) {
+    const iosDevice = isIOS()
+
     return (
-      <Card className="mx-4 mb-4 border-primary/20 bg-primary/5">
+      <Card className={cardClassName}>
         <CardContent className="pt-4">
           <div className="flex items-start gap-3">
             <div className="rounded-full bg-primary/10 p-2">
               <Download className="h-5 w-5 text-primary" />
             </div>
             <div className="flex-1">
-              <p className="font-medium">Installeer de app</p>
-              <p className="text-sm text-muted-foreground">
-                Voeg toe aan je startscherm voor snelle toegang
-              </p>
+              {variant === "prominent" ? (
+                <>
+                  <p className="font-semibold text-primary">Installeer eerst de app</p>
+                  <p className="text-sm text-muted-foreground">
+                    Voeg de app toe aan je startscherm voordat je inlogt, zodat je ingelogd blijft.
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="font-medium">Installeer de app</p>
+                  <p className="text-sm text-muted-foreground">
+                    Voeg toe aan je startscherm voor snelle toegang
+                  </p>
+                </>
+              )}
             </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8"
-              onClick={handleDismiss}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+            {variant !== "prominent" && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                onClick={handleDismiss}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
           </div>
           <div className="mt-3 rounded-lg bg-muted p-3">
             <p className="text-sm">
               <span className="font-medium">Stappen:</span>
             </p>
-            <ol className="mt-2 space-y-1 text-sm text-muted-foreground">
-              <li className="flex items-center gap-2">
-                1. Tik op{" "}
-                <Share className="inline h-4 w-4" />{" "}
-                <span className="font-medium">Delen</span>
-              </li>
-              <li>2. Scroll naar beneden</li>
-              <li>
-                3. Tik op{" "}
-                <span className="font-medium">"Zet op beginscherm"</span>
-              </li>
-            </ol>
+            {iosDevice ? (
+              <ol className="mt-2 space-y-1 text-sm text-muted-foreground">
+                <li className="flex items-center gap-2">
+                  1. Tik op{" "}
+                  <Share className="inline h-4 w-4" />{" "}
+                  <span className="font-medium">Delen</span>
+                </li>
+                <li>2. Scroll naar beneden</li>
+                <li>
+                  3. Tik op{" "}
+                  <span className="font-medium">"Zet op beginscherm"</span>
+                </li>
+              </ol>
+            ) : (
+              <ol className="mt-2 space-y-1 text-sm text-muted-foreground">
+                <li>1. Tik op het menu (⋮) rechtsboven</li>
+                <li>
+                  2. Tik op{" "}
+                  <span className="font-medium">"Toevoegen aan startscherm"</span>
+                </li>
+              </ol>
+            )}
           </div>
           <div className="mt-3">
-            <Button variant="ghost" size="sm" onClick={handleDismiss}>
-              Begrepen
+            <Button variant="ghost" onClick={handleDismiss}>
+              {variant === "prominent" ? "Overslaan en toch inloggen" : "Begrepen"}
             </Button>
           </div>
         </CardContent>
