@@ -11,7 +11,7 @@ interface ScoreCardProps {
 
 function ScoreCard({ title, score, icon, color }: ScoreCardProps) {
   return (
-    <Card className="flex-1 min-w-0">
+    <Card>
       <CardContent className="p-3">
         <div className="flex flex-col items-center gap-2">
           <div className={`w-10 h-10 rounded-xl ${color} flex items-center justify-center shrink-0`}>
@@ -32,9 +32,9 @@ export function ScoreWidgets() {
 
   if (isLoading) {
     return (
-      <div className="flex gap-2">
+      <div className="grid grid-cols-3 gap-2">
         {[1, 2, 3].map(i => (
-          <Card key={i} className="flex-1 min-w-0">
+          <Card key={i}>
             <CardContent className="p-3 flex items-center justify-center h-[88px]">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
             </CardContent>
@@ -47,7 +47,7 @@ export function ScoreWidgets() {
   if (!rewards) return null
 
   return (
-    <div className="flex gap-2">
+    <div className="grid grid-cols-3 gap-2">
       <ScoreCard
         title="Mental Fitness"
         score={rewards.mentalFitnessScore}

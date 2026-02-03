@@ -1,13 +1,25 @@
-import { useEffect } from "react"
+import { useState, useEffect } from "react"
 import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { CheckCircle2, Clock, Calendar, Lightbulb, Home, Plus } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { CheckCircle2, Clock, Calendar, Lightbulb, Home, Plus, Target, X, Loader2 } from "lucide-react"
+import { useAuth } from "@/contexts/AuthContext"
+import { useCreatePersonalGoal } from "@/hooks/queries"
 import type { ProgramResultProps } from "./types"
 
 export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramResultProps) {
   const queryClient = useQueryClient()
+  const { accessToken } = useAuth()
+  const createGoalMutation = useCreatePersonalGoal()
+
   const { program, aiSchedule, weeklySessionTime, recommendations, programSummary } = result
+
+  // Personal goals state
+  const [showGoalsSection, setShowGoalsSection] = useState(false)
+  const [personalGoals, setPersonalGoals] = useState<string[]>([])
+  const [newGoalInput, setNewGoalInput] = useState("")
+  const [savingGoals, setSavingGoals] = useState(false)
 
   // Preload homepage data while user reviews the result
   useEffect(() => {
@@ -71,6 +83,50 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
     return Math.floor(diffDays / 7) + 1
   }
 
+  const handleAddGoal = () => {
+    const trimmed = newGoalInput.trim()
+    if (trimmed && !personalGoals.includes(trimmed)) {
+      setPersonalGoals([...personalGoals, trimmed])
+      setNewGoalInput("")
+    }
+  }
+
+  const handleRemoveGoal = (index: number) => {
+    setPersonalGoals(personalGoals.filter((_, i) => i !== index))
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter") {
+      e.preventDefault()
+      handleAddGoal()
+    }
+  }
+
+  const handleSaveAndContinue = async () => {
+    if (personalGoals.length === 0 || !accessToken) {
+      onViewProgram()
+      return
+    }
+
+    setSavingGoals(true)
+    try {
+      // Save all personal goals
+      for (const goalName of personalGoals) {
+        await createGoalMutation.mutateAsync({
+          data: { name: goalName },
+          accessToken
+        })
+      }
+      // Invalidate to refresh the list
+      queryClient.invalidateQueries({ queryKey: ["personal-goals"] })
+    } catch (error) {
+      console.error("Failed to save personal goals:", error)
+    } finally {
+      setSavingGoals(false)
+      onViewProgram()
+    }
+  }
+
   return (
     <div className="flex flex-col h-[calc(100vh-12rem)] max-h-[700px]">
       {/* Scrollable content */}
@@ -106,6 +162,84 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                 <p className="text-xs text-muted-foreground">{aiSchedule.length} trainingsdagen</p>
               </div>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Personal Goals Section (Optional) */}
+        <Card className="border-orange-200 bg-orange-50/50">
+          <CardHeader className="pb-2">
+            <div className="flex items-center gap-2">
+              <Target className="w-5 h-5 text-orange-500" />
+              <CardTitle className="text-base">Persoonlijke Doelen</CardTitle>
+              <span className="text-xs text-muted-foreground ml-auto">(optioneel)</span>
+            </div>
+          </CardHeader>
+          <CardContent>
+            {!showGoalsSection ? (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Wil je persoonlijke doelen toevoegen? Dit helpt je om je voortgang bij te houden.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowGoalsSection(true)}
+                    className="flex-1"
+                  >
+                    <Plus className="mr-2 h-4 w-4" />
+                    Doelen toevoegen
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <p className="text-sm text-muted-foreground">
+                  Voeg doelen toe waaraan je wilt werken (bijv. "Beter slapen", "Minder stress").
+                </p>
+
+                {/* Added goals list */}
+                {personalGoals.length > 0 && (
+                  <div className="space-y-2">
+                    {personalGoals.map((goal, index) => (
+                      <div
+                        key={index}
+                        className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border"
+                      >
+                        <Target className="w-4 h-4 text-orange-500 shrink-0" />
+                        <span className="text-sm flex-1">{goal}</span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-6 w-6 p-0"
+                          onClick={() => handleRemoveGoal(index)}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new goal input */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Typ een doel..."
+                    value={newGoalInput}
+                    onChange={(e) => setNewGoalInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="sm"
+                    onClick={handleAddGoal}
+                    disabled={!newGoalInput.trim()}
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
@@ -188,11 +322,24 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
       {/* Fixed footer with buttons */}
       <div className="border-t pt-4 mt-2">
         <div className="flex gap-3">
-          <Button onClick={onViewProgram} className="flex-1">
-            <Home className="mr-2 h-4 w-4" />
-            Naar mijn startpagina
+          <Button
+            onClick={handleSaveAndContinue}
+            className="flex-1"
+            disabled={savingGoals}
+          >
+            {savingGoals ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Opslaan...
+              </>
+            ) : (
+              <>
+                <Home className="mr-2 h-4 w-4" />
+                {personalGoals.length > 0 ? "Opslaan en doorgaan" : "Naar mijn startpagina"}
+              </>
+            )}
           </Button>
-          <Button variant="outline" onClick={onCreateNew}>
+          <Button variant="outline" onClick={onCreateNew} disabled={savingGoals}>
             <Plus className="mr-2 h-4 w-4" />
             Nieuw
           </Button>

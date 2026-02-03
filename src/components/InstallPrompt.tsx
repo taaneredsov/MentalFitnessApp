@@ -115,9 +115,9 @@ export function InstallPrompt({ variant = "default" }: InstallPromptProps) {
             <div className="flex-1">
               {variant === "prominent" ? (
                 <>
-                  <p className="font-semibold text-primary">Installeer eerst de app</p>
+                  <p className="font-semibold text-primary">TIP</p>
                   <p className="text-sm text-muted-foreground">
-                    Voeg de app toe aan je startscherm voordat je inlogt, zodat je ingelogd blijft.
+                    Voeg eerst de app toe aan je startscherm, en log dan in. Je blijft dan ingelogd.
                   </p>
                 </>
               ) : (
@@ -167,9 +167,9 @@ export function InstallPrompt({ variant = "default" }: InstallPromptProps) {
             <div className="flex-1">
               {variant === "prominent" ? (
                 <>
-                  <p className="font-semibold text-primary">Installeer eerst de app</p>
+                  <p className="font-semibold text-primary">TIP</p>
                   <p className="text-sm text-muted-foreground">
-                    Voeg de app toe aan je startscherm voordat je inlogt, zodat je ingelogd blijft.
+                    Voeg eerst de app toe aan je startscherm, en log dan in. Je blijft dan ingelogd.
                   </p>
                 </>
               ) : (

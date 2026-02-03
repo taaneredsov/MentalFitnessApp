@@ -20,14 +20,14 @@ export function BottomNav() {
             end={path === "/"}
             className={({ isActive }) =>
               cn(
-                "flex flex-col items-center justify-center flex-1 h-full",
+                "flex flex-col items-center justify-center flex-1 h-full min-w-0 px-1",
                 "text-muted-foreground transition-colors",
                 isActive && "text-primary"
               )
             }
           >
-            <Icon className="h-5 w-5" />
-            <span className="text-xs mt-1">{label}</span>
+            <Icon className="h-5 w-5 shrink-0" />
+            <span className="text-[10px] mt-1 truncate max-w-full">{label}</span>
           </NavLink>
         ))}
       </div>
