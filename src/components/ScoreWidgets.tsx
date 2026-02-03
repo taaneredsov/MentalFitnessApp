@@ -32,7 +32,7 @@ export function ScoreWidgets() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-3 gap-3">
         {[1, 2, 3].map(i => (
           <Card key={i}>
             <CardContent className="p-3 flex items-center justify-center h-[88px]">
@@ -47,7 +47,7 @@ export function ScoreWidgets() {
   if (!rewards) return null
 
   return (
-    <div className="grid grid-cols-3 gap-2">
+    <div className="grid grid-cols-3 gap-3">
       <ScoreCard
         title="Mental Fitness"
         score={rewards.mentalFitnessScore}

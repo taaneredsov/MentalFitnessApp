@@ -332,7 +332,7 @@ export function HomePage() {
                           className={`flex items-center gap-4 p-3 rounded-2xl cursor-pointer transition-all duration-200 hover:shadow-md active:scale-[0.98] ${
                             isMethodCompleted
                               ? "bg-primary/10 ring-2 ring-primary/30"
-                              : "bg-card shadow-sm border"
+                              : "bg-muted/50"
                           }`}
                           onClick={(e) => {
                             e.stopPropagation()

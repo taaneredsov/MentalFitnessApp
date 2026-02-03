@@ -135,7 +135,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
               <div
                 key={goal.id}
                 onClick={() => toggleExpanded(goal.id)}
-                className="w-full p-4 rounded-2xl text-left transition-all duration-200 bg-card border-0 shadow-sm hover:shadow-md cursor-pointer"
+                className="w-full p-4 rounded-2xl text-left transition-all duration-200 bg-muted/50 hover:bg-muted/70 cursor-pointer"
               >
                 <div className="flex items-center gap-4">
                   {/* Goal icon with total count */}

@@ -105,7 +105,7 @@ export function GoodHabitsSection() {
               <div
                 key={habit.id}
                 onClick={() => toggleExpanded(habit.id)}
-                className="w-full p-4 rounded-2xl text-left transition-all duration-200 bg-card border-0 shadow-sm hover:shadow-md cursor-pointer"
+                className="w-full p-4 rounded-2xl text-left transition-all duration-200 bg-muted/50 hover:bg-muted/70 cursor-pointer"
               >
                 <div className="flex items-center gap-4">
                   {/* Emoji icon in circle */}

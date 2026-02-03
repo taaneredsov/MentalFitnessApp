@@ -4,7 +4,7 @@ import { cn } from "@/lib/utils"
 
 const tabs = [
   { path: "/", icon: Home, label: "Home" },
-  { path: "/programs", icon: Calendar, label: "Programma's" },
+  { path: "/programs", icon: Calendar, label: "Programma" },
   { path: "/methods", icon: BookOpen, label: "Methodes" },
   { path: "/account", icon: User, label: "Account" }
 ]
@@ -27,7 +27,7 @@ export function BottomNav() {
             }
           >
             <Icon className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] mt-1 truncate max-w-full">{label}</span>
+            <span className="text-[10px] mt-1 whitespace-nowrap">{label}</span>
           </NavLink>
         ))}
       </div>
