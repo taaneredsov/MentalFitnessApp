@@ -8,10 +8,13 @@ html, body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
-  /* Prevent horizontal scroll */
-  overflow-x: hidden;
   /* Prevent iOS Safari bounce/overscroll for PWA pull-to-refresh */
   overscroll-behavior-y: contain;
+}
+
+/* Prevent horizontal scroll without breaking vertical scroll */
+html {
+  overflow-x: clip;
 }
 
 /* iOS PWA specific - disable native pull-to-refresh */

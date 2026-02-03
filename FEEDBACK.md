@@ -1,0 +1,23 @@
+Evaluatie van App-ontwikkeling en Gamificatie-Features
+Tijdens deze sessie demonstreert de ontwikkelaar (Renaat) de nieuwste features van de mentale fitness-app aan de klant (Iris), met een sterke nadruk op het recent geïmplementeerde gamificatiesysteem. Dit systeem is ontworpen om gebruikers te motiveren door middel van een arbitrair puntensysteem. Gebruikers verdienen punten voor het voltooien van methodes (10 punten), het afvinken van persoonlijke doelen (10 punten) en het uitvoeren van 'goede gewoontes' (5 punten). Daarnaast worden bonuspunten toegekend voor het bereiken van mijlpalen (bv. 25% of 100% van een programma voltooien).
+Een belangrijk element is het 'streak'-systeem voor dagelijkse gewoontes, dat naar nul reset als een gebruiker een dag overslaat. Het uiteindelijke doel voor de gebruiker is om op te klimmen naar het niveau van 'mentale atleet'. Aanvankelijk werd een enkele totaalscore overwogen, maar op suggestie van de klant wordt besloten om de scores op te splitsen in drie aparte categorieën: mentale fitheid, persoonlijke doelen en goede gewoontes. Dit moet de gebruiker een duidelijker inzicht geven in zijn voortgang op verschillende domeinen en voorkomen dat een hoge score op één onderdeel (bv. goede gewoontes) een gebrek aan vooruitgang op een ander (bv. mentale fitness) maskeert. De ontwikkelaar stelt voor om deze drie scores visueel te onderscheiden met verschillende iconen op de homepagina.
+Technische Architectuur en Toekomstige Roadmap van de App
+Dit gedeelte verdiept zich in de technische en strategische planning van de app. De backend draait op Airtable, gesynchroniseerd met een tussenliggende database om de prestaties van de app vlot te houden. De frontend, gebouwd met React en Javascript, is ontworpen als een Progressive Web App (PWA) en is evolueerbaar naar een volwaardige native app.
+De roadmap omvat verschillende cruciale ontwikkelingen. Een topprioriteit is het implementeren van de mogelijkheid voor gebruikers om een lopend programma aan te passen, aangezien dit nog niet mogelijk is. Verder wordt besloten dat gebruikers slechts één actief programma tegelijk kunnen hebben. Het scoresysteem zal zo worden aangepast dat de voortgang van de gebruiker cumulatief is over meerdere programma's heen, vergelijkbaar met fysieke fitnesstraining. Er wordt ook overwogen om de score te resetten na een langere periode van inactiviteit (bv. drie maanden).
+Toekomstige features die besproken worden, zijn onder meer de implementatie van een nulmeting bij de onboarding van een nieuwe gebruiker, het genereren van rapportages voor B2B-klanten, en het integreren van de bestaande 'Mental Coach' app. Een geavanceerd idee is om AI (ChatGPT) niet alleen programma's te laten genereren, maar ook achterliggende belemmerende overtuigingen te identificeren op basis van input van de gebruiker en deze als specifieke oefeningen in het programma op te nemen. Tot slot wordt de mogelijkheid besproken om de app op termijn als een zelfstandig B2C-product op de markt te brengen, met een geschatte abonnementsprijs van € 10 tot € 20 per maand.
+Actie-items
+@Iris
+Tijd vrijmaken om de datatabellen (Airtable) voor de app verder in te vullen - [TBD]
+@Renaat (Ontwikkelaar)
+Het scoresysteem opsplitsen in drie aparte categorieën (mentale fitheid, persoonlijke doelen, goede gewoontes) met aparte iconen op de homepagina - [TBD]
+De functionaliteit implementeren waarmee gebruikers een lopend programma kunnen aanpassen (bv. oefeningen toevoegen) - [TBD]
+De logica aanpassen zodat een gebruiker slechts één actief programma tegelijk kan hebben - [TBD]
+Zorgen dat de totaalscore van een gebruiker cumulatief is over meerdere programma's heen, waarbij de score per programma op programmaniveau wordt bijgehouden - [TBD]
+De app grondig doortesten op bugs en functionaliteit voor de demonstratie op vrijdag - [TBD]
+De automatische toekenning van punten implementeren zodra de gebruiker de eindpagina van een oefening bereikt - [TBD]
+Een mechanisme onderzoeken om de score te resetten na een langdurige periode van inactiviteit (bv. 3 maanden) - [TBD]
+Een oplossing zoeken voor het probleem dat PWA-updates niet altijd onmiddellijk worden doorgevoerd op het homescherm van de gebruiker - [TBD]
+Nadenken over de implementatie van een nulmeting tijdens de onboarding - [TBD]
+Een filtermogelijkheid toevoegen aan de lijst van methodes (bv. filteren op doelstelling) - [TBD]
+Onderzoeken hoe het gebruikersniveau (beginner, gevorderd) beheerd en bijgewerkt kan worden - [TBD]
+De mogelijkheid voor bedrijfsrapportages (B2B) voorbereiden - [TBD]

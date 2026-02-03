@@ -60,7 +60,7 @@ export function PullToRefreshWrapper({ onRefresh, children }: PullToRefreshWrapp
   return (
     <div
       id={containerId.current}
-      className="min-h-screen overflow-x-hidden"
+      className="min-h-screen"
       style={{
         // Prevent iOS bounce/overscroll to allow library to handle it
         overscrollBehavior: "contain",

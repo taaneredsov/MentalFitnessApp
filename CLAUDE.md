@@ -1,112 +1,56 @@
-# Corporate Mental Fitness PWA
+## Workflow Orchestration
 
-## Project Overview
-A Progressive Web App for corporate mental fitness programs. Users can install it on Android/iOS and access mental fitness content.
+### 1. Plan Mode Default
+- Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
+- If something goes sideways, STOP and re-plan immediately - don't keep pushing
+- Use plan mode for verification steps, not just building
+- Write detailed specs upfront to reduce ambiguity
 
-## Tech Stack
-- **Frontend**: React 19 + Vite + TypeScript
-- **Styling**: Tailwind CSS v4 + shadcn/ui
-- **Backend**: Vercel Serverless Functions
-- **Database**: Airtable
-- **Auth**: JWT (jose library) with httpOnly cookie refresh tokens
+### 2. Subagent Strategy
+- Use subagents liberally to keep main context window clean
+- Offload research, exploration, and parallel analysis to subagents
+- For complex problems, throw more compute at it via subagents
+- One task per subagent for focused execution
 
-## Running Locally
+### 3. Self-Improvement Loop
+- After ANY correction from the user: update `tasks/lessons.md` with the pattern
+- Write rules for yourself that prevent the same mistake
+- Ruthlessly iterate on these lessons until mistake rate drops
+- Review lessons at session start for relevant project
 
-```bash
-# Start the dev server (includes both frontend and API)
-vercel dev --yes --listen 3333
-```
+### 4. Verification Before Done
+- Never mark a task complete without proving it works
+- Diff behavior between main and your changes when relevant
+- Ask yourself: "Would a staff engineer approve this?"
+- Run tests, check logs, demonstrate correctness
 
-The user will run the dev server, never run the dev server yourself unless explicitly asked to do.
+### 5. Demand Elegance (Balanced)
+- For non-trivial changes: pause and ask "is there a more elegant way?"
+- If a fix feels hacky: "Knowing everything I know now, implement the elegant solution"
+- Skip this for simple, obvious fixes - don't over-engineer
+- Challenge your own work before presenting it
 
-**Note**: Don't use `npm run dev` alone - it won't include the serverless API functions.
+### 6. Autonomous Bug Fixing
+- When given a bug report: just fix it. Don't ask for hand-holding
+- Point at logs, errors, failing tests - then resolve them
+- Zero context switching required from the user
+- Go fix failing CI tests without being told how
 
-## Environment Variables
+### 7. Deployment
+- Always ask before deploying to staging and/or production
 
-Required in `.env.local`:
-```
-AIRTABLE_ACCESS_TOKEN=pat...
-AIRTABLE_BASE_ID=app...
-AIRTABLE_USER_TABLE_ID=tbl... or table name
-JWT_SECRET=random-secret-string
-```
+## Task Management
 
-## Airtable Schema
+1. **Task Structure** `tasks/todo.md` is the general project overview, `specs/` contains the breakdown of the features
+2. **Plan First**: Write plan to `tasks/todo.md` with checkable items, create a feature folder under specs/ and refer to in in todo.md
+3. **Verify Plan**: Check in before starting implementation
+4. **Track Progress**: Mark items complete as you go
+5. **Explain Changes**: High-level summary at each step
+6. **Document Results**: Add review section to `tasks/todo.md`
+7. **Capture Lessons**: Update `tasks/lessons.md` after corrections
 
-The User table uses **Dutch field names**:
+## Core Principles
 
-| Field | Dutch Name | Type |
-|-------|------------|------|
-| Name | Naam | Single line text |
-| Email | E-mailadres | Email |
-| Company | Bedrijf | Linked record |
-| Role | Rol | Single line text |
-| Language Code | Taalcode | Single line text |
-| Profile Photo | Profielfoto | Attachment |
-| Password Hash | Paswoord Hash | Single line text |
-| Created At | Aangemaakt op | Created time (computed) |
-| Last Login | Laatste login | Date |
-
-**Important**: `Aangemaakt op` is a computed field - don't try to write to it.
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/api/auth/login` | POST | Login with email/password |
-| `/api/auth/logout` | POST | Clear refresh token |
-| `/api/auth/refresh` | POST | Refresh access token |
-| `/api/auth/me` | GET | Get current user |
-| `/api/users` | POST | Create new user |
-| `/api/users/[id]` | PATCH | Update user |
-| `/api/users/lookup` | GET | Find user by email |
-
-## Project Structure
-
-```
-├── api/                    # Vercel serverless functions
-│   ├── _lib/              # Shared code (not endpoints)
-│   │   ├── airtable.js    # Airtable client
-│   │   ├── api-utils.js   # Response helpers
-│   │   ├── jwt.js         # JWT utilities
-│   │   ├── password.js    # bcrypt helpers
-│   │   └── user.js        # User types & transform
-│   ├── auth/              # Auth endpoints
-│   └── users/             # User endpoints
-├── src/
-│   ├── components/        # React components
-│   │   └── ui/           # shadcn/ui components
-│   ├── contexts/         # React contexts (AuthContext)
-│   ├── lib/              # Frontend utilities
-│   ├── pages/            # Page components
-│   └── types/            # TypeScript types
-└── specs/                # Feature specifications
-```
-
-## Known Issues & Gotchas
-
-1. **Vercel dev env vars**: The `api/_lib/airtable.js` uses dotenv to explicitly load `.env.local` because Vercel dev doesn't inject env vars at module load time.
-
-2. **SPA Rewrites**: Don't add SPA rewrites to `vercel.json` for dev - they cause Vite to parse HTML as JavaScript.
-
-3. **Airtable Date Format**: Use `YYYY-MM-DD` format for Date fields, not full ISO strings.
-
-4. **Zod Version**: Using Zod v3.x (not v4) for TypeScript compatibility with @vercel/node.
-
-## Test User
-
-```
-Email: test@example.com
-Password: testpassword123
-```
-
-## GitHub
-
-- Repo: github.com/taaneredsov/MentalFitnessApp
-- Project Board: github.com/users/taaneredsov/projects/7
-
-## Deployment
-
-**Production URL**: https://mfa.drvn.be
-
-For deployment instructions, see [DEPLOYMENT.md](./DEPLOYMENT.md). Always reference that file when deploying to the Hetzner server.
+- **Simplicity First**: Make every change as simple as possible. Impact minimal code.
+- **No Laziness**: Find root causes. No temporary fixes. Senior developer standards.
+- **Minimal Impact**: Changes should only touch what's necessary. Avoid introducing bugs.
