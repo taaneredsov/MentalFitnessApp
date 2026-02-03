@@ -11,6 +11,7 @@ import { MilestoneProgress } from "@/components/rewards"
 import { FullScheduleSection } from "@/components/FullScheduleSection"
 import { SessionEditDialog } from "@/components/SessionEditDialog"
 import { ProgramEditDialog } from "@/components/ProgramEditDialog"
+import { MethodThumbnail } from "@/components/MethodThumbnail"
 import { getProgramStatus } from "@/types/program"
 import type { Programmaplanning } from "@/types/program"
 import {
@@ -297,13 +298,11 @@ export function ProgramDetailPage() {
                     state: { programId: program.id }
                   })}
                 >
-                  {method.photo && (
-                    <img
-                      src={method.photo}
-                      alt={method.name}
-                      className="w-12 h-12 rounded-lg object-cover"
-                    />
-                  )}
+                  <MethodThumbnail
+                    photo={method.photo}
+                    name={method.name}
+                    className="w-12 h-12 rounded-lg"
+                  />
                   <div className="flex-1">
                     <p className="font-medium">{method.name}</p>
                     {method.duration > 0 && (

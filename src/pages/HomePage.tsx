@@ -30,6 +30,7 @@ import { GoodHabitsSection } from "@/components/GoodHabitsSection"
 import { PersonalGoalsSection } from "@/components/PersonalGoalsSection"
 import { ScoreWidgets } from "@/components/ScoreWidgets"
 import { WelcomeScreen, GuidedTour, HOMEPAGE_TOUR_STEPS } from "@/components/Onboarding"
+import { MethodThumbnail } from "@/components/MethodThumbnail"
 import { useOnboarding } from "@/hooks/useOnboarding"
 
 function formatDate(dateStr: string): string {
@@ -73,34 +74,6 @@ function getNextScheduledSession(schedule: Programmaplanning[]): Programmaplanni
   }) || null
 }
 
-/**
- * Method thumbnail with fallback on error
- */
-function MethodThumbnail({ photo, name }: { photo?: string; name: string }) {
-  const [imgError, setImgError] = useState(false)
-  const [imgLoaded, setImgLoaded] = useState(false)
-
-  const showFallback = !photo || imgError
-
-  return (
-    <div className="w-12 h-12 rounded-xl overflow-hidden relative">
-      {/* Fallback - always rendered underneath */}
-      <div className={`absolute inset-0 flex items-center justify-center bg-primary/10 p-2 ${showFallback ? 'opacity-100' : 'opacity-0'}`}>
-        <img src="/pwa-512x512.svg" alt="" className="w-full h-full opacity-60" />
-      </div>
-      {/* Actual image */}
-      {photo && !imgError && (
-        <img
-          src={photo}
-          alt={name}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-          onLoad={() => setImgLoaded(true)}
-          onError={() => setImgError(true)}
-        />
-      )}
-    </div>
-  )
-}
 
 export function HomePage() {
   const { user } = useAuth()
@@ -344,7 +317,7 @@ export function HomePage() {
                             })
                           }}
                         >
-                          <MethodThumbnail photo={method.photo} name={method.name} />
+                          <MethodThumbnail photo={method.photo} name={method.name} className="w-12 h-12 rounded-xl" />
                           <div className="flex-1 min-w-0">
                             <p className={`font-semibold truncate ${isMethodCompleted ? "text-primary" : ""}`}>
                               {method.name}

@@ -1,36 +1,10 @@
-import { useState, useMemo } from "react"
+import { useMemo } from "react"
 import { useNavigate } from "react-router-dom"
 import { useMethods, useGoals } from "@/hooks/queries"
 import { Card } from "@/components/ui/card"
+import { MethodThumbnail } from "@/components/MethodThumbnail"
 import type { Method } from "@/types/program"
 import { Loader2, Clock, ChevronRight } from "lucide-react"
-
-function MethodThumbnail({ photo, name }: { photo?: string; name: string }) {
-  const [imgError, setImgError] = useState(false)
-  const [imgLoaded, setImgLoaded] = useState(false)
-
-  // Show fallback if no photo, error, or still loading with broken src
-  const showFallback = !photo || imgError
-
-  return (
-    <div className="w-full h-full relative">
-      {/* Fallback - always rendered underneath */}
-      <div className={`absolute inset-0 flex items-center justify-center bg-primary/10 p-4 ${showFallback ? 'opacity-100' : 'opacity-0'}`}>
-        <img src="/pwa-512x512.svg" alt="" className="w-full h-full opacity-60" />
-      </div>
-      {/* Actual image */}
-      {photo && !imgError && (
-        <img
-          src={photo}
-          alt={name}
-          className={`absolute inset-0 w-full h-full object-cover transition-opacity ${imgLoaded ? 'opacity-100' : 'opacity-0'}`}
-          onLoad={() => setImgLoaded(true)}
-          onError={() => setImgError(true)}
-        />
-      )}
-    </div>
-  )
-}
 
 function MethodCard({
   method,
@@ -47,7 +21,7 @@ function MethodCard({
       <div className="flex gap-3 p-3">
         {/* Thumbnail */}
         <div className="w-20 h-20 rounded-lg bg-muted shrink-0 overflow-hidden">
-          <MethodThumbnail photo={method.photo} name={method.name} />
+          <MethodThumbnail photo={method.photo} name={method.name} className="w-full h-full" />
         </div>
 
         {/* Content */}
