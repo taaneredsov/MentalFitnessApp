@@ -109,6 +109,7 @@ export function HomePage() {
   const queryClient = useQueryClient()
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTour, setShowTour] = useState(false)
+  const [onboardingInProgress, setOnboardingInProgress] = useState(false)
 
   // Onboarding state
   const {
@@ -162,17 +163,27 @@ export function HomePage() {
   const currentRunningProgram = getRunningProgram(programs)
 
   // Auto-show onboarding for first-time users (only if no running program)
-  const shouldShowOnboardingWizard = !userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading))
+  // Keep showing if onboardingInProgress is true (prevents auto-hide when program is created)
+  const shouldShowOnboardingWizard = onboardingInProgress || (!userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading)))
 
   // Check if we should show welcome screen first
   const shouldShowWelcomeScreen = shouldShowOnboardingWizard && shouldShowWelcome
 
+  // Mark onboarding in progress when wizard shows (to prevent auto-hide)
+  useEffect(() => {
+    if (shouldShowOnboardingWizard && !shouldShowWelcome && !onboardingInProgress) {
+      setOnboardingInProgress(true)
+    }
+  }, [shouldShowOnboardingWizard, shouldShowWelcome, onboardingInProgress])
+
   const handleWelcomeStart = () => {
     markWelcomeSeen()
+    setOnboardingInProgress(true)
   }
 
   const handleOnboardingComplete = (_programId: string) => {
     setShowOnboarding(false)
+    setOnboardingInProgress(false)
     // Navigate to homepage with tour trigger (instead of program detail)
     navigate("/", { replace: true, state: { startTour: true } })
   }
