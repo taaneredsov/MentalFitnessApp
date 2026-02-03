@@ -37,105 +37,111 @@ export function ConfirmationStep({
   )
 
   return (
-    <div className="space-y-6">
-      <p className="text-sm text-muted-foreground">
-        Controleer je programma voordat je het opslaat.
-      </p>
+    <div className="flex flex-col h-full">
+      <div className="flex-1">
+        <p className="text-sm text-muted-foreground mb-4">
+          Controleer je programma voordat je het opslaat.
+        </p>
 
-      {/* Basic Info */}
-      <div className="space-y-3 p-4 bg-muted/50 rounded-lg">
-        <div className="flex items-center gap-3">
-          <Calendar className="h-5 w-5 text-muted-foreground" />
-          <div>
-            <p className="text-sm text-muted-foreground">Start</p>
-            <p className="font-medium">{formatDate(state.startDate)}</p>
+        {/* Basic Info */}
+        <div className="space-y-3 p-4 bg-background rounded-lg border mb-4">
+          <div className="flex items-center gap-3">
+            <Calendar className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm text-muted-foreground">Start</p>
+              <p className="font-medium">{formatDate(state.startDate)}</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <Clock className="h-5 w-5 text-muted-foreground" />
+            <div>
+              <p className="text-sm text-muted-foreground">Duur</p>
+              <p className="font-medium">{state.duration}</p>
+            </div>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <Clock className="h-5 w-5 text-muted-foreground" />
-          <div>
-            <p className="text-sm text-muted-foreground">Duur</p>
-            <p className="font-medium">{state.duration}</p>
-          </div>
-        </div>
-      </div>
 
-      {/* Goals */}
-      {selectedGoals.length > 0 && (
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Target className="h-4 w-4 text-muted-foreground" />
-            <p className="text-sm font-medium">Doelen</p>
+        {/* Goals */}
+        {selectedGoals.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Doelen</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedGoals.map((goal) => (
+                <span
+                  key={goal.id}
+                  className="px-3 py-1 text-sm rounded-full bg-primary/10 text-primary"
+                >
+                  {goal.name}
+                </span>
+              ))}
+            </div>
           </div>
+        )}
+
+        {/* Schedule */}
+        <div className="space-y-2 mb-4">
+          <p className="text-sm font-medium">Schema</p>
           <div className="flex flex-wrap gap-2">
-            {selectedGoals.map((goal) => (
+            {sortedDays.map((day) => (
               <span
-                key={goal.id}
-                className="px-3 py-1 text-sm rounded-full bg-primary/10 text-primary"
+                key={day.id}
+                className="px-3 py-1 text-sm rounded-full bg-muted"
               >
-                {goal.name}
+                {day.name}
               </span>
             ))}
           </div>
         </div>
-      )}
 
-      {/* Schedule */}
-      <div className="space-y-2">
-        <p className="text-sm font-medium">Schema</p>
-        <div className="flex flex-wrap gap-2">
-          {sortedDays.map((day) => (
-            <span
-              key={day.id}
-              className="px-3 py-1 text-sm rounded-full bg-muted"
-            >
-              {day.name}
-            </span>
-          ))}
-        </div>
-      </div>
+        {/* Methods */}
+        {selectedMethods.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <p className="text-sm font-medium">Methodes ({selectedMethods.length})</p>
+            <ul className="space-y-1">
+              {selectedMethods.map((method) => (
+                <li key={method.id} className="flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="h-4 w-4 text-green-500" />
+                  {method.name}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
-      {/* Methods */}
-      {selectedMethods.length > 0 && (
+        {/* Notes */}
         <div className="space-y-2">
-          <p className="text-sm font-medium">Methodes ({selectedMethods.length})</p>
-          <ul className="space-y-1">
-            {selectedMethods.map((method) => (
-              <li key={method.id} className="flex items-center gap-2 text-sm">
-                <CheckCircle2 className="h-4 w-4 text-green-500" />
-                {method.name}
-              </li>
-            ))}
-          </ul>
+          <Label htmlFor="notes">Notities (optioneel)</Label>
+          <Textarea
+            id="notes"
+            value={state.notes}
+            onChange={(e) => updateState({ notes: e.target.value })}
+            placeholder="Voeg eventuele notities toe..."
+            rows={3}
+            className="bg-background"
+          />
         </div>
-      )}
-
-      {/* Notes */}
-      <div className="space-y-2">
-        <Label htmlFor="notes">Notities (optioneel)</Label>
-        <Textarea
-          id="notes"
-          value={state.notes}
-          onChange={(e) => updateState({ notes: e.target.value })}
-          placeholder="Voeg eventuele notities toe..."
-          rows={3}
-        />
       </div>
 
-      <div className="flex justify-between pt-4">
-        <Button variant="outline" onClick={onBack} disabled={state.isSaving}>
-          Terug
-        </Button>
-        <Button onClick={onSave} disabled={state.isSaving}>
-          {state.isSaving ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Opslaan...
-            </>
-          ) : (
-            "Programma Aanmaken"
-          )}
-        </Button>
+      {/* Sticky navigation */}
+      <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4 mt-6">
+        <div className="flex justify-between border-t pt-4">
+          <Button variant="outline" onClick={onBack} disabled={state.isSaving}>
+            Terug
+          </Button>
+          <Button onClick={onSave} disabled={state.isSaving}>
+            {state.isSaving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Opslaan...
+              </>
+            ) : (
+              "Programma Aanmaken"
+            )}
+          </Button>
+        </div>
       </div>
     </div>
   )

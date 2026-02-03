@@ -232,7 +232,7 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
   }
 
   return (
-    <div className="space-y-4">
+    <div className="flex flex-col min-h-[calc(100vh-220px)]">
       {/* Step indicator - compact for mobile */}
       <div className="flex justify-center items-center gap-1">
         {STEPS.map((_, index) => (
@@ -263,15 +263,15 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
       </div>
 
       {/* Step title */}
-      <div className="text-center">
+      <div className="text-center mt-4">
         <h2 className="text-xl font-semibold">{STEPS[state.step].title}</h2>
         <p className="text-sm text-muted-foreground">
           {STEPS[state.step].description}
         </p>
       </div>
 
-      {/* Step content */}
-      <div className="bg-muted/30 rounded-xl p-4">
+      {/* Step content - grows to fill available space */}
+      <div className="flex-1 mt-4">
         {state.step === 0 && (
           <BasicInfoStep
             {...stepProps}
