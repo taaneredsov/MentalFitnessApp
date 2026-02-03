@@ -173,7 +173,7 @@ export function ProgramsPage() {
 
       {/* New Program Wizard Dialog */}
       <Dialog open={showWizard} onOpenChange={handleDialogClose}>
-        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+        <DialogContent className="w-[calc(100vw-2rem)] max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>Nieuw Programma</DialogTitle>
             <DialogDescription>

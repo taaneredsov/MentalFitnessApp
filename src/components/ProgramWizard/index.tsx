@@ -232,23 +232,23 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Step indicator */}
-      <div className="flex justify-center gap-2">
+    <div className="space-y-4">
+      {/* Step indicator - compact for mobile */}
+      <div className="flex justify-center items-center gap-1">
         {STEPS.map((_, index) => (
           <div
             key={index}
-            className={`flex items-center ${index > 0 ? "ml-2" : ""}`}
+            className="flex items-center"
           >
             {index > 0 && (
               <div
-                className={`w-8 h-0.5 mr-2 ${
+                className={`w-4 sm:w-6 h-0.5 ${
                   index <= state.step ? "bg-primary" : "bg-muted"
                 }`}
               />
             )}
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center text-xs sm:text-sm font-medium shrink-0 ${
                 index === state.step
                   ? "bg-primary text-primary-foreground"
                   : index < state.step
@@ -271,35 +271,33 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
       </div>
 
       {/* Step content */}
-      <Card>
-        <CardContent className="pt-6">
-          {state.step === 0 && (
-            <BasicInfoStep
-              {...stepProps}
-              onNext={handleBasicInfoComplete}
-            />
-          )}
-          {state.step === 1 && (
-            <GoalsStep
-              {...stepProps}
-              onNext={handleGoalsComplete}
-            />
-          )}
-          {state.step === 2 && (
-            <ScheduleStep
-              {...stepProps}
-              onNext={handleScheduleComplete}
-            />
-          )}
-          {state.step === 3 && <MethodsStep {...stepProps} />}
-          {state.step === 4 && (
-            <ConfirmationStep
-              {...stepProps}
-              onSave={handleSave}
-            />
-          )}
-        </CardContent>
-      </Card>
+      <div className="bg-muted/30 rounded-xl p-4">
+        {state.step === 0 && (
+          <BasicInfoStep
+            {...stepProps}
+            onNext={handleBasicInfoComplete}
+          />
+        )}
+        {state.step === 1 && (
+          <GoalsStep
+            {...stepProps}
+            onNext={handleGoalsComplete}
+          />
+        )}
+        {state.step === 2 && (
+          <ScheduleStep
+            {...stepProps}
+            onNext={handleScheduleComplete}
+          />
+        )}
+        {state.step === 3 && <MethodsStep {...stepProps} />}
+        {state.step === 4 && (
+          <ConfirmationStep
+            {...stepProps}
+            onSave={handleSave}
+          />
+        )}
+      </div>
     </div>
   )
 }
