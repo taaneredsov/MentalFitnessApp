@@ -178,7 +178,8 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
             {!showGoalsSection ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Wil je persoonlijke doelen toevoegen? Dit helpt je om je voortgang bij te houden.
+                  Maak je Mental Fitness training nog persoonlijker door eigen doelen toe te voegen.
+                  Denk aan situaties waarin je je nieuwe vaardigheden wilt toepassen.
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -195,7 +196,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Voeg doelen toe waaraan je wilt werken (bijv. "Beter slapen", "Minder stress").
+                  Waar wil je je nieuwe vaardigheden toepassen? Bijv. "Rustiger reageren op kritiek", "Beter slapen", "Focus behouden in vergaderingen".
                 </p>
 
                 {/* Added goals list */}
