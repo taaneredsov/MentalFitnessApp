@@ -303,8 +303,8 @@ export function HomePage() {
           <section className="grid gap-4">
           {/* TODAY'S ACTIVITY - Most Prominent */}
           {nextDay && (
-            <Card data-tour="activity" className="border-primary/30 shadow-md">
-              <CardHeader className="pb-3 bg-primary/5 rounded-t-xl">
+            <Card data-tour="activity" className="border-primary/30 shadow-md overflow-hidden">
+              <CardHeader className="pb-3 pt-4 bg-primary/5">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
                     <Sparkles className="h-6 w-6 text-primary-foreground" />
