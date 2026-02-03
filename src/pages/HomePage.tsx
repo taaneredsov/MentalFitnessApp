@@ -377,17 +377,17 @@ export function HomePage() {
               )}
             </CardHeader>
             <CardContent className="space-y-3">
-              <div className="flex items-center gap-4 text-sm text-muted-foreground">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-muted-foreground">
                 <div className="flex items-center gap-1">
-                  <Calendar className="h-4 w-4" />
-                  <span>
+                  <Calendar className="h-4 w-4 shrink-0" />
+                  <span className="whitespace-nowrap">
                     {formatDate(runningProgram.startDate)} -{" "}
                     {formatDate(runningProgram.endDate)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
-                  <Target className="h-4 w-4" />
-                  <span>{runningProgram.frequency}x per week</span>
+                  <Target className="h-4 w-4 shrink-0" />
+                  <span className="whitespace-nowrap">{runningProgram.frequency}x per week</span>
                 </div>
               </div>
 
