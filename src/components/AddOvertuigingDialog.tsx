@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter
@@ -104,6 +105,7 @@ export function AddOvertuigingDialog({
       <DialogContent className="max-h-[85vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>Overtuiging toevoegen</DialogTitle>
+          <DialogDescription>Kies een overtuiging om aan je programma toe te voegen.</DialogDescription>
         </DialogHeader>
 
         <div className="flex-1 overflow-y-auto space-y-4 py-2">

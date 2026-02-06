@@ -72,6 +72,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const overtuigingen = records
       .map(r => transformOvertuiging(r as any))
+      .filter(o => o.levels.includes("Niveau 1"))
       .sort((a, b) => (a.order || 0) - (b.order || 0))
 
     return sendSuccess(res, overtuigingen)

@@ -257,7 +257,6 @@ export const OVERTUIGING_USAGE_FIELDS = {
   user: "fldaIsUSdHWmcVu8Q",              // Gebruikers (link to Users)
   overtuiging: "fldr3astKAHFdvpB1",       // Overtuigingen (link to Overtuigingen)
   program: "fldgVFIiB0nGZnvaT",           // Mentale Fitnessprogramma's (link to Programs)
-  level: "fldyjXp0xnjD5KdUX",             // Niveau (single select: Niveau 1/2/3)
   date: "fldaDnnhvJ8H9gjB3"               // Datum (date)
 }
 
@@ -367,7 +366,6 @@ export const FIELD_NAMES = {
     user: "Gebruikers",
     overtuiging: "Overtuigingen",
     program: "Mentale Fitnessprogramma's",
-    level: "Niveau",
     date: "Datum"
   }
 }
@@ -661,7 +659,8 @@ export function transformOvertuiging(record) {
     id: record.id,
     name: fields[OVERTUIGING_FIELDS.name],
     categoryIds: fields[OVERTUIGING_FIELDS.category] || [],
-    order: fields[OVERTUIGING_FIELDS.order] || 0
+    order: fields[OVERTUIGING_FIELDS.order] || 0,
+    levels: fields[OVERTUIGING_FIELDS.levels] || []
   }
 }
 
@@ -705,7 +704,6 @@ export function transformOvertuigingUsage(record) {
     userId: fields[OVERTUIGING_USAGE_FIELDS.user]?.[0],
     overtuigingId: fields[OVERTUIGING_USAGE_FIELDS.overtuiging]?.[0],
     programId: fields[OVERTUIGING_USAGE_FIELDS.program]?.[0],
-    level: fields[OVERTUIGING_USAGE_FIELDS.level],
     date: fields[OVERTUIGING_USAGE_FIELDS.date]
   }
 }

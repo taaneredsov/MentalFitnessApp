@@ -9,18 +9,12 @@ const createUsageSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   overtuigingId: z.string().min(1, "Overtuiging ID is required"),
   programId: z.string().min(1, "Program ID is required"),
-  level: z.enum(["Niveau 1", "Niveau 2", "Niveau 3"]),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 })
 
-interface OvertuigingProgress {
-  currentLevel: number
-  completedLevels: string[]
-}
-
 /**
  * GET /api/overtuiging-usage?programId=xxx
- * Returns { [overtuigingId]: { currentLevel: number, completedLevels: string[] } }
+ * Returns { [overtuigingId]: { completed: boolean } }
  */
 async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
   const { programId } = req.query
@@ -40,8 +34,8 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     })
     .all()
 
-  // Filter by user and program, build progress map
-  const progress: Record<string, OvertuigingProgress> = {}
+  // Filter by user and program, build completion map
+  const progress: Record<string, { completed: boolean }> = {}
 
   allRecords.forEach(r => {
     const fields = r.fields as Record<string, unknown>
@@ -52,41 +46,22 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     if (!programField?.includes(programId)) return
 
     const overtuigingField = fields[OVERTUIGING_USAGE_FIELDS.overtuiging] as string[] | undefined
-    const level = fields[OVERTUIGING_USAGE_FIELDS.level] as string | undefined
     const overtuigingId = overtuigingField?.[0]
 
-    if (!overtuigingId || !level) return
+    if (!overtuigingId) return
 
-    if (!progress[overtuigingId]) {
-      progress[overtuigingId] = { currentLevel: 0, completedLevels: [] }
-    }
-
-    if (!progress[overtuigingId].completedLevels.includes(level)) {
-      progress[overtuigingId].completedLevels.push(level)
-    }
+    progress[overtuigingId] = { completed: true }
   })
 
-  // Calculate currentLevel from completedLevels
-  for (const id of Object.keys(progress)) {
-    const p = progress[id]
-    if (p.completedLevels.includes("Niveau 3")) {
-      p.currentLevel = 3
-    } else if (p.completedLevels.includes("Niveau 2")) {
-      p.currentLevel = 2
-    } else if (p.completedLevels.includes("Niveau 1")) {
-      p.currentLevel = 1
-    }
-  }
-
-  console.log("[overtuiging-usage] GET for program:", programId, "user:", tokenUserId, "overtuigingen with progress:", Object.keys(progress).length)
+  console.log("[overtuiging-usage] GET for program:", programId, "user:", tokenUserId, "completed:", Object.keys(progress).length)
 
   return sendSuccess(res, progress)
 }
 
 /**
  * POST /api/overtuiging-usage
- * Creates a new overtuiging usage record
- * Validates sequential level completion
+ * Creates a single usage record (marks overtuiging as completed)
+ * Awards 1 bonus point on completion
  */
 async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
   const rawBody = parseBody(req)
@@ -102,51 +77,41 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
     return sendError(res, "Invalid ID format", 400)
   }
 
-  // Validate sequential level completion
-  if (body.level !== "Niveau 1") {
-    // Check if prerequisite level exists
-    const prerequisiteLevel = body.level === "Niveau 2" ? "Niveau 1" : "Niveau 2"
-
-    const existingRecords = await base(tables.overtuigingenGebruik)
-      .select({
-        returnFieldsByFieldId: true
-      })
-      .all()
-
-    const hasPrerequisite = existingRecords.some(r => {
-      const fields = r.fields as Record<string, unknown>
-      const userField = fields[OVERTUIGING_USAGE_FIELDS.user] as string[] | undefined
-      const overtuigingField = fields[OVERTUIGING_USAGE_FIELDS.overtuiging] as string[] | undefined
-      const programField = fields[OVERTUIGING_USAGE_FIELDS.program] as string[] | undefined
-      const recordLevel = fields[OVERTUIGING_USAGE_FIELDS.level] as string | undefined
-
-      return userField?.includes(body.userId) &&
-        overtuigingField?.includes(body.overtuigingId) &&
-        programField?.includes(body.programId) &&
-        recordLevel === prerequisiteLevel
+  // Check for duplicate: can't complete same overtuiging twice in same program
+  const existingRecords = await base(tables.overtuigingenGebruik)
+    .select({
+      returnFieldsByFieldId: true
     })
+    .all()
 
-    if (!hasPrerequisite) {
-      return sendError(res, `${prerequisiteLevel} must be completed before ${body.level}`, 400)
-    }
+  const alreadyCompleted = existingRecords.some(r => {
+    const fields = r.fields as Record<string, unknown>
+    const userField = fields[OVERTUIGING_USAGE_FIELDS.user] as string[] | undefined
+    const overtuigingField = fields[OVERTUIGING_USAGE_FIELDS.overtuiging] as string[] | undefined
+    const programField = fields[OVERTUIGING_USAGE_FIELDS.program] as string[] | undefined
+
+    return userField?.includes(body.userId) &&
+      overtuigingField?.includes(body.overtuigingId) &&
+      programField?.includes(body.programId)
+  })
+
+  if (alreadyCompleted) {
+    return sendError(res, "Overtuiging already completed in this program", 400)
   }
 
-  // Create the usage record
+  // Create the usage record (no level field)
   const record = await base(tables.overtuigingenGebruik).create({
     [OVERTUIGING_USAGE_FIELDS.user]: [body.userId],
     [OVERTUIGING_USAGE_FIELDS.overtuiging]: [body.overtuigingId],
     [OVERTUIGING_USAGE_FIELDS.program]: [body.programId],
-    [OVERTUIGING_USAGE_FIELDS.level]: body.level,
     [OVERTUIGING_USAGE_FIELDS.date]: body.date
   }, {
     typecast: true
   })
 
-  console.log("[overtuiging-usage] Created record:", record.id, "for user:", body.userId, "overtuiging:", body.overtuigingId, "level:", body.level)
+  console.log("[overtuiging-usage] Created record:", record.id, "for user:", body.userId, "overtuiging:", body.overtuigingId)
 
-  const isFinished = body.level === "Niveau 3"
-
-  // Update user streak fields (and award 1 bonus point only when finishing all 3 levels)
+  // Update user streak fields and award 1 bonus point
   const userRecords = await base(tables.users)
     .select({
       filterByFormula: `RECORD_ID() = "${body.userId}"`,
@@ -186,28 +151,27 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
       console.log("[overtuiging-usage] Streak update - lastActive:", lastActive, "today:", today, "newStreak:", newStreak)
     }
 
-    // Update user streak fields (+ 1 bonus point only when finishing all 3 levels)
-    const pointsToAward = isFinished ? 1 : 0
+    // Award 1 bonus point on completion
     await base(tables.users).update(body.userId, {
       [USER_FIELDS.currentStreak]: newStreak,
       [USER_FIELDS.longestStreak]: newLongestStreak,
       [USER_FIELDS.lastActiveDate]: today,
-      [USER_FIELDS.bonusPoints]: (currentRewards.bonusPoints || 0) + pointsToAward
+      [USER_FIELDS.bonusPoints]: (currentRewards.bonusPoints || 0) + 1
     })
 
-    console.log("[overtuiging-usage] Updated user streak fields" + (isFinished ? " and awarded 1 bonus point" : ""))
+    console.log("[overtuiging-usage] Updated user streak fields and awarded 1 bonus point")
   }
 
   return sendSuccess(res, {
     id: record.id,
-    pointsAwarded: isFinished ? 1 : 0
+    pointsAwarded: 1
   }, 201)
 }
 
 /**
  * /api/overtuiging-usage
- * GET: Returns progress per overtuiging { [overtuigingId]: { currentLevel, completedLevels } }
- * POST: Creates a new usage record (validates sequential levels)
+ * GET: Returns completion status per overtuiging { [overtuigingId]: { completed: boolean } }
+ * POST: Creates a usage record (single-click completion, awards points)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {

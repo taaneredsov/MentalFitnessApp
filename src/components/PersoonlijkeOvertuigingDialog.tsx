@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogFooter
@@ -76,6 +77,7 @@ export function PersoonlijkeOvertuigingDialog({ open, onOpenChange, programId }:
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Nieuwe Persoonlijke Overtuiging</DialogTitle>
+          <DialogDescription>Schrijf een persoonlijke overtuiging die je wilt versterken.</DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">

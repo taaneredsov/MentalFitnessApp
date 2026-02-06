@@ -552,7 +552,7 @@ export function useCompleteOvertuiging() {
       data,
       accessToken
     }: {
-      data: { userId: string; overtuigingId: string; programId: string; level: string; date: string }
+      data: { userId: string; overtuigingId: string; programId: string; date: string }
       accessToken: string
     }) => api.overtuigingUsage.create(data, accessToken),
     onSuccess: (_data, variables) => {

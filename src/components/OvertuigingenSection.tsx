@@ -14,8 +14,6 @@ interface OvertuigingenSectionProps {
   showManageLink?: boolean
 }
 
-const LEVEL_LABELS = ["Niveau 1", "Niveau 2", "Niveau 3"]
-
 export function OvertuigingenSection({ programId, showManageLink = true }: OvertuigingenSectionProps) {
   const { user, accessToken } = useAuth()
   const today = useMemo(() => getTodayDate(), [])
@@ -33,7 +31,6 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
   const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()
 
   const [recentlyCompleted, setRecentlyCompleted] = useState<string | null>(null)
-  const [recentlyFinished, setRecentlyFinished] = useState(false)
   const [showAddDialog, setShowAddDialog] = useState(false)
 
   // System overtuigingen available to add (related to goals, not yet in program)
@@ -55,29 +52,22 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     return persoonlijke.filter(p => p.status === "Actief")
   }, [persoonlijke])
 
-  const getCompletedLevelCount = (overtuigingId: string): number => {
-    return usageMap[overtuigingId]?.currentLevel || 0
+  const isCompleted = (overtuigingId: string): boolean => {
+    return usageMap[overtuigingId]?.completed === true
   }
 
-  const handleCompleteLevel = async (overtuigingId: string) => {
+  const handleComplete = async (overtuigingId: string) => {
     if (!user?.id || !accessToken) return
-
-    const completedLevels = getCompletedLevelCount(overtuigingId)
-    if (completedLevels >= LEVEL_LABELS.length) return
-
-    const nextLevel = LEVEL_LABELS[completedLevels]
-    const isFinishing = completedLevels === LEVEL_LABELS.length - 1
+    if (isCompleted(overtuigingId)) return
 
     setRecentlyCompleted(overtuigingId)
-    setRecentlyFinished(isFinishing)
-    setTimeout(() => { setRecentlyCompleted(null); setRecentlyFinished(false) }, 2000)
+    setTimeout(() => setRecentlyCompleted(null), 2000)
 
     completeOvertuigingMutation.mutate({
       data: {
         userId: user.id,
         overtuigingId,
         programId,
-        level: nextLevel,
         date: today
       },
       accessToken
@@ -173,10 +163,9 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
           <p className="text-muted-foreground">Laden...</p>
         ) : (
           <>
-            {/* System overtuigingen with 3-level progress */}
+            {/* System overtuigingen with single-click completion */}
             {programOvertuigingen.map(overtuiging => {
-              const completedLevels = getCompletedLevelCount(overtuiging.id)
-              const isFullyComplete = completedLevels >= LEVEL_LABELS.length
+              const completed = isCompleted(overtuiging.id)
               return (
                 <div
                   key={overtuiging.id}
@@ -188,47 +177,34 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                       <Lightbulb className="h-6 w-6 text-[#00978A]" />
                     </div>
 
-                    {/* Name and level dots */}
+                    {/* Name */}
                     <div className="flex-1 min-w-0">
                       <p className="font-semibold text-base">{overtuiging.name}</p>
-                      <div className="flex items-center gap-1.5 mt-1">
-                        {LEVEL_LABELS.map((level, i) => (
-                          <div
-                            key={level}
-                            className={`w-3 h-3 rounded-full border-2 ${
-                              i < completedLevels
-                                ? "bg-[#00978A] border-[#00978A]"
-                                : i === completedLevels
-                                  ? "bg-transparent border-[#00978A]"
-                                  : "bg-transparent border-gray-300"
-                            }`}
-                            title={level}
-                          />
-                        ))}
-                        {isFullyComplete && (
-                          <span className="text-xs text-[#007D72] font-medium ml-1">Voltooid</span>
-                        )}
-                      </div>
+                      {completed && (
+                        <span className="text-xs text-[#007D72] font-medium">Voltooid</span>
+                      )}
                     </div>
 
-                    {/* Points animation + action button */}
+                    {/* Points animation + check button */}
                     <div className="flex items-center gap-2">
-                      {recentlyCompleted === overtuiging.id && recentlyFinished && (
+                      {recentlyCompleted === overtuiging.id && (
                         <span className="flex items-center gap-0.5 text-xs font-medium text-primary animate-in fade-in zoom-in duration-300">
                           <Star className="h-3 w-3" />
                           +{POINTS.overtuiging}
                         </span>
                       )}
-                      {!isFullyComplete && (
-                        <button
-                          onClick={() => handleCompleteLevel(overtuiging.id)}
-                          disabled={completeOvertuigingMutation.isPending}
-                          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-[#00978A] text-white shadow-sm hover:bg-[#007D72]"
-                          aria-label="Niveau voltooien"
-                        >
-                          <Check className="h-5 w-5" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleComplete(overtuiging.id)}
+                        disabled={completed || completeOvertuigingMutation.isPending}
+                        className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-100 ${
+                          completed
+                            ? "bg-[#00978A] text-white"
+                            : "bg-gray-200 text-gray-400 hover:bg-gray-300"
+                        }`}
+                        aria-label={completed ? "Voltooid" : "Overtuiging voltooien"}
+                      >
+                        <Check className="h-5 w-5" />
+                      </button>
                     </div>
                   </div>
                 </div>
@@ -261,7 +237,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                     <button
                       onClick={() => handleCompletePersoonlijke(item.id)}
                       disabled={updatePersoonlijkeMutation.isPending}
-                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-[#00978A] text-white shadow-sm hover:bg-[#007D72]"
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-gray-200 text-gray-400 hover:bg-gray-300"
                       aria-label="Overtuiging afvinken"
                     >
                       <Check className="h-5 w-5" />

@@ -134,6 +134,7 @@ export interface Overtuiging {
   name: string
   categoryIds: string[]
   order: number
+  levels?: string[]
 }
 
 export interface MindsetCategory {
@@ -165,8 +166,7 @@ export interface UpdatePersoonlijkeOvertuigingData {
 }
 
 export interface OvertuigingProgress {
-  currentLevel: number
-  completedLevels: string[]
+  completed: boolean
 }
 
 /** Map of overtuigingId -> progress */

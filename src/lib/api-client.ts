@@ -403,7 +403,7 @@ export const api = {
         }
       }),
 
-    create: (data: { userId: string; overtuigingId: string; programId: string; level: string; date: string }, accessToken: string) =>
+    create: (data: { userId: string; overtuigingId: string; programId: string; date: string }, accessToken: string) =>
       request<{ id: string; pointsAwarded: number }>("/overtuiging-usage", {
         method: "POST",
         headers: {

@@ -235,7 +235,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     )]
 
     // Fetch full overtuiging records
-    let allOvertuigingen: Array<{ id: string; name: string; categoryIds: string[]; order: number }> = []
+    let allOvertuigingen: Array<{ id: string; name: string; categoryIds: string[]; order: number; levels: string[] }> = []
     if (overtuigingIds.length > 0) {
       const formula = `OR(${overtuigingIds.map(id => `RECORD_ID() = "${id}"`).join(",")})`
       const overtuigingRecords = await base(tables.overtuigingen)
@@ -244,6 +244,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
       allOvertuigingen = overtuigingRecords
         .map(r => transformOvertuiging(r as any))
+        .filter(o => o.levels.includes("Niveau 1"))
         .sort((a, b) => (a.order || 0) - (b.order || 0))
     }
 
