@@ -289,7 +289,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const aiOvertuigingen: AIOvertuiging[] = allOvertuigingen.map(o => ({
       id: o.id,
       name: o.name,
-      categoryName: o.categoryIds?.[0] ? categoryNameMap.get(o.categoryIds[0]) : undefined
+      categoryName: (o.categoryIds?.[0] ? categoryNameMap.get(o.categoryIds[0]) : undefined) as string | undefined
     }))
 
     // Build system prompt with training dates and overtuigingen
