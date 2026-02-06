@@ -5,6 +5,7 @@ export interface WizardState {
   startDate: string
   duration: string
   goals: string[]
+  overtuigingen: string[]
   daysOfWeek: string[]
   methods: string[]
   notes: string
@@ -36,6 +37,7 @@ export const DURATION_OPTIONS = [
 export const STEPS = [
   { title: "Basis", description: "Startdatum en duur" },
   { title: "Doelen", description: "Wat wil je bereiken?" },
+  { title: "Mindset", description: "Kies overtuigingen" },
   { title: "Schema", description: "Wanneer train je?" },
   { title: "Methodes", description: "Jouw oefeningen" },
   { title: "Bevestig", description: "Overzicht" }

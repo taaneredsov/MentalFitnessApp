@@ -10,6 +10,7 @@ import { BasicInfoStep } from "./BasicInfoStep"
 import { GoalsStep } from "./GoalsStep"
 import { ScheduleStep } from "./ScheduleStep"
 import { MethodsStep } from "./MethodsStep"
+import { OvertuigingenStep } from "./OvertuigingenStep"
 import { ConfirmationStep } from "./ConfirmationStep"
 
 interface ProgramWizardProps {
@@ -25,6 +26,7 @@ const initialState: WizardState = {
   startDate: new Date().toISOString().split("T")[0],
   duration: "",
   goals: [],
+  overtuigingen: [],
   daysOfWeek: [],
   methods: [],
   notes: "",
@@ -67,7 +69,7 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
   const pollForMethods = async (programId: string, maxAttempts = 10) => {
     for (let i = 0; i < maxAttempts; i++) {
       try {
-        const methods = await api.programs.getMethods(programId)
+        const methods = await api.programs.getMethods(programId, accessToken!)
         if (methods.length > 0) {
           return methods
         }
@@ -173,11 +175,12 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
     updateState({ isSaving: true })
 
     try {
-      // Update program with methods and notes
+      // Update program with methods, overtuigingen, and notes
       await api.programs.update(
         state.programId,
         {
           methods: state.methods.length > 0 ? state.methods : undefined,
+          overtuigingen: state.overtuigingen.length > 0 ? state.overtuigingen : undefined,
           notes: state.notes || undefined
         },
         accessToken
@@ -285,13 +288,18 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
           />
         )}
         {state.step === 2 && (
+          <OvertuigingenStep
+            {...stepProps}
+          />
+        )}
+        {state.step === 3 && (
           <ScheduleStep
             {...stepProps}
             onNext={handleScheduleComplete}
           />
         )}
-        {state.step === 3 && <MethodsStep {...stepProps} />}
-        {state.step === 4 && (
+        {state.step === 4 && <MethodsStep {...stepProps} />}
+        {state.step === 5 && (
           <ConfirmationStep
             {...stepProps}
             onSave={handleSave}

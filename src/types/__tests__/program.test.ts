@@ -4,7 +4,6 @@ import {
   getNextScheduledDay,
   formatNextDay,
   parseWeeksFromDuration,
-  getActivityProgress,
   getSessionProgress,
   type Program,
   type ProgramDetail,
@@ -245,86 +244,6 @@ describe("parseWeeksFromDuration", () => {
 
   it("extracts number from complex string", () => {
     expect(parseWeeksFromDuration("6 weken programma")).toBe(6)
-  })
-})
-
-describe("getActivityProgress", () => {
-  it("calculates progress percentage correctly", () => {
-    const program: Program = {
-      id: "rec123",
-      startDate: "2024-01-01",
-      endDate: "2024-02-26",
-      duration: "8 weken",
-      daysOfWeek: [],
-      frequency: 3,
-      goals: [],
-      methods: [],
-      methodUsageCount: 12, // 12 completed out of 8*3=24 expected
-    }
-
-    expect(getActivityProgress(program)).toBe(50)
-  })
-
-  it("returns 0 when no sessions expected", () => {
-    const program: Program = {
-      id: "rec456",
-      startDate: "2024-01-01",
-      endDate: "2024-02-26",
-      duration: "0 weken",
-      daysOfWeek: [],
-      frequency: 0,
-      goals: [],
-      methods: [],
-    }
-
-    expect(getActivityProgress(program)).toBe(0)
-  })
-
-  it("returns 0 when frequency is 0", () => {
-    const program: Program = {
-      id: "rec789",
-      startDate: "2024-01-01",
-      endDate: "2024-02-26",
-      duration: "8 weken",
-      daysOfWeek: [],
-      frequency: 0,
-      goals: [],
-      methods: [],
-      methodUsageCount: 5,
-    }
-
-    expect(getActivityProgress(program)).toBe(0)
-  })
-
-  it("caps at 100%", () => {
-    const program: Program = {
-      id: "recCapped",
-      startDate: "2024-01-01",
-      endDate: "2024-02-26",
-      duration: "4 weken",
-      daysOfWeek: [],
-      frequency: 2,
-      goals: [],
-      methods: [],
-      methodUsageCount: 50, // Way more than expected 4*2=8
-    }
-
-    expect(getActivityProgress(program)).toBe(100)
-  })
-
-  it("handles missing methodUsageCount", () => {
-    const program: Program = {
-      id: "recNoUsage",
-      startDate: "2024-01-01",
-      endDate: "2024-02-26",
-      duration: "8 weken",
-      daysOfWeek: [],
-      frequency: 3,
-      goals: [],
-      methods: [],
-    }
-
-    expect(getActivityProgress(program)).toBe(0)
   })
 })
 

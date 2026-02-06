@@ -1,7 +1,8 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
-import { COMPANY_FIELDS } from "../_lib/field-mappings.js"
+import { COMPANY_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 
 /**
  * GET /api/companies/lookup?ids=rec123,rec456
@@ -13,6 +14,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    await requireAuth(req)
+
     const idsParam = req.query.ids
     if (!idsParam || typeof idsParam !== "string") {
       return sendError(res, "Missing ids parameter", 400)
@@ -23,11 +26,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendSuccess(res, {})
     }
 
+    const validIds = ids.filter(id => isValidRecordId(id))
+    if (validIds.length === 0) {
+      return sendSuccess(res, {})
+    }
+
     // Fetch companies by record IDs
     const companyMap: Record<string, string> = {}
 
     // Airtable's find() only works one at a time, so we use a formula to get multiple
-    const formula = `OR(${ids.map(id => `RECORD_ID() = "${id}"`).join(",")})`
+    const formula = `OR(${validIds.map(id => `RECORD_ID() = "${id}"`).join(",")})`
 
     const records = await base(tables.companies)
       .select({
@@ -46,6 +54,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return sendSuccess(res, companyMap)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }

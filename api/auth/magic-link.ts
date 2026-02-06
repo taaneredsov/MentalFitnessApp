@@ -81,8 +81,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [USER_FIELDS.magicLinkExpiry]: expiry
     })
 
-    // Build magic link URL
-    const baseUrl = process.env.APP_URL || "https://mfa.drvn.be"
+    // Build magic link URL (APP_URL required in production, fallback for local dev)
+    const baseUrl = process.env.APP_URL || (process.env.NODE_ENV === "production" ? undefined : `http://localhost:${process.env.PORT || 3000}`)
+    if (!baseUrl) {
+      console.error("APP_URL environment variable is required in production")
+      return sendError(res, "Server configuration error", 500)
+    }
     const magicLink = `${baseUrl}/auth/verify?token=${token}`
 
     // Send email

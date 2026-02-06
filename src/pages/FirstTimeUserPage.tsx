@@ -54,7 +54,7 @@ export function FirstTimeUserPage() {
       if (result.data.needsPasswordSetup) {
         navigate("/set-password", {
           replace: true,
-          state: { userId: result.data.userId, email: result.data.email }
+          state: { email: result.data.email }
         })
         return
       }

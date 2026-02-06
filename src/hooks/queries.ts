@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
-import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData } from "@/types/program"
+import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData } from "@/types/program"
 import type { AwardRequest } from "@/types/rewards"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -51,37 +51,45 @@ export function useDays() {
 }
 
 export function useCompanies(ids: string[] | undefined) {
+  const { accessToken } = useAuth()
+
   return useQuery({
     queryKey: queryKeys.companies(ids || []),
-    queryFn: () => api.companies.lookup(ids!),
-    enabled: !!ids?.length,
+    queryFn: () => api.companies.lookup(ids!, accessToken!),
+    enabled: !!ids?.length && !!accessToken,
     staleTime: CACHE_LONG
   })
 }
 
 export function usePrograms(userId: string | undefined) {
+  const { accessToken } = useAuth()
+
   return useQuery({
     queryKey: queryKeys.programs(userId!),
-    queryFn: () => api.programs.list(userId!),
-    enabled: !!userId,
+    queryFn: () => api.programs.list(accessToken!),
+    enabled: !!userId && !!accessToken,
     staleTime: CACHE_MEDIUM
   })
 }
 
 export function useProgram(id: string) {
+  const { accessToken } = useAuth()
+
   return useQuery({
     queryKey: queryKeys.program(id),
-    queryFn: () => api.programs.get(id),
-    enabled: !!id,
+    queryFn: () => api.programs.get(id, accessToken!),
+    enabled: !!id && !!accessToken,
     staleTime: CACHE_MEDIUM
   })
 }
 
 export function useMethodUsage(programId: string, limit = 2) {
+  const { accessToken } = useAuth()
+
   return useQuery({
     queryKey: queryKeys.methodUsage(programId),
-    queryFn: () => api.methodUsage.byProgram(programId, limit),
-    enabled: !!programId,
+    queryFn: () => api.methodUsage.byProgram(programId, limit, accessToken!),
+    enabled: !!programId && !!accessToken,
     staleTime: CACHE_SHORT
   })
 }
@@ -111,7 +119,7 @@ export function useUpdateProgram() {
       accessToken
     }: {
       id: string
-      data: { goals?: string[]; daysOfWeek?: string[]; methods?: string[]; notes?: string }
+      data: { goals?: string[]; daysOfWeek?: string[]; methods?: string[]; notes?: string; overtuigingen?: string[] }
       accessToken: string
     }) => api.programs.update(id, data, accessToken),
     onSuccess: (_data, variables) => {
@@ -427,6 +435,129 @@ export function useCompletePersonalGoal() {
       }
     },
     onSuccess: () => {
+      // Invalidate rewards cache to reflect point changes
+      queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+    }
+  })
+}
+
+// Overtuigingen hooks
+
+export function useOvertuigingen() {
+  return useQuery({
+    queryKey: queryKeys.overtuigingen,
+    queryFn: () => api.overtuigingen.list(),
+    staleTime: CACHE_LONG
+  })
+}
+
+export function useMindsetCategories() {
+  return useQuery({
+    queryKey: queryKeys.mindsetCategories,
+    queryFn: () => api.mindsetCategories.list(),
+    staleTime: CACHE_LONG
+  })
+}
+
+export function useOvertuigingsByGoals(goalIds: string[]) {
+  const { accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.overtuigingenByGoals(goalIds),
+    queryFn: () => api.overtuigingen.byGoals(goalIds, accessToken!),
+    enabled: goalIds.length > 0 && !!accessToken,
+    staleTime: CACHE_LONG
+  })
+}
+
+export function useOvertuigingUsage(programId: string) {
+  const { accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.overtuigingUsage(programId),
+    queryFn: () => api.overtuigingUsage.get(programId, accessToken!),
+    enabled: !!programId && !!accessToken,
+    staleTime: CACHE_SHORT
+  })
+}
+
+export function usePersoonlijkeOvertuigingen() {
+  const { user, accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.persoonlijkeOvertuigingen(user?.id || ""),
+    queryFn: () => api.persoonlijkeOvertuigingen.list(accessToken!),
+    enabled: !!user?.id && !!accessToken,
+    staleTime: CACHE_MEDIUM
+  })
+}
+
+export function useCreatePersoonlijkeOvertuiging() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ data, accessToken }: { data: CreatePersoonlijkeOvertuigingData; accessToken: string }) =>
+      api.persoonlijkeOvertuigingen.create(data, accessToken),
+    onSuccess: () => {
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.persoonlijkeOvertuigingen(user.id) })
+      }
+    }
+  })
+}
+
+export function useUpdatePersoonlijkeOvertuiging() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+      accessToken
+    }: {
+      id: string
+      data: UpdatePersoonlijkeOvertuigingData
+      accessToken: string
+    }) => api.persoonlijkeOvertuigingen.update(id, data, accessToken),
+    onSuccess: () => {
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.persoonlijkeOvertuigingen(user.id) })
+      }
+    }
+  })
+}
+
+export function useDeletePersoonlijkeOvertuiging() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ id, accessToken }: { id: string; accessToken: string }) =>
+      api.persoonlijkeOvertuigingen.delete(id, accessToken),
+    onSuccess: () => {
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.persoonlijkeOvertuigingen(user.id) })
+      }
+    }
+  })
+}
+
+export function useCompleteOvertuiging() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({
+      data,
+      accessToken
+    }: {
+      data: { userId: string; overtuigingId: string; programId: string; level: string; date: string }
+      accessToken: string
+    }) => api.overtuigingUsage.create(data, accessToken),
+    onSuccess: (_data, variables) => {
+      // Invalidate overtuiging usage for the program
+      queryClient.invalidateQueries({ queryKey: queryKeys.overtuigingUsage(variables.data.programId) })
       // Invalidate rewards cache to reflect point changes
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
     }

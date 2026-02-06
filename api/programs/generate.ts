@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { verifyToken } from "../_lib/jwt.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 import {
   transformGoal,
   transformMethod,
@@ -9,6 +9,8 @@ import {
   transformProgram,
   transformProgramPrompt,
   transformExperienceLevel,
+  transformOvertuiging,
+  transformMindsetCategory,
   PROGRAM_FIELDS,
   PROGRAMMAPLANNING_FIELDS
 } from "../_lib/field-mappings.js"
@@ -18,7 +20,8 @@ import {
   AI_PROGRAM_SCHEMA,
   type AIProgramResponse,
   type TrainingDate,
-  type AIMethod
+  type AIMethod,
+  type AIOvertuiging
 } from "../_lib/openai.js"
 
 // Day name to JS weekday mapping (0 = Sunday, 1 = Monday, etc.)
@@ -140,25 +143,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Verify JWT token
-    const authHeader = req.headers.authorization
-    if (!authHeader?.startsWith("Bearer ")) {
-      return sendError(res, "No token provided", 401)
-    }
-
-    const token = authHeader.substring(7)
-    const payload = await verifyToken(token)
-
-    if (!payload) {
-      return sendError(res, "Invalid token", 401)
-    }
+    const auth = await requireAuth(req)
 
     // Parse and validate request body
     const body = parseBody(req)
 
-    if (!body?.userId) {
-      return sendError(res, "userId is required", 400)
-    }
+    // Override userId with authenticated user
+    body.userId = auth.userId
     if (!body.goals || !Array.isArray(body.goals) || body.goals.length === 0) {
       return sendError(res, "goals array is required", 400)
     }
@@ -266,14 +257,50 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "No training dates could be calculated. Check start date and selected days.", 400)
     }
 
-    // Build system prompt with training dates
+    // Fetch overtuigingen linked to goals (via mindset categories) BEFORE AI call
+    const categoryRecords = await base(tables.mindsetCategories)
+      .select({ returnFieldsByFieldId: true })
+      .all()
+    const categories = categoryRecords.map(r => transformMindsetCategory(r as any))
+
+    const matchingCategories = categories.filter(cat =>
+      cat.goalIds.some((gid: string) => body.goals.includes(gid))
+    )
+
+    const categoryNameMap = new Map(categories.map(c => [c.id, c.name]))
+
+    const overtuigingIds = [...new Set(
+      matchingCategories.flatMap(cat => cat.overtuigingIds as string[])
+    )]
+
+    let allOvertuigingen: Array<{ id: string; name: string; categoryIds: string[]; order: number }> = []
+    if (overtuigingIds.length > 0) {
+      const formula = `OR(${overtuigingIds.map(id => `RECORD_ID() = "${id}"`).join(",")})`
+      const overtuigingRecords = await base(tables.overtuigingen)
+        .select({ filterByFormula: formula, returnFieldsByFieldId: true })
+        .all()
+
+      allOvertuigingen = overtuigingRecords
+        .map(r => transformOvertuiging(r as any))
+        .sort((a, b) => (a.order || 0) - (b.order || 0))
+    }
+
+    // Transform to AIOvertuiging format for the prompt
+    const aiOvertuigingen: AIOvertuiging[] = allOvertuigingen.map(o => ({
+      id: o.id,
+      name: o.name,
+      categoryName: o.categoryIds?.[0] ? categoryNameMap.get(o.categoryIds[0]) : undefined
+    }))
+
+    // Build system prompt with training dates and overtuigingen
     const systemPrompt = buildSystemPrompt({
       goals,
       programPrompts,
       systemPrompts,
       methods,
       trainingDates,
-      duration: body.duration
+      duration: body.duration,
+      overtuigingen: aiOvertuigingen
     })
 
     // Call OpenAI GPT-4o with Structured Outputs
@@ -307,6 +334,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "AI response missing schedule", 500)
     }
 
+    // Validate schedule method IDs against actual methods to prevent AI mixing up IDs
+    const validMethodIds = new Set(rawMethods.map(m => m.id))
+    for (const day of aiResponse.schedule) {
+      day.methods = day.methods.filter(m => {
+        if (!validMethodIds.has(m.methodId)) {
+          console.warn(`[generate] Filtering out invalid methodId ${m.methodId} from schedule (not a known method)`)
+          return false
+        }
+        return true
+      })
+    }
+
     // Extract unique method IDs from schedule
     const methodIds = new Set<string>()
     for (const day of aiResponse.schedule) {
@@ -314,6 +353,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         methodIds.add(method.methodId)
       }
     }
+
+    // Map AI-selected overtuiging IDs for saving
+    const overtuigingMap = new Map(allOvertuigingen.map(o => [o.id, o]))
+    const selectedOvertuigingIds = (aiResponse.selectedOvertuigingen || [])
+      .filter(sel => overtuigingMap.has(sel.overtuigingId))
+      .map(sel => sel.overtuigingId)
 
     // Create program in Airtable
     const programFields: Record<string, unknown> = {
@@ -323,6 +368,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [PROGRAM_FIELDS.daysOfWeek]: body.daysOfWeek,
       [PROGRAM_FIELDS.goals]: body.goals,
       [PROGRAM_FIELDS.methods]: Array.from(methodIds)
+    }
+
+    // Add overtuigingen
+    if (selectedOvertuigingIds.length > 0) {
+      programFields[PROGRAM_FIELDS.overtuigingen] = selectedOvertuigingIds
     }
 
     // Add AI program summary as notes
@@ -348,6 +398,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       programSummary: aiResponse.programSummary
     }, 201)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }

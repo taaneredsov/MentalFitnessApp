@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { verifyToken } from "../_lib/jwt.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 import { HABIT_USAGE_FIELDS, FIELD_NAMES, USER_FIELDS, transformUserRewards, escapeFormulaValue, isValidRecordId } from "../_lib/field-mappings.js"
 
 // Point values
@@ -21,12 +21,10 @@ const createUsageSchema = z.object({
  * GET /api/habit-usage?userId=xxx&date=YYYY-MM-DD
  * Returns habit IDs completed on that date
  */
-async function handleGet(req: VercelRequest, res: VercelResponse) {
-  const { userId, date } = req.query
+async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
+  const { date } = req.query
+  const userId = tokenUserId
 
-  if (!userId || typeof userId !== "string") {
-    return sendError(res, "userId is required", 400)
-  }
   if (!date || typeof date !== "string") {
     return sendError(res, "date is required", 400)
   }
@@ -235,31 +233,23 @@ async function handleDelete(req: VercelRequest, res: VercelResponse, tokenUserId
  * DELETE: Removes a habit usage record
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Verify authentication
-  const authHeader = req.headers.authorization
-  if (!authHeader?.startsWith("Bearer ")) {
-    return sendError(res, "Unauthorized", 401)
-  }
-
-  const token = authHeader.slice(7)
-  const payload = await verifyToken(token)
-  if (!payload) {
-    return sendError(res, "Invalid token", 401)
-  }
-
   try {
-    const userId = payload.userId as string
+    const auth = await requireAuth(req)
+
     switch (req.method) {
       case "GET":
-        return handleGet(req, res)
+        return handleGet(req, res, auth.userId)
       case "POST":
-        return handlePost(req, res, userId)
+        return handlePost(req, res, auth.userId)
       case "DELETE":
-        return handleDelete(req, res, userId)
+        return handleDelete(req, res, auth.userId)
       default:
         return sendError(res, "Method not allowed", 405)
     }
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     if (error instanceof z.ZodError) {
       return sendError(res, error.issues[0].message, 400)
     }

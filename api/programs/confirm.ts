@@ -1,7 +1,7 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { verifyToken } from "../_lib/jwt.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 import { transformProgram, parseEuropeanDate, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS } from "../_lib/field-mappings.js"
 
 interface ScheduleMethod {
@@ -85,25 +85,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Verify JWT token
-    const authHeader = req.headers.authorization
-    if (!authHeader?.startsWith("Bearer ")) {
-      return sendError(res, "No token provided", 401)
-    }
-
-    const token = authHeader.substring(7)
-    const payload = await verifyToken(token)
-
-    if (!payload) {
-      return sendError(res, "Invalid token", 401)
-    }
+    const auth = await requireAuth(req)
 
     // Parse and validate request body
     const body = parseBody(req)
 
-    if (!body?.userId) {
-      return sendError(res, "userId is required", 400)
-    }
+    // Override userId with authenticated user
+    body.userId = auth.userId
     if (!body.goals || !Array.isArray(body.goals) || body.goals.length === 0) {
       return sendError(res, "goals array is required", 400)
     }
@@ -186,6 +174,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [PROGRAM_FIELDS.creationType]: "AI"  // AI wizard creates AI programs
     }
 
+    // Add overtuigingen if provided
+    if (body.overtuigingen && Array.isArray(body.overtuigingen) && body.overtuigingen.length > 0) {
+      programFields[PROGRAM_FIELDS.overtuigingen] = body.overtuigingen
+    }
+
     // Add AI program summary as notes
     if (body.programSummary) {
       programFields[PROGRAM_FIELDS.notes] = body.programSummary
@@ -209,6 +202,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       programSummary: body.programSummary
     }, 201)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }

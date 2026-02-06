@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
 import { PROGRAM_FIELDS, transformMethodUsage } from "../_lib/field-mappings.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 
 /**
  * GET /api/method-usage/by-program?programId=xxx&limit=2
@@ -19,6 +20,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    await requireAuth(req)
+
     // First, fetch the program to get linked method usage IDs
     const programRecords = await base(tables.programs)
       .select({
@@ -63,6 +66,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return sendSuccess(res, usages)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     console.error("Error fetching method usage:", error)
     return handleApiError(res, error)
   }

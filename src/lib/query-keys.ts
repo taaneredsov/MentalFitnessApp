@@ -15,6 +15,15 @@ export const queryKeys = {
   personalGoals: (userId: string) => ["personalGoals", userId] as const,
   personalGoalUsage: (userId: string, date: string) => ["personalGoalUsage", userId, date] as const,
 
+  // Overtuigingen - reference data
+  overtuigingen: ["overtuigingen"] as const,
+  mindsetCategories: ["mindsetCategories"] as const,
+  overtuigingenByGoals: (goalIds: string[]) => ["overtuigingen", "byGoals", ...goalIds.sort()] as const,
+
+  // Overtuigingen - user data
+  overtuigingUsage: (programId: string) => ["overtuigingUsage", programId] as const,
+  persoonlijkeOvertuigingen: (userId: string) => ["persoonlijkeOvertuigingen", userId] as const,
+
   // Rewards data - short cache (1 minute)
   rewards: ["rewards"] as const,
   habitUsage: (userId: string, date: string) => ["habitUsage", userId, date] as const,

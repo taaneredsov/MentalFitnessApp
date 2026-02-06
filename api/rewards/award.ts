@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { verifyToken } from "../_lib/jwt.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 import { USER_FIELDS, PROGRAM_FIELDS, transformUserRewards } from "../_lib/field-mappings.js"
 
 // Point values for each activity
@@ -74,7 +74,7 @@ interface Stats {
 }
 
 const awardSchema = z.object({
-  activityType: z.enum(["method", "habit", "program", "sessionBonus", "habitDayBonus", "programMilestone"]),
+  activityType: z.enum(["method", "habit", "program", "sessionBonus", "habitDayBonus", "programMilestone", "overtuiging"]),
   activityId: z.string().optional(),
   // For counting stats for badges
   methodsCompleted: z.number().optional(),
@@ -143,25 +143,33 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Verify authentication
-    const authHeader = req.headers.authorization
-    if (!authHeader?.startsWith("Bearer ")) {
-      return sendError(res, "Unauthorized", 401)
-    }
-
-    const token = authHeader.slice(7)
-    const payload = await verifyToken(token)
-    if (!payload) {
-      return sendError(res, "Invalid token", 401)
-    }
+    const auth = await requireAuth(req)
 
     const rawBody = parseBody(req)
     const body = awardSchema.parse(rawBody)
 
+    // If awarding a program milestone, verify program ownership
+    if (body.activityType === "programMilestone" && body.programId) {
+      const progRecords = await base(tables.programs)
+        .select({
+          filterByFormula: `RECORD_ID() = "${body.programId}"`,
+          maxRecords: 1,
+          returnFieldsByFieldId: true
+        })
+        .firstPage()
+
+      if (progRecords.length > 0) {
+        const progUserId = (progRecords[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
+        if (progUserId !== auth.userId) {
+          return sendError(res, "Forbidden: You don't own this program", 403)
+        }
+      }
+    }
+
     // Fetch current user rewards
     const records = await base(tables.users)
       .select({
-        filterByFormula: `RECORD_ID() = "${payload.userId}"`,
+        filterByFormula: `RECORD_ID() = "${auth.userId}"`,
         maxRecords: 1,
         returnFieldsByFieldId: true
       })
@@ -272,7 +280,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     // Update user record
-    await base(tables.users).update(payload.userId, updateFields)
+    await base(tables.users).update(auth.userId, updateFields)
 
     // If this is a program milestone, update the program's milestonesAwarded field
     if (body.activityType === "programMilestone" && body.programId && body.milestone) {
@@ -327,6 +335,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       milestone: body.activityType === "programMilestone" ? body.milestone : undefined
     })
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     if (error instanceof z.ZodError) {
       return sendError(res, error.issues[0].message, 400)
     }

@@ -35,6 +35,24 @@ export interface AIScheduleDay {
 }
 
 /**
+ * Overtuiging (belief) available for AI selection
+ */
+export interface AIOvertuiging {
+  id: string
+  name: string
+  categoryName?: string
+}
+
+/**
+ * AI-selected overtuiging with reason
+ */
+export interface AISelectedOvertuiging {
+  overtuigingId: string
+  overtuigingName: string
+  reason: string
+}
+
+/**
  * Complete response from AI program generation
  */
 export interface AIProgramResponse {
@@ -42,6 +60,7 @@ export interface AIProgramResponse {
   weeklySessionTime: number
   recommendations: string[]
   programSummary: string
+  selectedOvertuigingen: AISelectedOvertuiging[]
 }
 
 /**
@@ -86,6 +105,7 @@ export interface AIPromptInput {
   trainingDates: TrainingDate[]
   duration: string
   editContext?: EditContext  // Optional context when regenerating an existing program
+  overtuigingen?: AIOvertuiging[]  // Available overtuigingen for AI to select from
 }
 
 /**
@@ -131,9 +151,23 @@ export const AI_PROGRAM_SCHEMA = {
           items: { type: "string" },
           description: "3-5 personalized recommendations in Dutch"
         },
-        programSummary: { type: "string", description: "Brief program summary in Dutch" }
+        programSummary: { type: "string", description: "Brief program summary in Dutch" },
+        selectedOvertuigingen: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              overtuigingId: { type: "string", description: "Airtable record ID for the overtuiging" },
+              overtuigingName: { type: "string", description: "Name of the overtuiging" },
+              reason: { type: "string", description: "Brief reason why this overtuiging fits the goals (in Dutch)" }
+            },
+            required: ["overtuigingId", "overtuigingName", "reason"],
+            additionalProperties: false
+          },
+          description: "Up to 3 selected overtuigingen matching the user's goals"
+        }
       },
-      required: ["schedule", "weeklySessionTime", "recommendations", "programSummary"],
+      required: ["schedule", "weeklySessionTime", "recommendations", "programSummary", "selectedOvertuigingen"],
       additionalProperties: false
     }
   }
@@ -180,13 +214,17 @@ Retourneer een JSON object met exact deze structuur:
   ],
   "weeklySessionTime": 75,
   "recommendations": ["Tip 1", "Tip 2", "Tip 3"],
-  "programSummary": "Korte samenvatting van het programma"
+  "programSummary": "Korte samenvatting van het programma",
+  "selectedOvertuigingen": [
+    { "overtuigingId": "rec...", "overtuigingName": "Naam", "reason": "Korte reden" }
+  ]
 }
 
 - schedule: MOET een entry hebben voor ELKE trainingsdatum
 - weeklySessionTime: gemiddelde totale tijd per week in minuten
 - recommendations: 3-5 gepersonaliseerde tips in het Nederlands
-- programSummary: korte samenvatting van het programma in het Nederlands`
+- programSummary: korte samenvatting van het programma in het Nederlands
+- selectedOvertuigingen: maximaal 3 overtuigingen die passen bij de doelstellingen (gebruik ALLEEN IDs uit de lijst "Beschikbare Overtuigingen"). Als er geen overtuigingen beschikbaar zijn, geef een lege array [].`
 }
 
 /**
@@ -203,7 +241,7 @@ function getSystemPrompt(
  * Build the system prompt for GPT-4o with training dates and frequency rules
  */
 export function buildSystemPrompt(input: AIPromptInput): string {
-  const { goals, programPrompts, systemPrompts, methods, trainingDates, duration, editContext } = input
+  const { goals, programPrompts, systemPrompts, methods, trainingDates, duration, editContext, overtuigingen } = input
 
   // Get dynamic system prompts (with fallbacks)
   const introPrompt = getSystemPrompt(systemPrompts, "intro")
@@ -269,6 +307,22 @@ Dit is een AANPASSING van een bestaand programma, GEEN nieuw programma.
 `
     : ""
 
+  // Build overtuigingen section if available
+  const overtuigingenSection = overtuigingen && overtuigingen.length > 0
+    ? `
+## Beschikbare Overtuigingen (gekoppeld aan de doelstellingen):
+${overtuigingen.map(o => `- ID: "${o.id}", Naam: "${o.name}"${o.categoryName ? `, Categorie: "${o.categoryName}"` : ""}`).join("\n")}
+
+## Overtuigingen Selectie:
+Selecteer maximaal 3 overtuigingen die het beste passen bij de doelstellingen van de gebruiker.
+Geef voor elke gekozen overtuiging een korte reden waarom deze past.
+Gebruik ALLEEN de exacte IDs uit de bovenstaande lijst.
+`
+    : `
+## Overtuigingen:
+Er zijn geen overtuigingen beschikbaar voor de geselecteerde doelstellingen. Geef een lege array [] voor selectedOvertuigingen.
+`
+
   return `${introPrompt}
 ${editContextSection}
 ## Gebruiker's Doelstellingen:
@@ -288,7 +342,7 @@ ${trainingDatesList}
 
 ## Programma Duur:
 ${duration}
-
+${overtuigingenSection}
 ${selectieRegels}
 
 ${frequentieRegels}

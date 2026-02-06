@@ -145,6 +145,9 @@ describe("transformProgram", () => {
       notes: "Test program notes",
       methodUsageCount: 2,
       milestonesAwarded: [],
+      status: null,
+      creationType: "Manueel",
+      overtuigingen: [],
     })
   })
 

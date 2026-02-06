@@ -28,6 +28,7 @@ import { AIProgramWizard } from "@/components/AIProgramWizard"
 import { PullToRefreshWrapper } from "@/components/PullToRefresh"
 import { GoodHabitsSection } from "@/components/GoodHabitsSection"
 import { PersonalGoalsSection } from "@/components/PersonalGoalsSection"
+import { OvertuigingenSection } from "@/components/OvertuigingenSection"
 import { ScoreWidgets } from "@/components/ScoreWidgets"
 import { WelcomeScreen, GuidedTour, HOMEPAGE_TOUR_STEPS } from "@/components/Onboarding"
 import { MethodThumbnail } from "@/components/MethodThumbnail"
@@ -420,6 +421,12 @@ export function HomePage() {
                 </p>
               </CardContent>
             </Card>
+          </section>
+        )}
+
+        {runningProgram && (
+          <section className="grid gap-4">
+            <OvertuigingenSection programId={runningProgram.id} />
           </section>
         )}
 

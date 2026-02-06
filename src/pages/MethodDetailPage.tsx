@@ -118,7 +118,7 @@ function MediaPlayer({ media, onComplete, isCompleted }: MediaPlayerProps) {
 }
 
 interface LocationState {
-  programId?: string  // DEPRECATED - use programmaplanningId
+  programId?: string  // Used for unscheduled practice (no session context)
   programmaplanningId?: string  // Link to specific scheduled session
 }
 
@@ -149,6 +149,7 @@ export function MethodDetailPage() {
 
   // Track if usage was already registered for this session to avoid duplicates
   const usageRegisteredRef = useRef(false)
+  const usageRecordIdRef = useRef<string | null>(null)
 
   const awardPointsMutation = useAwardPoints()
 
@@ -179,7 +180,7 @@ export function MethodDetailPage() {
 
       try {
         console.log("Registering method usage on dialog open:", { userId: user.id, methodId: method.id, programmaplanningId, programId })
-        await api.methodUsage.create(
+        const usageRecord = await api.methodUsage.create(
           {
             userId: user.id,
             methodId: method.id,
@@ -188,6 +189,7 @@ export function MethodDetailPage() {
           },
           accessToken
         )
+        usageRecordIdRef.current = usageRecord.id
 
         // Award points for completing the method
         try {
@@ -246,11 +248,12 @@ export function MethodDetailPage() {
 
   // Submit feedback with optional remark (usage already registered)
   const handleSubmitFeedback = async (remark: string) => {
-    // If user provided a remark, we could update the usage record here
-    // For now, remarks are logged but usage is already recorded
-    if (remark) {
-      console.log("User feedback remark:", remark)
-      // TODO: Implement API to update method usage with remark if needed
+    if (remark && usageRecordIdRef.current && accessToken) {
+      try {
+        await api.methodUsage.updateRemark(usageRecordIdRef.current, remark, accessToken)
+      } catch (err) {
+        console.error("Failed to save remark:", err)
+      }
     }
     setFeedbackSubmitted(true)
     setShowFeedback(false)

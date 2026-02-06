@@ -3,7 +3,8 @@ import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { hashPassword } from "../_lib/password.js"
-import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
+import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 
 const createUserSchema = z.object({
   name: z.string().min(1),
@@ -19,12 +20,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    await requireAuth(req)
+
     const body = createUserSchema.parse(parseBody(req))
+
+    // Force role to "Deelnemer" - never trust client-provided role
+    body.role = "Deelnemer"
 
     // Check if user already exists (filterByFormula requires field names)
     const existing = await base(tables.users)
       .select({
-        filterByFormula: `{${FIELD_NAMES.user.email}} = "${body.email}"`,
+        filterByFormula: `{${FIELD_NAMES.user.email}} = "${escapeFormulaValue(body.email)}"`,
         maxRecords: 1,
         returnFieldsByFieldId: true
       })
@@ -49,6 +55,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const user = transformUser(record as any)
     return sendSuccess(res, user, 201)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     if (error instanceof z.ZodError) {
       return sendError(res, error.issues[0].message, 400)
     }

@@ -3,8 +3,9 @@ import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { hashPassword } from "../_lib/password.js"
-import { verifyToken } from "../_lib/jwt.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 import { USER_FIELDS } from "../_lib/field-mappings.js"
+import { isRateLimited, clearRateLimit } from "../_lib/security.js"
 
 const changePasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters")
@@ -20,20 +21,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Verify JWT token
-    const authHeader = req.headers.authorization
-    if (!authHeader?.startsWith("Bearer ")) {
-      return sendError(res, "Unauthorized", 401)
+    const auth = await requireAuth(req)
+    const userId = auth.userId
+
+    const rateCheck = isRateLimited(userId)
+    if (rateCheck.isLimited) {
+      return sendError(res, "Te veel pogingen. Probeer het later opnieuw.", 429)
     }
-
-    const token = authHeader.slice(7)
-    const payload = await verifyToken(token)
-
-    if (!payload || !payload.userId) {
-      return sendError(res, "Invalid token", 401)
-    }
-
-    const userId = payload.userId as string
 
     // Validate request body
     const { password } = changePasswordSchema.parse(parseBody(req))
@@ -45,8 +39,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [USER_FIELDS.passwordHash]: passwordHash
     })
 
+    clearRateLimit(userId)
+
     return sendSuccess(res, { success: true })
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     if (error instanceof z.ZodError) {
       return sendError(res, error.issues[0].message, 400)
     }

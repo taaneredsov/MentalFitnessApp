@@ -1,13 +1,14 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { verifyToken } from "../_lib/jwt.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 import {
   transformProgram,
   transformGoal,
   transformMethod,
   transformDay,
   transformProgrammaplanning,
+  transformOvertuiging,
   PROGRAM_FIELDS,
   GOAL_FIELDS,
   METHOD_FIELDS,
@@ -32,9 +33,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    const auth = await requireAuth(req)
+
     const { id } = req.query
     if (!id || typeof id !== "string") {
       return sendError(res, "Program ID is required", 400)
+    }
+
+    if (!isValidRecordId(id)) {
+      return sendError(res, "Invalid program ID format", 400)
     }
 
     // Fetch the program
@@ -50,12 +57,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Program not found", 404)
     }
 
+    // Verify ownership
+    const programUserId = (records[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
+    if (programUserId !== auth.userId) {
+      return sendError(res, "Forbidden: You don't own this program", 403)
+    }
+
     const program = transformProgram(records[0] as any)
 
     // Fetch related goals
     let goalDetails: any[] = []
-    if (program.goals.length > 0) {
-      const goalFormula = `OR(${program.goals.map(gid => `RECORD_ID() = "${gid}"`).join(",")})`
+    const validGoals = program.goals.filter(gid => isValidRecordId(gid))
+    if (validGoals.length > 0) {
+      const goalFormula = `OR(${validGoals.map(gid => `RECORD_ID() = "${gid}"`).join(",")})`
       const goalRecords = await base(tables.goals)
         .select({
           filterByFormula: goalFormula,
@@ -65,10 +79,25 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       goalDetails = goalRecords.map(r => transformGoal(r as any))
     }
 
+    // Fetch related overtuigingen
+    let overtuigingDetails: any[] = []
+    const validOvertuigingen = (program.overtuigingen || []).filter((oid: string) => isValidRecordId(oid))
+    if (validOvertuigingen.length > 0) {
+      const overtuigingFormula = `OR(${validOvertuigingen.map((oid: string) => `RECORD_ID() = "${oid}"`).join(",")})`
+      const overtuigingRecords = await base(tables.overtuigingen)
+        .select({
+          filterByFormula: overtuigingFormula,
+          returnFieldsByFieldId: true
+        })
+        .all()
+      overtuigingDetails = overtuigingRecords.map(r => transformOvertuiging(r as any))
+    }
+
     // Fetch related methods
     let methodDetails: any[] = []
-    if (program.methods.length > 0) {
-      const methodFormula = `OR(${program.methods.map(mid => `RECORD_ID() = "${mid}"`).join(",")})`
+    const validMethods = program.methods.filter(mid => isValidRecordId(mid))
+    if (validMethods.length > 0) {
+      const methodFormula = `OR(${validMethods.map(mid => `RECORD_ID() = "${mid}"`).join(",")})`
       const methodRecords = await base(tables.methods)
         .select({
           filterByFormula: methodFormula,
@@ -80,8 +109,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Fetch related days of week
     let dayNames: string[] = []
-    if (program.daysOfWeek.length > 0) {
-      const dayFormula = `OR(${program.daysOfWeek.map(did => `RECORD_ID() = "${did}"`).join(",")})`
+    const validDays = program.daysOfWeek.filter(did => isValidRecordId(did))
+    if (validDays.length > 0) {
+      const dayFormula = `OR(${validDays.map(did => `RECORD_ID() = "${did}"`).join(",")})`
       const dayRecords = await base(tables.daysOfWeek)
         .select({
           filterByFormula: dayFormula,
@@ -109,21 +139,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Collect all methodUsageIds from the schedule to fetch completed method IDs
     const allMethodUsageIds = rawSchedule.flatMap(s => s.methodUsageIds || [])
 
-    // Also fetch method_usage records linked directly to the program (preserved from deleted sessions)
-    // This handles the case where a future session was completed, then the schedule was regenerated
-    const programDirectUsageRecords = await base(tables.methodUsage)
-      .select({
-        returnFieldsByFieldId: true
-      })
-      .all()
+    // Get method usage IDs directly from program record (includes both session and direct links)
+    const programMethodUsageIds = (records[0].fields[PROGRAM_FIELDS.methodUsage] as string[]) || []
 
-    // Filter to find method_usage records linked to this program
-    const programDirectUsageIds = programDirectUsageRecords
-      .filter(r => {
-        const programIds = r.fields[METHOD_USAGE_FIELDS.program] as string[] | undefined
-        return programIds?.includes(id)
-      })
-      .map(r => r.id)
+    // "Direct" usages = those linked to program but NOT to any session
+    const programDirectUsageIds = programMethodUsageIds.filter(uid => !allMethodUsageIds.includes(uid))
 
     // Combine all method usage IDs (from sessions + direct program link)
     const combinedMethodUsageIds = [...new Set([...allMethodUsageIds, ...programDirectUsageIds])]
@@ -180,6 +200,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       ...program,
       goalDetails,
       methodDetails,
+      overtuigingDetails,
       dayNames,
       schedule,
       totalSessions,
@@ -189,6 +210,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       preservedCompletions: preservedCompletionMethodIds.length  // For debugging
     })
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }
@@ -200,16 +224,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
  */
 async function handlePatch(req: VercelRequest, res: VercelResponse) {
   try {
-    // Verify authentication
-    const authHeader = req.headers.authorization
-    if (!authHeader?.startsWith("Bearer ")) {
-      return sendError(res, "Unauthorized", 401)
-    }
-    const token = authHeader.slice(7)
-    const payload = await verifyToken(token)
-    if (!payload) {
-      return sendError(res, "Invalid token", 401)
-    }
+    const auth = await requireAuth(req)
 
     const { id } = req.query
     if (!id || typeof id !== "string") {
@@ -236,7 +251,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
 
     // Verify the authenticated user owns this program
     const programUserId = (existingRecords[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
-    if (programUserId !== payload.userId) {
+    if (programUserId !== auth.userId) {
       return sendError(res, "Forbidden: You don't own this program", 403)
     }
 
@@ -256,6 +271,9 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
     if (body.notes !== undefined) {
       fields[PROGRAM_FIELDS.notes] = body.notes
     }
+    if (body.overtuigingen !== undefined) {
+      fields[PROGRAM_FIELDS.overtuigingen] = body.overtuigingen
+    }
 
     if (Object.keys(fields).length === 0) {
       return sendError(res, "No valid fields to update", 400)
@@ -268,6 +286,9 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
 
     return sendSuccess(res, program)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }

@@ -1,7 +1,8 @@
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
-import { Calendar, Clock, Target, CheckCircle2, Loader2 } from "lucide-react"
+import { Calendar, Clock, Target, Lightbulb, CheckCircle2, Loader2 } from "lucide-react"
+import { useOvertuigingen } from "@/hooks/queries"
 import type { StepProps } from "./types"
 
 function formatDate(dateStr: string): string {
@@ -29,6 +30,8 @@ export function ConfirmationStep({
   const selectedGoals = goalsData.filter((g) => state.goals.includes(g.id))
   const selectedDays = daysData.filter((d) => state.daysOfWeek.includes(d.id))
   const selectedMethods = methodsData.filter((m) => state.methods.includes(m.id))
+  const { data: allOvertuigingen = [] } = useOvertuigingen()
+  const selectedOvertuigingen = allOvertuigingen.filter((o) => state.overtuigingen.includes(o.id))
 
   // Order days correctly
   const DAY_ORDER = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"]
@@ -75,6 +78,26 @@ export function ConfirmationStep({
                   className="px-3 py-1 text-sm rounded-full bg-primary/10 text-primary"
                 >
                   {goal.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Overtuigingen */}
+        {selectedOvertuigingen.length > 0 && (
+          <div className="space-y-2 mb-4">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="h-4 w-4 text-amber-500" />
+              <p className="text-sm font-medium">Overtuigingen</p>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {selectedOvertuigingen.map((o) => (
+                <span
+                  key={o.id}
+                  className="px-3 py-1 text-sm rounded-full bg-amber-50 text-amber-700"
+                >
+                  {o.name}
                 </span>
               ))}
             </div>

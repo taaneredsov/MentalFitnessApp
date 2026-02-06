@@ -1,4 +1,4 @@
-import type { Goal, Day, Program, Method } from "@/types/program"
+import type { Goal, Day, Program, Method, Overtuiging } from "@/types/program"
 
 export interface AIWizardState {
   step: number
@@ -44,6 +44,7 @@ export interface AIPreviewResult {
   programSummary?: string
   availableMethods: Method[]
   selectedGoals: Goal[]
+  suggestedOvertuigingen?: Overtuiging[]
 }
 
 export interface ScheduleReviewProps {

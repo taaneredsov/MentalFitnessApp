@@ -2,108 +2,118 @@
 
 ## Overview
 
-Add a search input to the Methods screen that filters methods by name and linked goal names (Doelstelling). This is a client-side filter using already-loaded data.
+Add a search input and goal filter chips to the Methods screen that filters methods by name, description, and linked goal names (Doelstelling). This is a client-side filter using already-loaded data.
 
-## Phase 1: Add Search Functionality
-
-Implement the search input and filtering logic in the MethodsPage component.
-
-### Tasks
+## Phase 1: Text Search [DONE]
 
 - [x] Add search state and filter logic to `MethodsPage.tsx`
 - [x] Add search input UI with search icon and clear button
 - [x] Create goal lookup map for efficient filtering
 - [x] Update empty state to differentiate "no methods" vs "no search results"
 
+## Phase 2: Doelstelling Filter + Description Search
+
+### Tasks
+
+- [ ] Add `selectedGoalId` state to `MethodsPage.tsx`
+- [ ] Add description to text search matching
+- [ ] Add goal filter chip row (horizontal scroll) below search input
+- [ ] Combine goal filter with text search (AND logic)
+
 ### Technical Details
 
 **File to modify:** `src/pages/MethodsPage.tsx`
 
-**Imports to add:**
+**New state:**
 ```typescript
-import { useState, useMemo } from "react"
-import { Search, X } from "lucide-react"
-import { Input } from "@/components/ui/input"
+const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
 ```
 
-**State to add:**
+**Available goals for filter chips (exclude "Goede gewoontes"):**
 ```typescript
-const [searchQuery, setSearchQuery] = useState("")
-```
-
-**Goal lookup map (for efficient filtering):**
-```typescript
-const goalNameMap = useMemo(() => {
-  const map = new Map<string, string>()
-  goals.forEach(goal => map.set(goal.id, goal.name.toLowerCase()))
-  return map
+const availableGoals = useMemo(() => {
+  return goals.filter(g => g.name !== "Goede gewoontes")
 }, [goals])
 ```
 
-**Filter logic (after existing `filteredMethods`):**
+**Updated search + goal filter logic (replaces current `searchedMethods`):**
 ```typescript
 const searchedMethods = useMemo(() => {
-  if (!searchQuery.trim()) return filteredMethods
+  let result = filteredMethods
 
-  const query = searchQuery.toLowerCase().trim()
+  // Goal filter
+  if (selectedGoalId) {
+    result = result.filter(method =>
+      method.linkedGoalIds?.includes(selectedGoalId)
+    )
+  }
 
-  return filteredMethods.filter(method => {
-    // Match method name
-    if (method.name.toLowerCase().includes(query)) return true
+  // Text search
+  if (searchQuery.trim()) {
+    const query = searchQuery.toLowerCase().trim()
+    result = result.filter(method => {
+      if (method.name.toLowerCase().includes(query)) return true
+      if (method.description?.toLowerCase().includes(query)) return true
+      if (method.linkedGoalIds?.some(goalId => {
+        const goalName = goalNameMap.get(goalId)
+        return goalName?.includes(query)
+      })) return true
+      return false
+    })
+  }
 
-    // Match linked goal names
-    if (method.linkedGoalIds?.some(goalId => {
-      const goalName = goalNameMap.get(goalId)
-      return goalName?.includes(query)
-    })) return true
-
-    return false
-  })
-}, [filteredMethods, searchQuery, goalNameMap])
+  return result
+}, [filteredMethods, selectedGoalId, searchQuery, goalNameMap])
 ```
 
-**Search input JSX (between h2 and methods list):**
+**Goal filter chips JSX (between search input and results):**
 ```tsx
-{/* Search Input */}
-<div className="relative">
-  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-  <Input
-    type="text"
-    placeholder="Zoek methodes..."
-    value={searchQuery}
-    onChange={(e) => setSearchQuery(e.target.value)}
-    className="pl-9 pr-9"
-  />
-  {searchQuery && (
+{/* Goal Filter Chips */}
+<div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+  <button
+    onClick={() => setSelectedGoalId(null)}
+    className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+      !selectedGoalId
+        ? "bg-primary text-primary-foreground"
+        : "bg-muted text-muted-foreground hover:bg-muted/80"
+    }`}
+  >
+    Alle
+  </button>
+  {availableGoals.map(goal => (
     <button
-      onClick={() => setSearchQuery("")}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-      aria-label="Zoekopdracht wissen"
+      key={goal.id}
+      onClick={() => setSelectedGoalId(
+        selectedGoalId === goal.id ? null : goal.id
+      )}
+      className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+        selectedGoalId === goal.id
+          ? "bg-primary text-primary-foreground"
+          : "bg-muted text-muted-foreground hover:bg-muted/80"
+      }`}
     >
-      <X className="h-4 w-4" />
+      {goal.name}
     </button>
-  )}
+  ))}
 </div>
 ```
 
-**Updated empty state:**
+**Updated empty state message:**
 ```tsx
-{searchedMethods.length === 0 ? (
-  <div className="text-center py-12">
-    <p className="text-muted-foreground">
-      {searchQuery.trim()
-        ? "Geen methodes gevonden voor deze zoekopdracht."
-        : "Geen methodes beschikbaar."}
-    </p>
-  </div>
-) : (
-  // existing methods list using searchedMethods instead of filteredMethods
-)}
+{searchQuery.trim() && selectedGoalId
+  ? "Geen methodes gevonden voor deze combinatie."
+  : searchQuery.trim()
+    ? "Geen methodes gevonden voor deze zoekopdracht."
+    : selectedGoalId
+      ? "Geen methodes gevonden voor deze doelstelling."
+      : "Geen methodes beschikbaar."}
 ```
 
-**Update methods map to use `searchedMethods`:**
-```tsx
-{searchedMethods.map(method => (
-  <MethodCard ... />
-))}
-```
+### Verification
+
+- `npm run build` passes
+- Text search matches name, description, and goal names
+- Goal chips filter correctly, "Alle" resets filter
+- Combined: selecting a goal + typing search text shows intersection
+- "Goede gewoontes" methods remain excluded
+- Chips scroll horizontally on narrow screens

@@ -1,5 +1,5 @@
 import type { User } from "@/types/user"
-import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest, PersonalGoal, CreatePersonalGoalData, UpdatePersonalGoalData, Programmaplanning, UpdateProgrammaplanningData } from "@/types/program"
+import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest, PersonalGoal, CreatePersonalGoalData, UpdatePersonalGoalData, Programmaplanning, UpdateProgrammaplanningData, Overtuiging, MindsetCategory, PersoonlijkeOvertuiging, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData, OvertuigingUsageMap } from "@/types/program"
 import type { UserRewards, AwardRequest, AwardResponse } from "@/types/rewards"
 
 const API_BASE = "/api"
@@ -51,7 +51,6 @@ export interface LoginResponse {
   user?: User
   accessToken?: string
   needsPasswordSetup?: boolean
-  userId?: string
   email?: string
 }
 
@@ -66,10 +65,10 @@ export interface VerifyResponse {
 
 export const api = {
   auth: {
-    setPassword: (userId: string, email: string, password: string) =>
+    setPassword: (email: string, code: string, password: string) =>
       request<SetPasswordResponse>("/auth/set-password", {
         method: "POST",
-        body: JSON.stringify({ userId, email, password })
+        body: JSON.stringify({ email, code, password })
       }),
 
     requestMagicLink: (email: string) =>
@@ -89,8 +88,12 @@ export const api = {
   },
 
   users: {
-    lookup: (email: string) =>
-      request<User>(`/users/lookup?email=${encodeURIComponent(email)}`),
+    lookup: (email: string, accessToken: string) =>
+      request<User>(`/users/lookup?email=${encodeURIComponent(email)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
 
     create: (data: {
       name: string
@@ -98,9 +101,12 @@ export const api = {
       password: string
       role?: string
       languageCode?: string
-    }) =>
+    }, accessToken: string) =>
       request<User>("/users", {
         method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
         body: JSON.stringify(data)
       }),
 
@@ -129,8 +135,12 @@ export const api = {
   },
 
   companies: {
-    lookup: (ids: string[]) =>
-      request<Record<string, string>>(`/companies/lookup?ids=${ids.join(",")}`)
+    lookup: (ids: string[], accessToken: string) =>
+      request<Record<string, string>>(`/companies/lookup?ids=${ids.join(",")}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
   },
 
   goals: {
@@ -142,10 +152,19 @@ export const api = {
   },
 
   programs: {
-    list: (userId: string) =>
-      request<Program[]>(`/programs?userId=${encodeURIComponent(userId)}`),
+    list: (accessToken: string) =>
+      request<Program[]>("/programs", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
 
-    get: (id: string) => request<ProgramDetail>(`/programs/${encodeURIComponent(id)}`),
+    get: (id: string, accessToken: string) =>
+      request<ProgramDetail>(`/programs/${encodeURIComponent(id)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
 
     create: (data: CreateProgramData, accessToken: string) =>
       request<Program>("/programs", {
@@ -156,10 +175,14 @@ export const api = {
         body: JSON.stringify(data)
       }),
 
-    getMethods: (id: string) =>
-      request<string[]>(`/programs/${encodeURIComponent(id)}/methods`),
+    getMethods: (id: string, accessToken: string) =>
+      request<string[]>(`/programs/${encodeURIComponent(id)}/methods`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
 
-    update: (id: string, data: { goals?: string[]; daysOfWeek?: string[]; methods?: string[]; notes?: string }, accessToken: string) =>
+    update: (id: string, data: { goals?: string[]; daysOfWeek?: string[]; methods?: string[]; notes?: string; overtuigingen?: string[] }, accessToken: string) =>
       request<Program>(`/programs/${encodeURIComponent(id)}`, {
         method: "PATCH",
         headers: {
@@ -233,7 +256,7 @@ export const api = {
 
   methodUsage: {
     create: (data: { userId: string; methodId: string; programId?: string; programmaplanningId?: string; remark?: string }, accessToken: string) =>
-      request<{ id: string }>("/method-usage", {
+      request<MethodUsage>("/method-usage", {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`
@@ -241,8 +264,23 @@ export const api = {
         body: JSON.stringify(data)
       }),
 
-    byProgram: (programId: string, limit = 2) =>
-      request<MethodUsage[]>(`/method-usage/by-program?programId=${encodeURIComponent(programId)}&limit=${limit}`)
+    updateRemark: (id: string, remark: string, accessToken: string) =>
+      request<MethodUsage>(`/method-usage/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ remark })
+      }),
+
+    byProgram: (programId: string, limit = 2, accessToken?: string) =>
+      request<MethodUsage[]>(`/method-usage/by-program?programId=${encodeURIComponent(programId)}&limit=${limit}`, {
+        ...(accessToken && {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        })
+      })
   },
 
   rewards: {
@@ -339,6 +377,74 @@ export const api = {
           Authorization: `Bearer ${accessToken}`
         },
         body: JSON.stringify(data)
+      })
+  },
+
+  overtuigingen: {
+    list: () => request<Overtuiging[]>("/overtuigingen"),
+
+    byGoals: (goalIds: string[], accessToken: string) =>
+      request<Overtuiging[]>(`/overtuigingen/by-goals?goalIds=${goalIds.map(id => encodeURIComponent(id)).join(",")}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
+  },
+
+  mindsetCategories: {
+    list: () => request<MindsetCategory[]>("/mindset-categories")
+  },
+
+  overtuigingUsage: {
+    get: (programId: string, accessToken: string) =>
+      request<OvertuigingUsageMap>(`/overtuiging-usage?programId=${encodeURIComponent(programId)}`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    create: (data: { userId: string; overtuigingId: string; programId: string; level: string; date: string }, accessToken: string) =>
+      request<{ id: string; pointsAwarded: number }>("/overtuiging-usage", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      })
+  },
+
+  persoonlijkeOvertuigingen: {
+    list: (accessToken: string) =>
+      request<PersoonlijkeOvertuiging[]>("/persoonlijke-overtuigingen", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    create: (data: CreatePersoonlijkeOvertuigingData, accessToken: string) =>
+      request<PersoonlijkeOvertuiging>("/persoonlijke-overtuigingen", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    update: (id: string, data: UpdatePersoonlijkeOvertuigingData, accessToken: string) =>
+      request<PersoonlijkeOvertuiging>(`/persoonlijke-overtuigingen/${encodeURIComponent(id)}`, {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    delete: (id: string, accessToken: string) =>
+      request<void>(`/persoonlijke-overtuigingen/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
       })
   }
 }

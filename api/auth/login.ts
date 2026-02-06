@@ -5,6 +5,8 @@ import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-u
 import { verifyPassword } from "../_lib/password.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
+import { isRateLimited, recordFailedAttempt, clearRateLimit, generateSecureCode, hashCode } from "../_lib/security.js"
+import { sendVerificationCodeEmail } from "../_lib/email.js"
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -18,6 +20,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   try {
     const { email, password } = loginSchema.parse(parseBody(req))
+
+    const rateCheck = isRateLimited(email)
+    if (rateCheck.isLimited) {
+      return sendError(res, "Te veel pogingen. Probeer het later opnieuw.", 429)
+    }
 
     // Find user by email (filterByFormula requires field names, not IDs)
     // Use escapeFormulaValue to prevent formula injection attacks
@@ -37,12 +44,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const passwordHash = record.fields[USER_FIELDS.passwordHash]
 
     // User has no password set - needs to create one (first-time setup)
-    // This applies regardless of lastLogin (user may have used magic link before)
+    // Send a verification code to prove email ownership
     if (!passwordHash) {
+      const code = generateSecureCode()
+      const hashedCode = hashCode(code)
+      const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+
+      // Store hashed code and expiry on user record (reuse magic link fields)
+      await base(tables.users).update(record.id, {
+        [USER_FIELDS.magicLinkCode]: hashedCode,
+        [USER_FIELDS.magicLinkExpiry]: expiry
+      })
+
+      // Send verification code email
+      const userEmail = record.fields[USER_FIELDS.email] as string
+      await sendVerificationCodeEmail(userEmail, code)
+
+      // Return only email (no userId) - code proves ownership
       return sendSuccess(res, {
         needsPasswordSetup: true,
-        userId: record.id,
-        email: record.fields[USER_FIELDS.email]
+        email: userEmail
       })
     }
 
@@ -54,8 +75,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     // Verify password
     const isValid = await verifyPassword(password, passwordHash)
     if (!isValid) {
+      recordFailedAttempt(email)
       return sendError(res, "Invalid email or password", 401)
     }
+
+    clearRateLimit(email)
 
     // Update last login (Airtable date format: YYYY-MM-DD)
     await base(tables.users).update(record.id, {

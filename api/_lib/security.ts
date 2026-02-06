@@ -53,7 +53,10 @@ export function hashToken(token: string): string {
  * @returns Hex-encoded HMAC-SHA256 hash
  */
 export function hashCode(code: string): string {
-  const secret = process.env.JWT_SECRET || "fallback-secret"
+  const secret = process.env.JWT_SECRET
+  if (!secret) {
+    throw new Error("JWT_SECRET environment variable is required")
+  }
   return crypto.createHmac("sha256", secret).update(code).digest("hex")
 }
 

@@ -14,6 +14,7 @@ import { ProgramsPage } from "@/pages/ProgramsPage"
 import { ProgramDetailPage } from "@/pages/ProgramDetailPage"
 import { MethodsPage } from "@/pages/MethodsPage"
 import { MethodDetailPage } from "@/pages/MethodDetailPage"
+import { OvertuigingenPage } from "@/pages/OvertuigingenPage"
 import { AccountPage } from "@/pages/AccountPage"
 import { useCacheBust } from "@/hooks/useCacheBust"
 import { useVersionCheck } from "@/hooks/useVersionCheck"
@@ -49,6 +50,7 @@ function App() {
         <Route path="/programs/:id" element={<ProgramDetailPage />} />
         <Route path="/methods" element={<MethodsPage />} />
         <Route path="/methods/:id" element={<MethodDetailPage />} />
+        <Route path="/overtuigingen" element={<OvertuigingenPage />} />
         <Route path="/account" element={<AccountPage />} />
       </Route>
     </Routes>

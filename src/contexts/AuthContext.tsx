@@ -16,7 +16,6 @@ interface LoginResult {
 interface NeedsPasswordSetupResult {
   success: false
   needsPasswordSetup: true
-  userId: string
   email: string
 }
 
@@ -35,17 +34,12 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-const TOKEN_KEY = "accessToken"
-
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [accessToken, setAccessToken] = useState<string | null>(
-    () => localStorage.getItem(TOKEN_KEY)
-  )
+  const [accessToken, setAccessToken] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
 
   const setAuthFromResponse = useCallback((user: User, token: string) => {
-    localStorage.setItem(TOKEN_KEY, token)
     setAccessToken(token)
     setUser(user)
   }, [])
@@ -68,12 +62,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return {
         success: false,
         needsPasswordSetup: true,
-        userId: data.data.userId,
         email: data.data.email
       }
     }
 
-    localStorage.setItem(TOKEN_KEY, data.data.accessToken)
     setAccessToken(data.data.accessToken)
     setUser(data.data.user)
 
@@ -82,7 +74,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST" })
-    localStorage.removeItem(TOKEN_KEY)
     setAccessToken(null)
     setUser(null)
   }, [])
@@ -97,7 +88,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const data = await response.json()
 
       if (data.success) {
-        localStorage.setItem(TOKEN_KEY, data.data.accessToken)
         setAccessToken(data.data.accessToken)
         setUser(data.data.user)
         return
@@ -106,7 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Refresh failed, clear auth state
     }
 
-    localStorage.removeItem(TOKEN_KEY)
     setAccessToken(null)
     setUser(null)
   }, [])
@@ -114,27 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   // Initialize auth on mount
   useEffect(() => {
     const initAuth = async () => {
-      const token = localStorage.getItem(TOKEN_KEY)
-
-      if (token) {
-        try {
-          const response = await fetch("/api/auth/me", {
-            headers: { Authorization: `Bearer ${token}` }
-          })
-
-          const data = await response.json()
-
-          if (data.success) {
-            setUser(data.data)
-          } else {
-            // Token expired, try refresh
-            await refreshAuth()
-          }
-        } catch {
-          await refreshAuth()
-        }
-      }
-
+      await refreshAuth()
       setIsLoading(false)
     }
 

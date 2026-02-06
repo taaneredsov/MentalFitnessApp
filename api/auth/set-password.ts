@@ -4,17 +4,25 @@ import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { hashPassword } from "../_lib/password.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
-import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
+import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
+import {
+  hashCode,
+  constantTimeCompare,
+  isRateLimited,
+  recordFailedAttempt,
+  clearRateLimit
+} from "../_lib/security.js"
 
 const setPasswordSchema = z.object({
-  userId: z.string().min(1),
   email: z.string().email(),
+  code: z.string().length(6).regex(/^\d+$/, "Code must be 6 digits"),
   password: z.string().min(8, "Password must be at least 8 characters")
 })
 
 /**
  * POST /api/auth/set-password
- * Set initial password for a user during onboarding
+ * Set initial password for a user during onboarding.
+ * Requires email + verification code (sent by login endpoint).
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "POST") {
@@ -22,19 +30,26 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const { userId, email, password } = setPasswordSchema.parse(parseBody(req))
+    const { email, code, password } = setPasswordSchema.parse(parseBody(req))
 
-    // Verify user exists - use select with returnFieldsByFieldId for consistent field access
+    // Rate limit by email
+    const rateCheck = isRateLimited(email)
+    if (rateCheck.isLimited) {
+      return sendError(res, "Te veel pogingen. Probeer het later opnieuw.", 429)
+    }
+
+    // Find user by email
     const records = await base(tables.users)
       .select({
-        filterByFormula: `RECORD_ID() = "${userId}"`,
+        filterByFormula: `{${FIELD_NAMES.user.email}} = "${escapeFormulaValue(email)}"`,
         maxRecords: 1,
         returnFieldsByFieldId: true
       })
       .firstPage()
 
     if (records.length === 0) {
-      return sendError(res, "User not found", 404)
+      recordFailedAttempt(email)
+      return sendError(res, "Ongeldige code", 401)
     }
 
     const record = records[0] as any
@@ -42,28 +57,48 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const existingHash = fields[USER_FIELDS.passwordHash]
 
     // Security: only allow setting password if user doesn't have one yet
-    // (regardless of lastLogin - user may have used magic link before)
     if (existingHash) {
       return sendError(res, "Password already set. Use change password instead.", 400)
     }
 
-    // Verify email matches
-    if (fields[USER_FIELDS.email] !== email) {
-      return sendError(res, "Email does not match", 400)
+    // Verify the code
+    const storedHashedCode = fields[USER_FIELDS.magicLinkCode] as string | undefined
+    const expiry = fields[USER_FIELDS.magicLinkExpiry] as string | undefined
+
+    // Check expiry
+    if (!expiry || new Date(expiry) < new Date()) {
+      recordFailedAttempt(email)
+      return sendError(res, "Code is verlopen. Probeer opnieuw in te loggen.", 401)
     }
 
-    // Hash and store the password
+    // Constant-time comparison of hashed codes
+    const hashedInputCode = hashCode(code)
+    const codeMatches = storedHashedCode
+      ? constantTimeCompare(hashedInputCode, storedHashedCode)
+      : false
+
+    if (!codeMatches) {
+      recordFailedAttempt(email)
+      return sendError(res, "Ongeldige code", 401)
+    }
+
+    // Code verified - clear rate limit
+    clearRateLimit(email)
+
+    // Hash and store the password, clear verification fields
     const passwordHash = await hashPassword(password)
 
-    await base(tables.users).update(userId, {
+    await base(tables.users).update(record.id, {
       [USER_FIELDS.passwordHash]: passwordHash,
-      [USER_FIELDS.lastLogin]: new Date().toISOString().split("T")[0]
+      [USER_FIELDS.lastLogin]: new Date().toISOString().split("T")[0],
+      [USER_FIELDS.magicLinkCode]: null,
+      [USER_FIELDS.magicLinkExpiry]: null
     })
 
-    // Fetch updated record for response (with field IDs for transformUser)
+    // Fetch updated record for response
     const updatedRecords = await base(tables.users)
       .select({
-        filterByFormula: `RECORD_ID() = "${userId}"`,
+        filterByFormula: `RECORD_ID() = "${record.id}"`,
         maxRecords: 1,
         returnFieldsByFieldId: true
       })
@@ -73,12 +108,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     // Generate tokens
     const accessToken = await signAccessToken({
-      userId: userId,
+      userId: record.id,
       email: email
     })
 
     const refreshToken = await signRefreshToken({
-      userId: userId,
+      userId: record.id,
       email: email
     })
 

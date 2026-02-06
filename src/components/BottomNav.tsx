@@ -1,11 +1,12 @@
 import { NavLink } from "react-router-dom"
-import { Home, Calendar, BookOpen, User } from "lucide-react"
+import { Home, Calendar, BookOpen, Lightbulb, User } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 const tabs = [
   { path: "/", icon: Home, label: "Home" },
   { path: "/programs", icon: Calendar, label: "Programma" },
   { path: "/methods", icon: BookOpen, label: "Methodes" },
+  { path: "/overtuigingen", icon: Lightbulb, label: "Mindset" },
   { path: "/account", icon: User, label: "Account" }
 ]
 

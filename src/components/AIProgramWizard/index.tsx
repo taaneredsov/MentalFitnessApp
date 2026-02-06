@@ -95,6 +95,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
     setError(null)
 
     try {
+      const overtuigingen = preview.suggestedOvertuigingen?.map(o => o.id) || []
       const response = await api.programs.confirm(
         {
           userId: user.id,
@@ -103,7 +104,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
           duration: state.duration,
           daysOfWeek: state.daysOfWeek,
           editedSchedule,
-          programSummary: preview.programSummary
+          programSummary: preview.programSummary,
+          overtuigingen
         },
         accessToken
       )

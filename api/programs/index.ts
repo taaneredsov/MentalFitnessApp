@@ -2,9 +2,10 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { transformProgram, transformProgrammaplanning, parseEuropeanDate, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS, METHOD_USAGE_FIELDS } from "../_lib/field-mappings.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 
 /**
- * GET /api/programs?userId=recXXX - Returns all programs for a user
+ * GET /api/programs - Returns all programs for the authenticated user
  * POST /api/programs - Creates a new program
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -17,10 +18,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    const userId = req.query.userId
-    if (!userId || typeof userId !== "string") {
-      return sendError(res, "userId is required", 400)
-    }
+    const auth = await requireAuth(req)
+    const userId = auth.userId
 
     // Fetch all programs and filter by user ID
     // (Airtable linked field filtering by record ID requires client-side filtering)
@@ -112,6 +111,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return sendSuccess(res, programsWithProgress)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }
@@ -153,12 +155,11 @@ function getInitialProgramStatus(startDate: string): "Actief" | "Gepland" {
  */
 async function handlePost(req: VercelRequest, res: VercelResponse) {
   try {
+    const auth = await requireAuth(req)
     const body = parseBody(req)
 
-    // Validate required fields
-    if (!body?.userId) {
-      return sendError(res, "userId is required", 400)
-    }
+    // Override userId with authenticated user
+    body.userId = auth.userId
     if (!body.startDate) {
       return sendError(res, "startDate is required", 400)
     }
@@ -225,6 +226,9 @@ async function handlePost(req: VercelRequest, res: VercelResponse) {
 
     return sendSuccess(res, program, 201)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }

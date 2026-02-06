@@ -210,6 +210,13 @@ html {
   .pt-safe {
     padding-top: env(safe-area-inset-top, 0px);
   }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
 }
 
 /* AI Program Wizard Animations */

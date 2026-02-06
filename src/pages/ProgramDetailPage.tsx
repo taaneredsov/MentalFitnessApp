@@ -12,6 +12,7 @@ import { FullScheduleSection } from "@/components/FullScheduleSection"
 import { SessionEditDialog } from "@/components/SessionEditDialog"
 import { ProgramEditDialog } from "@/components/ProgramEditDialog"
 import { MethodThumbnail } from "@/components/MethodThumbnail"
+import { OvertuigingenSection } from "@/components/OvertuigingenSection"
 import { getProgramStatus } from "@/types/program"
 import type { Programmaplanning } from "@/types/program"
 import {
@@ -281,6 +282,9 @@ export function ProgramDetailPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Overtuigingen */}
+      <OvertuigingenSection programId={program.id} showManageLink={status === "running"} />
 
       {/* Methods */}
       {program.methodDetails.length > 0 && (

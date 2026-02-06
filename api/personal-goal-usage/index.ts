@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { verifyToken } from "../_lib/jwt.js"
+import { requireAuth, AuthError } from "../_lib/auth.js"
 import { PERSONAL_GOAL_USAGE_FIELDS, PERSONAL_GOAL_FIELDS, USER_FIELDS, transformUserRewards, isValidRecordId } from "../_lib/field-mappings.js"
 
 // Point values for personal goals
@@ -236,29 +236,21 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
  * POST: Creates a new usage record (allows multiple per day)
  */
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Verify authentication
-  const authHeader = req.headers.authorization
-  if (!authHeader?.startsWith("Bearer ")) {
-    return sendError(res, "Unauthorized", 401)
-  }
-
-  const token = authHeader.slice(7)
-  const payload = await verifyToken(token)
-  if (!payload) {
-    return sendError(res, "Invalid token", 401)
-  }
-
   try {
-    const userId = payload.userId as string
+    const auth = await requireAuth(req)
+
     switch (req.method) {
       case "GET":
-        return handleGet(req, res, userId)
+        return handleGet(req, res, auth.userId)
       case "POST":
-        return handlePost(req, res, userId)
+        return handlePost(req, res, auth.userId)
       default:
         return sendError(res, "Method not allowed", 405)
     }
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     if (error instanceof z.ZodError) {
       return sendError(res, error.issues[0].message, 400)
     }

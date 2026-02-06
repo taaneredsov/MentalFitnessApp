@@ -2,6 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { base, tables } from "../../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../../_lib/api-utils.js"
 import { PROGRAM_FIELDS } from "../../_lib/field-mappings.js"
+import { requireAuth, AuthError } from "../../_lib/auth.js"
 
 /**
  * GET /api/programs/[id]/methods
@@ -14,6 +15,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
+    await requireAuth(req)
+
     const { id } = req.query
     if (!id || typeof id !== "string") {
       return sendError(res, "Program ID is required", 400)
@@ -37,6 +40,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     return sendSuccess(res, methods)
   } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
     return handleApiError(res, error)
   }
 }

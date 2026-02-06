@@ -12,6 +12,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 
 const setPasswordSchema = z
   .object({
+    code: z.string().length(6, "Voer de 6-cijferige code in"),
     password: z.string().min(8, "Wachtwoord moet minimaal 8 tekens zijn"),
     confirmPassword: z.string().min(1, "Bevestig je wachtwoord")
   })
@@ -23,7 +24,6 @@ const setPasswordSchema = z
 type SetPasswordFormData = z.infer<typeof setPasswordSchema>
 
 interface LocationState {
-  userId: string
   email: string
 }
 
@@ -44,7 +44,7 @@ export function SetPasswordPage() {
   })
 
   // Redirect to login if no state
-  if (!state?.userId || !state?.email) {
+  if (!state?.email) {
     navigate("/login", { replace: true })
     return null
   }
@@ -53,8 +53,8 @@ export function SetPasswordPage() {
     try {
       setError(null)
       const response = await api.auth.setPassword(
-        state.userId,
         state.email,
+        data.code,
         data.password
       )
 
@@ -74,7 +74,8 @@ export function SetPasswordPage() {
         <CardHeader className="text-center">
           <CardTitle className="text-2xl">Kies je wachtwoord</CardTitle>
           <p className="text-sm text-muted-foreground mt-2">
-            Welkom! Stel een wachtwoord in voor je account.
+            We hebben een verificatiecode gestuurd naar{" "}
+            <strong>{state.email}</strong>
           </p>
         </CardHeader>
         <CardContent>
@@ -84,6 +85,23 @@ export function SetPasswordPage() {
                 {error}
               </div>
             )}
+
+            <div className="space-y-2">
+              <Label htmlFor="code">Verificatiecode</Label>
+              <Input
+                id="code"
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={6}
+                className="text-center text-lg tracking-widest"
+                {...register("code")}
+              />
+              {errors.code && (
+                <p className="text-sm text-red-500">{errors.code.message}</p>
+              )}
+            </div>
 
             <div className="space-y-2">
               <Label htmlFor="password">Wachtwoord</Label>

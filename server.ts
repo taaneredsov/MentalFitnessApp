@@ -17,6 +17,15 @@ const PORT = process.env.PORT || 3000
 app.use(express.json())
 app.use(cookieParser())
 
+// Security headers
+app.use((_req: express.Request, res: express.Response, next: express.NextFunction) => {
+  res.setHeader("X-Content-Type-Options", "nosniff")
+  res.setHeader("X-Frame-Options", "DENY")
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin")
+  res.setHeader("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+  next()
+})
+
 // Request/Response adapter for Vercel handlers
 function wrapVercelHandler(handler: (req: any, res: any) => any) {
   return async (req: express.Request, res: express.Response) => {
@@ -149,6 +158,7 @@ async function setupRoutes() {
 
   app.get("/api/method-usage", wrapVercelHandler(methodUsageHandler))
   app.post("/api/method-usage", wrapVercelHandler(methodUsageHandler))
+  app.patch("/api/method-usage/:id", wrapVercelHandler(methodUsageHandler))
   app.get("/api/method-usage/by-program", wrapVercelHandler(methodUsageByProgramHandler))
 
   // Rewards routes
@@ -180,6 +190,27 @@ async function setupRoutes() {
 
   app.get("/api/personal-goal-usage", wrapVercelHandler(personalGoalUsageHandler))
   app.post("/api/personal-goal-usage", wrapVercelHandler(personalGoalUsageHandler))
+
+  // Overtuigingen routes
+  const { default: overtuigingenHandler } = await import("./api/overtuigingen/index.js")
+  const { default: overtuigingenByGoalsHandler } = await import("./api/overtuigingen/by-goals.js")
+  const { default: mindsetCategoriesHandler } = await import("./api/mindset-categories/index.js")
+  app.get("/api/overtuigingen", wrapVercelHandler(overtuigingenHandler))
+  app.get("/api/overtuigingen/by-goals", wrapVercelHandler(overtuigingenByGoalsHandler))
+  app.get("/api/mindset-categories", wrapVercelHandler(mindsetCategoriesHandler))
+
+  // Overtuiging usage routes
+  const { default: overtuigingUsageHandler } = await import("./api/overtuiging-usage/index.js")
+  app.get("/api/overtuiging-usage", wrapVercelHandler(overtuigingUsageHandler))
+  app.post("/api/overtuiging-usage", wrapVercelHandler(overtuigingUsageHandler))
+
+  // Persoonlijke overtuigingen routes
+  const { default: persoonlijkeOvertuigingenHandler } = await import("./api/persoonlijke-overtuigingen/index.js")
+  const { default: persoonlijkeOvertuigingByIdHandler } = await import("./api/persoonlijke-overtuigingen/[id].js")
+  app.get("/api/persoonlijke-overtuigingen", wrapVercelHandler(persoonlijkeOvertuigingenHandler))
+  app.post("/api/persoonlijke-overtuigingen", wrapVercelHandler(persoonlijkeOvertuigingenHandler))
+  app.patch("/api/persoonlijke-overtuigingen/:id", wrapVercelHandler(persoonlijkeOvertuigingByIdHandler))
+  app.delete("/api/persoonlijke-overtuigingen/:id", wrapVercelHandler(persoonlijkeOvertuigingByIdHandler))
 
   // Cache routes
   const { default: cacheInvalidateHandler } = await import("./api/cache/invalidate.js")

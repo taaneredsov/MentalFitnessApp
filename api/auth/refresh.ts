@@ -2,7 +2,7 @@ import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { parse } from "cookie"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
-import { verifyToken, signAccessToken, signRefreshToken } from "../_lib/jwt.js"
+import { verifyRefreshToken, signAccessToken, signRefreshToken } from "../_lib/jwt.js"
 import { transformUser } from "../_lib/field-mappings.js"
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
@@ -18,7 +18,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "No refresh token", 401)
     }
 
-    const payload = await verifyToken(refreshToken)
+    const payload = await verifyRefreshToken(refreshToken)
     if (!payload) {
       return sendError(res, "Invalid refresh token", 401)
     }

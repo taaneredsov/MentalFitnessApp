@@ -58,6 +58,7 @@ function MethodCard({
 export function MethodsPage() {
   const navigate = useNavigate()
   const [searchQuery, setSearchQuery] = useState("")
+  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
 
   // Use React Query for methods and goals data (cached)
   const { data: methods = [], isLoading: methodsLoading, error: methodsError } = useMethods()
@@ -73,6 +74,11 @@ export function MethodsPage() {
     return map
   }, [goals])
 
+  // Goals available for filter chips (exclude "Goede gewoontes")
+  const availableGoals = useMemo(() => {
+    return goals.filter(g => g.name !== "Goede gewoontes")
+  }, [goals])
+
   // Filter out methods linked to "Goede gewoontes" goal
   const filteredMethods = useMemo(() => {
     const habitsGoal = goals.find(g => g.name === "Goede gewoontes")
@@ -80,25 +86,33 @@ export function MethodsPage() {
     return methods.filter(m => !m.linkedGoalIds?.includes(habitsGoal.id))
   }, [methods, goals])
 
-  // Search filter (on top of existing filter)
+  // Goal filter + text search (AND logic)
   const searchedMethods = useMemo(() => {
-    if (!searchQuery.trim()) return filteredMethods
+    let result = filteredMethods
 
-    const query = searchQuery.toLowerCase().trim()
+    // Goal filter
+    if (selectedGoalId) {
+      result = result.filter(method =>
+        method.linkedGoalIds?.includes(selectedGoalId)
+      )
+    }
 
-    return filteredMethods.filter(method => {
-      // Match method name
-      if (method.name.toLowerCase().includes(query)) return true
+    // Text search
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim()
+      result = result.filter(method => {
+        if (method.name.toLowerCase().includes(query)) return true
+        if (method.description?.toLowerCase().includes(query)) return true
+        if (method.linkedGoalIds?.some(goalId => {
+          const goalName = goalNameMap.get(goalId)
+          return goalName?.includes(query)
+        })) return true
+        return false
+      })
+    }
 
-      // Match linked goal names
-      if (method.linkedGoalIds?.some(goalId => {
-        const goalName = goalNameMap.get(goalId)
-        return goalName?.includes(query)
-      })) return true
-
-      return false
-    })
-  }, [filteredMethods, searchQuery, goalNameMap])
+    return result
+  }, [filteredMethods, selectedGoalId, searchQuery, goalNameMap])
 
   const handleMethodClick = (id: string) => {
     navigate(`/methods/${id}`)
@@ -145,12 +159,45 @@ export function MethodsPage() {
         )}
       </div>
 
+      {/* Goal Filter Chips */}
+      <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
+        <button
+          onClick={() => setSelectedGoalId(null)}
+          className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            !selectedGoalId
+              ? "bg-primary text-primary-foreground"
+              : "bg-muted text-muted-foreground hover:bg-muted/80"
+          }`}
+        >
+          Alle
+        </button>
+        {availableGoals.map(goal => (
+          <button
+            key={goal.id}
+            onClick={() => setSelectedGoalId(
+              selectedGoalId === goal.id ? null : goal.id
+            )}
+            className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+              selectedGoalId === goal.id
+                ? "bg-primary text-primary-foreground"
+                : "bg-muted text-muted-foreground hover:bg-muted/80"
+            }`}
+          >
+            {goal.name}
+          </button>
+        ))}
+      </div>
+
       {searchedMethods.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            {searchQuery.trim()
-              ? "Geen methodes gevonden voor deze zoekopdracht."
-              : "Geen methodes beschikbaar."}
+            {searchQuery.trim() && selectedGoalId
+              ? "Geen methodes gevonden voor deze combinatie."
+              : searchQuery.trim()
+                ? "Geen methodes gevonden voor deze zoekopdracht."
+                : selectedGoalId
+                  ? "Geen methodes gevonden voor deze doelstelling."
+                  : "Geen methodes beschikbaar."}
           </p>
         </div>
       ) : (

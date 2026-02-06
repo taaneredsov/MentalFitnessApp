@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { CheckCircle2, Clock, Calendar, Lightbulb, Home, Plus, Target, X, Loader2 } from "lucide-react"
 import { useAuth } from "@/contexts/AuthContext"
-import { useCreatePersonalGoal } from "@/hooks/queries"
+import { useCreatePersonalGoal, useOvertuigingen } from "@/hooks/queries"
 import type { ProgramResultProps } from "./types"
 
 export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramResultProps) {
@@ -14,6 +14,10 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   const createGoalMutation = useCreatePersonalGoal()
 
   const { program, aiSchedule, weeklySessionTime, recommendations, programSummary } = result
+
+  // Resolve overtuigingen names from IDs
+  const { data: allOvertuigingen = [] } = useOvertuigingen()
+  const programOvertuigingen = allOvertuigingen.filter(o => program.overtuigingen?.includes(o.id))
 
   // Personal goals state
   const [showGoalsSection, setShowGoalsSection] = useState(false)
@@ -164,6 +168,26 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
             </div>
           </CardContent>
         </Card>
+
+        {/* Overtuigingen */}
+        {programOvertuigingen.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Lightbulb className="w-4 h-4 text-amber-500" />
+              <h4 className="text-sm font-medium">Overtuigingen</h4>
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {programOvertuigingen.map(o => (
+                <span
+                  key={o.id}
+                  className="px-3 py-1 text-sm rounded-full bg-amber-50 text-amber-700"
+                >
+                  {o.name}
+                </span>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Personal Goals Section (Optional) */}
         <Card className="border-orange-200 bg-orange-50/50">

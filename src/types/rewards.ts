@@ -32,7 +32,7 @@ export interface AwardResponse {
  * Request body for POST /api/rewards/award
  */
 export interface AwardRequest {
-  activityType: "method" | "habit" | "program" | "sessionBonus" | "habitDayBonus" | "programMilestone"
+  activityType: "method" | "habit" | "program" | "sessionBonus" | "habitDayBonus" | "programMilestone" | "overtuiging"
   activityId?: string
   methodsCompleted?: number
   habitsCompleted?: number
@@ -52,6 +52,7 @@ export const POINTS = {
   habit: 5,
   habitDayBonus: 5,
   personalGoal: 10,  // Bonus points for completing a personal goal
+  overtuiging: 1,    // Bonus point for completing an overtuiging level
   streakWeek: 50,
   streakMonth: 200,
   program: 100,

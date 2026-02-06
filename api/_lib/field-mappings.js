@@ -51,7 +51,12 @@ export const TABLES = {
   habitUsage: process.env.AIRTABLE_TABLE_HABIT_USAGE || "tblpWiRiseAZ7jfHm",   // Gewoontegebruik
   // Personal Goals tables
   personalGoals: process.env.AIRTABLE_TABLE_PERSONAL_GOALS || "tblbjDv35B50ZKG9w", // Persoonlijke doelen
-  personalGoalUsage: process.env.AIRTABLE_TABLE_PERSONAL_GOAL_USAGE || "tbl8eJeQtMnIF5EJo" // Persoonlijk Doelgebruik
+  personalGoalUsage: process.env.AIRTABLE_TABLE_PERSONAL_GOAL_USAGE || "tbl8eJeQtMnIF5EJo", // Persoonlijk Doelgebruik
+  // Overtuigingen tables
+  overtuigingen: process.env.AIRTABLE_TABLE_OVERTUIGINGEN || "tbl42zgwzkwq3s0cO",                    // Overtuigingen
+  mindsetCategories: process.env.AIRTABLE_TABLE_MINDSET_CATEGORIES || "tblFTnF8xCReN2Sk3",           // Mindset Category
+  persoonlijkeOvertuigingen: process.env.AIRTABLE_TABLE_PERSOONLIJKE_OVERTUIGINGEN || "tbl6RJteNCCcelyfR", // Persoonlijke Overtuigingen
+  overtuigingenGebruik: process.env.AIRTABLE_TABLE_OVERTUIGINGEN_GEBRUIK || "tblsPtnIlTezVacxv"       // Overtuigingen Gebruik
 }
 
 // User table field IDs (Gebruikers) - use for reading/writing
@@ -109,7 +114,9 @@ export const PROGRAM_FIELDS = {
   methodUsage: "fldXNUYtU4KG84ZMX",     // Methodegebruik (Link)
   milestonesAwarded: "fldQu0mHYeNj4mury", // Behaalde Mijlpalen (Long text - JSON array)
   status: "fldJcgvXDr2LDin14",          // Status (Single select: Actief/Gepland/Afgewerkt)
-  creationType: "fldC7QjG65RAnplH2"      // Type Programma Creatie (Single select: Manueel/AI)
+  creationType: "fldC7QjG65RAnplH2",      // Type Programma Creatie (Single select: Manueel/AI)
+  overtuigingen: "fldSAAnhuQZG4f5N9",    // Overtuigingen (Link)
+  persoonlijkeOvertuigingen: "fldoC2bgsXMzfwy89" // Persoonlijke Overtuigingen (Link)
 }
 
 // Goals table field IDs (Doelstellingen)
@@ -163,7 +170,7 @@ export const METHOD_USAGE_FIELDS = {
   user: "fldlJtJOwZ4poOcoN",              // Gebruiker (link to Users)
   method: "fldPyWglLXgXVO0ru",            // Methode (link to Methods)
   methodName: "fld4YLJWrdwMvyrjx",        // Methode Naam (lookup)
-  program: "fld18WcaPR8nXNr4a",           // Mentale Fitnessprogramma's (link to Programs) - DEPRECATED
+  program: "fld18WcaPR8nXNr4a",           // Mentale Fitnessprogramma's (link) - used for unscheduled practice
   programmaplanning: "fldVyFTiTqVZ3BVoH", // Programmaplanning (link to Programmaplanning)
   usedAt: "fldvUGcgnwuux1bvi",            // Gebruikt op (date)
   remark: "fldpskQnKFWDFGRFk",            // Opmerking (multiline text)
@@ -214,6 +221,44 @@ export const PERSONAL_GOAL_USAGE_FIELDS = {
   user: "fldlSHZh0ECrWMRV9",        // Gebruikers (link to Users)
   personalGoal: "fldGwiJAk7FRirOqY", // Persoonlijke doelen (link to Personal Goals)
   date: "fldC2lY17qPmMsI5x"         // Datum (date YYYY-MM-DD)
+}
+
+// Overtuigingen table field IDs (Overtuigingen - tbl42zgwzkwq3s0cO)
+export const OVERTUIGING_FIELDS = {
+  name: "fldKjYM2dj1vcna13",              // Name (single line text)
+  category: "fldmcm4ZeHKvUF1l2",          // Category (link to Mindset Category)
+  order: "fldtb04N7NAENsWjX",             // Order (number)
+  levels: "flddL1wlvZ8RVVEJu",            // Overtuigingsniveau (multipleSelects)
+  overtuigingenGebruik: "fld8NYcKtJclld3qN" // Overtuigingen Gebruik (link)
+}
+
+// Mindset Category table field IDs (Mindset Category - tblFTnF8xCReN2Sk3)
+export const MINDSET_CATEGORY_FIELDS = {
+  name: "fld3L559RRyjedc3f",              // Name (single line text)
+  overtuigingen: "fldrUlOKsApMJkWXf",     // Overtuigingen (link)
+  chapter: "fldpfpykQdysJ1UhY",           // Hoofdstuk (single select)
+  order: "fldKRjsDx0TsKwmAQ",             // Volgorde (number)
+  image: "fldDQhKUZdJjzjDhM",             // Afbeelding (attachment)
+  content: "fld5jYGIx4AY17a4w",           // Inhoud (rich text)
+  goals: "fldTVKGj4LISwoYQr"              // Doelstellingen (link to Goals)
+}
+
+// Persoonlijke Overtuigingen table field IDs (tbl6RJteNCCcelyfR)
+export const PERSOONLIJKE_OVERTUIGING_FIELDS = {
+  name: "fldhC3aEqBm8r75yU",              // Name (single line text)
+  user: "fldRyZuScA8s2KnTb",              // Gebruikers (link to Users)
+  program: "flduA8HPmhFwbdEOx",           // Mentale Fitnessprogramma's (link to Programs)
+  completedDate: "fldVQ58SdPHbyDleA",     // Datum afgerond (date)
+  status: "fldCuM6OvK3D9yNsB"             // Status (single select: Actief/Afgerond)
+}
+
+// Overtuigingen Gebruik table field IDs (tblsPtnIlTezVacxv)
+export const OVERTUIGING_USAGE_FIELDS = {
+  user: "fldaIsUSdHWmcVu8Q",              // Gebruikers (link to Users)
+  overtuiging: "fldr3astKAHFdvpB1",       // Overtuigingen (link to Overtuigingen)
+  program: "fldgVFIiB0nGZnvaT",           // Mentale Fitnessprogramma's (link to Programs)
+  level: "fldyjXp0xnjD5KdUX",             // Niveau (single select: Niveau 1/2/3)
+  date: "fldaDnnhvJ8H9gjB3"               // Datum (date)
 }
 
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs)
@@ -300,6 +345,30 @@ export const FIELD_NAMES = {
     user: "Gebruikers",
     personalGoal: "Persoonlijke doelen",
     date: "Datum"
+  },
+  overtuiging: {
+    name: "Name",
+    category: "Category",
+    order: "Order"
+  },
+  mindsetCategory: {
+    name: "Name",
+    overtuigingen: "Overtuigingen",
+    goals: "Doelstellingen"
+  },
+  persoonlijkeOvertuiging: {
+    name: "Name",
+    user: "Gebruikers",
+    program: "Mentale Fitnessprogramma's",
+    status: "Status",
+    completedDate: "Datum afgerond"
+  },
+  overtuigingUsage: {
+    user: "Gebruikers",
+    overtuiging: "Overtuigingen",
+    program: "Mentale Fitnessprogramma's",
+    level: "Niveau",
+    date: "Datum"
   }
 }
 
@@ -384,7 +453,8 @@ export function transformProgram(record) {
     methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length,
     milestonesAwarded,
     status: fields[PROGRAM_FIELDS.status] || null,  // Actief/Gepland/Afgewerkt
-    creationType: fields[PROGRAM_FIELDS.creationType] || "Manueel"  // Manueel/AI
+    creationType: fields[PROGRAM_FIELDS.creationType] || "Manueel",  // Manueel/AI
+    overtuigingen: fields[PROGRAM_FIELDS.overtuigingen] || []
   }
 }
 
@@ -467,7 +537,7 @@ export function transformMethodUsage(record) {
     userId: fields[METHOD_USAGE_FIELDS.user]?.[0],
     methodId: fields[METHOD_USAGE_FIELDS.method]?.[0],
     methodName: fields[METHOD_USAGE_FIELDS.methodName]?.[0],
-    programId: fields[METHOD_USAGE_FIELDS.program]?.[0],  // DEPRECATED - use programmaplanningId
+    programId: fields[METHOD_USAGE_FIELDS.program]?.[0],  // Used for unscheduled practice
     programmaplanningId: fields[METHOD_USAGE_FIELDS.programmaplanning]?.[0],
     usedAt: fields[METHOD_USAGE_FIELDS.usedAt],
     remark: fields[METHOD_USAGE_FIELDS.remark]
@@ -579,5 +649,63 @@ export function transformPersonalGoalUsage(record) {
     userId: fields[PERSONAL_GOAL_USAGE_FIELDS.user]?.[0],
     personalGoalId: fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal]?.[0],
     date: fields[PERSONAL_GOAL_USAGE_FIELDS.date]
+  }
+}
+
+/**
+ * Transform Airtable overtuiging record to clean Overtuiging object
+ */
+export function transformOvertuiging(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    name: fields[OVERTUIGING_FIELDS.name],
+    categoryIds: fields[OVERTUIGING_FIELDS.category] || [],
+    order: fields[OVERTUIGING_FIELDS.order] || 0
+  }
+}
+
+/**
+ * Transform Airtable mindset category record to clean MindsetCategory object
+ */
+export function transformMindsetCategory(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    name: fields[MINDSET_CATEGORY_FIELDS.name],
+    overtuigingIds: fields[MINDSET_CATEGORY_FIELDS.overtuigingen] || [],
+    goalIds: fields[MINDSET_CATEGORY_FIELDS.goals] || [],
+    order: fields[MINDSET_CATEGORY_FIELDS.order] || 0,
+    content: fields[MINDSET_CATEGORY_FIELDS.content]
+  }
+}
+
+/**
+ * Transform Airtable persoonlijke overtuiging record
+ */
+export function transformPersoonlijkeOvertuiging(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    name: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.name],
+    userId: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.user]?.[0],
+    programId: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.program]?.[0],
+    status: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.status] || "Actief",
+    completedDate: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.completedDate]
+  }
+}
+
+/**
+ * Transform Airtable overtuigingen gebruik record
+ */
+export function transformOvertuigingUsage(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    userId: fields[OVERTUIGING_USAGE_FIELDS.user]?.[0],
+    overtuigingId: fields[OVERTUIGING_USAGE_FIELDS.overtuiging]?.[0],
+    programId: fields[OVERTUIGING_USAGE_FIELDS.program]?.[0],
+    level: fields[OVERTUIGING_USAGE_FIELDS.level],
+    date: fields[OVERTUIGING_USAGE_FIELDS.date]
   }
 }

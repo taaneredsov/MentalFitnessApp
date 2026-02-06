@@ -18,6 +18,7 @@ export interface Program {
   completedMethods?: number  // Methods completed so far
   status?: AirtableProgramStatus | null  // Actief/Gepland/Afgewerkt (Airtable field)
   creationType?: ProgramCreationType  // Manueel/AI - how the program was created
+  overtuigingen?: string[]
 }
 
 export interface Programmaplanning {
@@ -38,6 +39,7 @@ export interface Programmaplanning {
 export interface ProgramDetail extends Program {
   goalDetails: Goal[]
   methodDetails: Method[]
+  overtuigingDetails: Overtuiging[]
   dayNames: string[]
   schedule: Programmaplanning[]
   totalSessions: number
@@ -97,7 +99,7 @@ export interface MethodUsage {
   userId?: string
   methodId?: string
   methodName?: string
-  programId?: string  // DEPRECATED - use programmaplanningId
+  programId?: string  // Used for unscheduled practice (no session context)
   programmaplanningId?: string
   usedAt?: string
   remark?: string
@@ -125,6 +127,50 @@ export interface UpdatePersonalGoalData {
   description?: string
   status?: "Actief" | "Gearchiveerd"
 }
+
+// Overtuigingen Types
+export interface Overtuiging {
+  id: string
+  name: string
+  categoryIds: string[]
+  order: number
+}
+
+export interface MindsetCategory {
+  id: string
+  name: string
+  overtuigingIds: string[]
+  goalIds: string[]
+  order: number
+  content?: string
+}
+
+export interface PersoonlijkeOvertuiging {
+  id: string
+  name: string
+  userId: string
+  programId?: string
+  status: "Actief" | "Afgerond"
+  completedDate?: string
+}
+
+export interface CreatePersoonlijkeOvertuigingData {
+  name: string
+  programId?: string
+}
+
+export interface UpdatePersoonlijkeOvertuigingData {
+  name?: string
+  status?: "Actief" | "Afgerond"
+}
+
+export interface OvertuigingProgress {
+  currentLevel: number
+  completedLevels: string[]
+}
+
+/** Map of overtuigingId -> progress */
+export type OvertuigingUsageMap = Record<string, OvertuigingProgress>
 
 // Programmaplanning Update Types
 export interface UpdateProgrammaplanningData {
@@ -179,6 +225,7 @@ export interface AIPreviewResponse {
   programSummary?: string
   availableMethods: Method[]
   selectedGoals: Goal[]
+  suggestedOvertuigingen?: Overtuiging[]
 }
 
 // AI Program Confirm (save to Airtable)
@@ -190,6 +237,7 @@ export interface AIConfirmRequest {
   daysOfWeek: string[]
   editedSchedule: AIScheduleDay[]
   programSummary?: string
+  overtuigingen?: string[]
 }
 
 /**
@@ -263,25 +311,6 @@ export function formatNextDay(nextDay: {
 export function parseWeeksFromDuration(duration: string): number {
   const match = duration.match(/(\d+)/)
   return match ? parseInt(match[1], 10) : 0
-}
-
-/**
- * Calculate activity-based progress percentage (DEPRECATED)
- * Progress = completed activities / total expected activities
- * Total expected = weeks × frequency (days per week)
- * @deprecated Use getSessionProgress() instead for accurate Programmaplanning-level tracking
- */
-export function getActivityProgress(program: Program): number {
-  const weeks = parseWeeksFromDuration(program.duration)
-  const frequency = program.frequency || 0
-  const totalExpected = weeks * frequency
-
-  if (totalExpected === 0) return 0
-
-  const completed = program.methodUsageCount || 0
-  const progress = Math.round((completed / totalExpected) * 100)
-
-  return Math.min(progress, 100) // Cap at 100%
 }
 
 /**

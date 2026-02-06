@@ -59,7 +59,7 @@ export function LoginPage() {
       if (result.needsPasswordSetup) {
         navigate("/set-password", {
           replace: true,
-          state: { userId: result.userId, email: result.email }
+          state: { email: result.email }
         })
         return
       }
@@ -92,7 +92,7 @@ export function LoginPage() {
       if (result.needsPasswordSetup) {
         navigate("/set-password", {
           replace: true,
-          state: { userId: result.userId, email: result.email }
+          state: { email: result.email }
         })
         return
       }
