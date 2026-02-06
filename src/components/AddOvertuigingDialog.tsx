@@ -124,12 +124,12 @@ export function AddOvertuigingDialog({
                       disabled={isPending}
                       className={`w-full flex items-center gap-3 p-3 rounded-xl text-left transition-colors ${
                         isSelected
-                          ? "bg-[#09637E]/15 border-2 border-[#09637E]"
+                          ? "bg-[#00978A]/15 border-2 border-[#00978A]"
                           : "bg-muted/50 border-2 border-transparent hover:bg-muted"
                       }`}
                     >
                       <div className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-                        isSelected ? "bg-[#09637E] text-white" : "bg-muted"
+                        isSelected ? "bg-[#00978A] text-white" : "bg-muted"
                       }`}>
                         {isSelected ? (
                           <Check className="h-4 w-4" />

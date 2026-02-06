@@ -23,8 +23,8 @@ function OvertuigingCard({ overtuiging, categoryName }: { overtuiging: Overtuigi
     <Card className="overflow-hidden">
       <div className="flex gap-3 p-3">
         {/* Icon */}
-        <div className="w-12 h-12 rounded-lg bg-[#09637E]/15 shrink-0 flex items-center justify-center">
-          <Lightbulb className="h-6 w-6 text-[#09637E]" />
+        <div className="w-12 h-12 rounded-lg bg-[#00978A]/15 shrink-0 flex items-center justify-center">
+          <Lightbulb className="h-6 w-6 text-[#00978A]" />
         </div>
 
         {/* Content */}

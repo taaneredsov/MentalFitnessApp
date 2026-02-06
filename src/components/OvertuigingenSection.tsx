@@ -114,7 +114,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <Lightbulb className="h-5 w-5 text-[#09637E]" />
+                <Lightbulb className="h-5 w-5 text-[#00978A]" />
                 <CardTitle className="text-lg">Overtuigingen</CardTitle>
               </div>
               {showManageLink && (
@@ -152,7 +152,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <Lightbulb className="h-5 w-5 text-[#09637E]" />
+            <Lightbulb className="h-5 w-5 text-[#00978A]" />
             <CardTitle className="text-lg">Overtuigingen</CardTitle>
           </div>
           {showManageLink && hasItems && (
@@ -184,8 +184,8 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                 >
                   <div className="flex items-center gap-4">
                     {/* Icon */}
-                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#09637E]/15 flex items-center justify-center">
-                      <Lightbulb className="h-6 w-6 text-[#09637E]" />
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
+                      <Lightbulb className="h-6 w-6 text-[#00978A]" />
                     </div>
 
                     {/* Name and level dots */}
@@ -197,16 +197,16 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                             key={level}
                             className={`w-3 h-3 rounded-full border-2 ${
                               i < completedLevels
-                                ? "bg-[#09637E] border-[#09637E]"
+                                ? "bg-[#00978A] border-[#00978A]"
                                 : i === completedLevels
-                                  ? "bg-transparent border-[#09637E]"
+                                  ? "bg-transparent border-[#00978A]"
                                   : "bg-transparent border-gray-300"
                             }`}
                             title={level}
                           />
                         ))}
                         {isFullyComplete && (
-                          <span className="text-xs text-[#07516A] font-medium ml-1">Voltooid</span>
+                          <span className="text-xs text-[#007D72] font-medium ml-1">Voltooid</span>
                         )}
                       </div>
                     </div>
@@ -223,7 +223,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                         <button
                           onClick={() => handleCompleteLevel(overtuiging.id)}
                           disabled={completeOvertuigingMutation.isPending}
-                          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-[#09637E] text-white shadow-sm hover:bg-[#07516A]"
+                          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-[#00978A] text-white shadow-sm hover:bg-[#007D72]"
                           aria-label="Niveau voltooien"
                         >
                           <Check className="h-5 w-5" />
@@ -242,8 +242,8 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                 className="w-full p-4 rounded-2xl transition-all duration-200 bg-muted/50"
               >
                 <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#09637E]/15 flex items-center justify-center">
-                    <Lightbulb className="h-6 w-6 text-[#09637E]" />
+                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
+                    <Lightbulb className="h-6 w-6 text-[#00978A]" />
                   </div>
 
                   <div className="flex-1 min-w-0">
@@ -261,7 +261,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                     <button
                       onClick={() => handleCompletePersoonlijke(item.id)}
                       disabled={updatePersoonlijkeMutation.isPending}
-                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-[#09637E] text-white shadow-sm hover:bg-[#07516A]"
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-[#00978A] text-white shadow-sm hover:bg-[#007D72]"
                       aria-label="Overtuiging afvinken"
                     >
                       <Check className="h-5 w-5" />
