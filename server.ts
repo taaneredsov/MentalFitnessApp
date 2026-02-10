@@ -191,8 +191,9 @@ async function setupRoutes() {
   app.get("/api/health", healthHandler)
 
   // Serve static files from Vite build
-  // When compiled to dist-server/, go up one level to reach the project root dist/
-  const distPath = path.join(__dirname, "..", "dist")
+  // In Docker: server.js is at /app/server.js, dist/ is at /app/dist/
+  // In dev: server runs from project root, dist/ is relative to cwd
+  const distPath = path.join(__dirname, "dist")
   app.use(express.static(distPath))
 
   // SPA fallback - serve index.html for all non-API routes
