@@ -1,5 +1,9 @@
 ## Workflow Orchestration
 
+### 0. Agents
+
+Always use subagents to work on features and requests of the user. Keep main context window lean.
+
 ### 1. Plan Mode Default
 - Enter plan mode for ANY non-trivial task (3+ steps or architectural decisions)
 - If something goes sideways, STOP and re-plan immediately - don't keep pushing
