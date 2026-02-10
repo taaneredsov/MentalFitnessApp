@@ -152,6 +152,8 @@ services:
     networks:
       - mfa_internal
       - traefik-public
+    healthcheck:
+      disable: true
     depends_on:
       - redis
       - postgres
