@@ -45,9 +45,16 @@ export default async function handler(req: Request, res: Response) {
   }
 
   if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
-    void handleGetPostgres(req, res)
-      .then(() => undefined)
-      .catch((error) => console.warn("[programs] shadow read failed:", error))
+    void (async () => {
+      try {
+        const auth = await requireAuth(req)
+        const programs = await listProgramsByUser(auth.userId)
+        await computeProgramProgress(programs)
+        console.log("[programs] shadow read OK: %d programs", programs.length)
+      } catch (error) {
+        console.warn("[programs] shadow read failed:", error instanceof Error ? error.message : error)
+      }
+    })()
   }
 
   return handleGetAirtable(req, res)
