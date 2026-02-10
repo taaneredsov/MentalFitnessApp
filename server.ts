@@ -1,5 +1,6 @@
 import express from "express"
 import path from "path"
+import { existsSync } from "fs"
 import cookieParser from "cookie-parser"
 import { fileURLToPath } from "url"
 
@@ -12,6 +13,17 @@ const __dirname = path.dirname(__filename)
 
 const app = express()
 const PORT = process.env.PORT || 3000
+
+function resolveDistPath() {
+  const candidates = [
+    path.join(__dirname, "dist"),
+    path.join(__dirname, "..", "dist"),
+    path.join(process.cwd(), "dist")
+  ]
+
+  const found = candidates.find((candidate) => existsSync(path.join(candidate, "index.html")))
+  return found || candidates[0]
+}
 
 // Middleware
 app.use(express.json())
@@ -193,7 +205,8 @@ async function setupRoutes() {
   // Serve static files from Vite build
   // In Docker: server.js is at /app/server.js, dist/ is at /app/dist/
   // In dev: server runs from project root, dist/ is relative to cwd
-  const distPath = path.join(__dirname, "dist")
+  const distPath = resolveDistPath()
+  console.log(`Serving static files from: ${distPath}`)
   app.use(express.static(distPath))
 
   // SPA fallback - serve index.html for all non-API routes

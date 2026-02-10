@@ -212,9 +212,9 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                     <Lightbulb className="h-6 w-6 text-[#00978A]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-base">{overtuiging.name}</p>
+                    <p className="font-semibold text-base break-words whitespace-normal">{overtuiging.name}</p>
                     <p className="text-xs text-muted-foreground mt-0.5">
-                      Print in met de balansmethode. Indien je inprint met de balansmethode, zet een vinkje.
+                      Programmeer de overtuiging met de balansmethode, en zet een vinkje wanneer afgerond.
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -248,7 +248,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                     <Lightbulb className="h-6 w-6 text-[#00978A]" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-base">{item.name}</p>
+                    <p className="font-semibold text-base break-words whitespace-normal">{item.name}</p>
                     <p className="text-sm text-muted-foreground mt-0.5">Persoonlijk</p>
                   </div>
                   <div className="flex items-center gap-2">
@@ -291,7 +291,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                         <Lightbulb className="h-6 w-6 text-[#00978A]" />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base">{overtuiging.name}</p>
+                        <p className="font-semibold text-base break-words whitespace-normal">{overtuiging.name}</p>
                         <span className="text-xs text-[#007D72] font-medium">Voltooid</span>
                       </div>
                       <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-[#00978A] text-white">

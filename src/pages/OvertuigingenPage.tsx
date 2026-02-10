@@ -1,22 +1,26 @@
 import { useState, useMemo } from "react"
-import { useOvertuigingen, useGoals, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging } from "@/hooks/queries"
+import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import type { Overtuiging, OvertuigingUsageMap } from "@/types/program"
+import type { OvertuigingUsageMap, MindsetCategory } from "@/types/program"
 import { Loader2, Search, X, Lightbulb, Check, Star, ChevronDown } from "lucide-react"
 
+const EXCLUDED_SYSTEM_CATEGORY_NAME = "mijn eigen overtuigingen"
+const PERSONAL_CATEGORY_ID = "__personal__"
+const PERSONAL_CATEGORY_NAME = "Eigen overtuigingen"
+
 function OvertuigingCard({
-  overtuiging,
+  title,
   categoryName,
   completed,
   onComplete,
   isPending,
   recentlyCompleted
 }: {
-  overtuiging: Overtuiging
+  title: string
   categoryName?: string
   completed: boolean
   onComplete: () => void
@@ -33,17 +37,17 @@ function OvertuigingCard({
 
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
-          <h3 className="font-medium text-sm line-clamp-1">{overtuiging.name}</h3>
+          <h3 className="font-medium text-sm break-words whitespace-normal">{title}</h3>
           {categoryName && (
-            <p className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+            <p className="text-xs text-muted-foreground mt-0.5 break-words whitespace-normal">
               {categoryName}
             </p>
           )}
           {completed ? (
             <span className="text-xs text-[#007D72] font-medium mt-0.5">Voltooid</span>
           ) : (
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Print in met de balansmethode. Indien je inprint met de balansmethode, zet een vinkje.
+            <p className="text-xs text-muted-foreground mt-0.5 break-words whitespace-normal">
+              Programmeer de overtuiging met de balansmethode, en zet een vinkje wanneer afgerond.
             </p>
           )}
         </div>
@@ -76,7 +80,7 @@ function OvertuigingCard({
 
 export function OvertuigingenPage() {
   const [searchQuery, setSearchQuery] = useState("")
-  const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
+  const [selectedCategoryId, setSelectedCategoryId] = useState<string | null>(null)
   const [showCompleted, setShowCompleted] = useState(false)
   const [recentlyCompletedId, setRecentlyCompletedId] = useState<string | null>(null)
 
@@ -84,14 +88,19 @@ export function OvertuigingenPage() {
   const today = useMemo(() => getTodayDate(), [])
 
   const { data: overtuigingen = [], isLoading: overtuigingenLoading, error: overtuigingenError } = useOvertuigingen()
-  const { data: goals = [], isLoading: goalsLoading } = useGoals()
   const { data: categories = [], isLoading: categoriesLoading } = useMindsetCategories()
   const { data: usageMap = {} as OvertuigingUsageMap } = useAllOvertuigingUsage()
+  const { data: persoonlijkeOvertuigingen = [], isLoading: persoonlijkeLoading, error: persoonlijkeError } = usePersoonlijkeOvertuigingen()
 
   const completeOvertuigingMutation = useCompleteOvertuiging()
+  const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()
 
-  const isLoading = overtuigingenLoading || goalsLoading || categoriesLoading
-  const error = overtuigingenError ? "Kon overtuigingen niet laden" : null
+  const isLoading = overtuigingenLoading || categoriesLoading || persoonlijkeLoading
+  const error = overtuigingenError
+    ? "Kon overtuigingen niet laden"
+    : persoonlijkeError
+      ? "Kon eigen overtuigingen niet laden"
+      : null
 
   const isCompleted = (overtuigingId: string): boolean => {
     return usageMap[overtuigingId]?.completed === true
@@ -101,7 +110,7 @@ export function OvertuigingenPage() {
     if (!user?.id || !accessToken) return
     if (isCompleted(overtuigingId)) return
 
-    setRecentlyCompletedId(overtuigingId)
+    setRecentlyCompletedId(`system:${overtuigingId}`)
     setTimeout(() => setRecentlyCompletedId(null), 2000)
 
     completeOvertuigingMutation.mutate({
@@ -118,72 +127,135 @@ export function OvertuigingenPage() {
     })
   }
 
-  // Build category name lookup
+  const handleCompletePersoonlijke = (id: string) => {
+    if (!accessToken) return
+
+    setRecentlyCompletedId(`personal:${id}`)
+    setTimeout(() => setRecentlyCompletedId(null), 2000)
+
+    updatePersoonlijkeMutation.mutate({
+      id,
+      data: { status: "Afgerond" },
+      accessToken
+    }, {
+      onError: () => {
+        setRecentlyCompletedId(null)
+      }
+    })
+  }
+
+  const excludedCategoryIds = useMemo(() => {
+    return new Set(
+      categories
+        .filter(cat => cat.name.toLowerCase().trim() === EXCLUDED_SYSTEM_CATEGORY_NAME)
+        .map(cat => cat.id)
+    )
+  }, [categories])
+
+  const visibleSystemOvertuigingen = useMemo(() => {
+    if (excludedCategoryIds.size === 0) return overtuigingen
+    return overtuigingen.filter(o => !o.categoryIds.some(cid => excludedCategoryIds.has(cid)))
+  }, [overtuigingen, excludedCategoryIds])
+
+  // Build category name lookup for visible system overtuigingen
   const categoryNameMap = useMemo(() => {
+    const categoryById = new Map(categories.map(cat => [cat.id, cat.name]))
     const map = new Map<string, string>()
-    categories.forEach(cat => {
-      cat.overtuigingIds.forEach(oId => {
-        map.set(oId, cat.name)
-      })
+    visibleSystemOvertuigingen.forEach(o => {
+      const categoryId = o.categoryIds.find(cid => !excludedCategoryIds.has(cid))
+      if (!categoryId) return
+      const categoryName = categoryById.get(categoryId)
+      if (categoryName) map.set(o.id, categoryName)
     })
     return map
-  }, [categories])
+  }, [categories, excludedCategoryIds, visibleSystemOvertuigingen])
 
-  // Build overtuigingId -> goalIds mapping via categories
-  const overtuigingGoalMap = useMemo(() => {
-    const map = new Map<string, Set<string>>()
-    categories.forEach(cat => {
-      cat.overtuigingIds.forEach(oId => {
-        if (!map.has(oId)) map.set(oId, new Set())
-        cat.goalIds.forEach(gId => map.get(oId)!.add(gId))
+  // Categories available for filter chips (plus personal category)
+  const availableCategories = useMemo(() => {
+    const usedSystemCategoryIds = new Set<string>()
+    visibleSystemOvertuigingen.forEach(o => {
+      o.categoryIds.forEach(cid => {
+        if (!excludedCategoryIds.has(cid)) {
+          usedSystemCategoryIds.add(cid)
+        }
       })
     })
-    return map
-  }, [categories])
 
-  // Goals available for filter chips (those linked to at least one category)
-  const availableGoals = useMemo(() => {
-    const linkedGoalIds = new Set<string>()
-    categories.forEach(cat => {
-      cat.goalIds.forEach(gId => linkedGoalIds.add(gId))
-    })
-    return goals.filter(g => linkedGoalIds.has(g.id))
-  }, [goals, categories])
+    const systemCategories = categories
+      .filter(cat => !excludedCategoryIds.has(cat.id) && usedSystemCategoryIds.has(cat.id))
+      .sort((a: MindsetCategory, b: MindsetCategory) => a.name.localeCompare(b.name))
 
-  // Filter + search
-  const filteredOvertuigingen = useMemo(() => {
-    let result = [...overtuigingen].sort((a, b) => a.order - b.order)
+    if (persoonlijkeOvertuigingen.length > 0) {
+      return [...systemCategories, {
+        id: PERSONAL_CATEGORY_ID,
+        name: PERSONAL_CATEGORY_NAME,
+        overtuigingIds: [],
+        goalIds: [],
+        order: Number.MAX_SAFE_INTEGER
+      }]
+    }
 
-    // Goal filter
-    if (selectedGoalId) {
-      result = result.filter(o => {
-        const goalIds = overtuigingGoalMap.get(o.id)
-        return goalIds?.has(selectedGoalId)
-      })
+    return systemCategories
+  }, [categories, excludedCategoryIds, visibleSystemOvertuigingen, persoonlijkeOvertuigingen.length])
+
+  const normalizedQuery = searchQuery.toLowerCase().trim()
+
+  // Filter + search (system overtuigingen)
+  const filteredSystemOvertuigingen = useMemo(() => {
+    let result = [...visibleSystemOvertuigingen].sort((a, b) => a.order - b.order)
+
+    // If personal chip selected, hide system overtuigingen
+    if (selectedCategoryId === PERSONAL_CATEGORY_ID) {
+      return []
+    }
+
+    // Category filter
+    if (selectedCategoryId) {
+      result = result.filter(o => o.categoryIds.some(cid => cid === selectedCategoryId))
     }
 
     // Text search
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim()
+    if (normalizedQuery) {
       result = result.filter(o => {
-        if (o.name.toLowerCase().includes(query)) return true
+        if (o.name.toLowerCase().includes(normalizedQuery)) return true
         const catName = categoryNameMap.get(o.id)
-        if (catName?.toLowerCase().includes(query)) return true
+        if (catName?.toLowerCase().includes(normalizedQuery)) return true
         return false
       })
     }
 
     return result
-  }, [overtuigingen, selectedGoalId, searchQuery, overtuigingGoalMap, categoryNameMap])
+  }, [visibleSystemOvertuigingen, selectedCategoryId, normalizedQuery, categoryNameMap])
 
-  // Split into active and completed
+  // Filter + search (personal overtuigingen)
+  const filteredPersoonlijkeOvertuigingen = useMemo(() => {
+    let result = [...persoonlijkeOvertuigingen].sort((a, b) => a.name.localeCompare(b.name))
+
+    // Personal overtuigingen are shown on "Alle" and dedicated personal chip
+    if (selectedCategoryId && selectedCategoryId !== PERSONAL_CATEGORY_ID) {
+      return []
+    }
+
+    if (normalizedQuery) {
+      result = result.filter(o =>
+        o.name.toLowerCase().includes(normalizedQuery) ||
+        PERSONAL_CATEGORY_NAME.toLowerCase().includes(normalizedQuery)
+      )
+    }
+
+    return result
+  }, [persoonlijkeOvertuigingen, selectedCategoryId, normalizedQuery])
+
+  // Split system overtuigingen into active and completed
   const activeOvertuigingen = useMemo(() => {
-    return filteredOvertuigingen.filter(o => !isCompleted(o.id))
-  }, [filteredOvertuigingen, usageMap])
+    return filteredSystemOvertuigingen.filter(o => !isCompleted(o.id))
+  }, [filteredSystemOvertuigingen, usageMap])
 
   const completedOvertuigingen = useMemo(() => {
-    return filteredOvertuigingen.filter(o => isCompleted(o.id))
-  }, [filteredOvertuigingen, usageMap])
+    return filteredSystemOvertuigingen.filter(o => isCompleted(o.id))
+  }, [filteredSystemOvertuigingen, usageMap])
+
+  const totalFilteredCount = filteredSystemOvertuigingen.length + filteredPersoonlijkeOvertuigingen.length
 
   if (isLoading) {
     return (
@@ -226,61 +298,74 @@ export function OvertuigingenPage() {
         )}
       </div>
 
-      {/* Goal Filter Chips */}
-      {availableGoals.length > 0 && (
+      {/* Category Filter Chips */}
+      {availableCategories.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 scrollbar-hide">
           <button
-            onClick={() => setSelectedGoalId(null)}
+            onClick={() => setSelectedCategoryId(null)}
             className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              !selectedGoalId
+              !selectedCategoryId
                 ? "bg-primary text-primary-foreground"
                 : "bg-muted text-muted-foreground hover:bg-muted/80"
             }`}
           >
             Alle
           </button>
-          {availableGoals.map(goal => (
+          {availableCategories.map(category => (
             <button
-              key={goal.id}
-              onClick={() => setSelectedGoalId(
-                selectedGoalId === goal.id ? null : goal.id
+              key={category.id}
+              onClick={() => setSelectedCategoryId(
+                selectedCategoryId === category.id ? null : category.id
               )}
               className={`shrink-0 px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
-                selectedGoalId === goal.id
+                selectedCategoryId === category.id
                   ? "bg-primary text-primary-foreground"
                   : "bg-muted text-muted-foreground hover:bg-muted/80"
               }`}
             >
-              {goal.name}
+              {category.name}
             </button>
           ))}
         </div>
       )}
 
-      {filteredOvertuigingen.length === 0 ? (
+      {totalFilteredCount === 0 ? (
         <div className="text-center py-12">
           <p className="text-muted-foreground">
-            {searchQuery.trim() && selectedGoalId
+            {searchQuery.trim() && selectedCategoryId
               ? "Geen overtuigingen gevonden voor deze combinatie."
               : searchQuery.trim()
                 ? "Geen overtuigingen gevonden voor deze zoekopdracht."
-                : selectedGoalId
-                  ? "Geen overtuigingen gevonden voor deze doelstelling."
+                : selectedCategoryId
+                  ? "Geen overtuigingen gevonden voor deze categorie."
                   : "Geen overtuigingen beschikbaar."}
           </p>
         </div>
       ) : (
         <div className="space-y-3">
-          {/* Active beliefs */}
+          {/* Active system beliefs */}
           {activeOvertuigingen.map(overtuiging => (
             <OvertuigingCard
               key={overtuiging.id}
-              overtuiging={overtuiging}
+              title={overtuiging.name}
               categoryName={categoryNameMap.get(overtuiging.id)}
               completed={false}
               onComplete={() => handleComplete(overtuiging.id)}
               isPending={completeOvertuigingMutation.isPending}
-              recentlyCompleted={recentlyCompletedId === overtuiging.id}
+              recentlyCompleted={recentlyCompletedId === `system:${overtuiging.id}`}
+            />
+          ))}
+
+          {/* Active personal beliefs */}
+          {filteredPersoonlijkeOvertuigingen.map(item => (
+            <OvertuigingCard
+              key={item.id}
+              title={item.name}
+              categoryName={PERSONAL_CATEGORY_NAME}
+              completed={false}
+              onComplete={() => handleCompletePersoonlijke(item.id)}
+              isPending={updatePersoonlijkeMutation.isPending}
+              recentlyCompleted={recentlyCompletedId === `personal:${item.id}`}
             />
           ))}
 
@@ -297,7 +382,7 @@ export function OvertuigingenPage() {
               {showCompleted && completedOvertuigingen.map(overtuiging => (
                 <div key={overtuiging.id} className="opacity-60">
                   <OvertuigingCard
-                    overtuiging={overtuiging}
+                    title={overtuiging.name}
                     categoryName={categoryNameMap.get(overtuiging.id)}
                     completed={true}
                     onComplete={() => {}}

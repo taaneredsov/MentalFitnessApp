@@ -4,11 +4,35 @@ import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import { PERSOONLIJKE_OVERTUIGING_FIELDS, FIELD_NAMES, transformPersoonlijkeOvertuiging, isValidRecordId } from "../_lib/field-mappings.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import { isEntityId } from "../_lib/db/id-utils.js"
+import { getProgramByAnyId } from "../_lib/repos/program-repo.js"
 
 const createSchema = z.object({
   name: z.string().min(1, "Name is required").max(200, "Name too long"),
   programId: z.string().optional()
 })
+
+async function resolveProgramAirtableId(programId: string, tokenUserId: string): Promise<string | null> {
+  if (isValidRecordId(programId)) {
+    return programId
+  }
+
+  if (!isPostgresConfigured() || !isEntityId(programId)) {
+    return null
+  }
+
+  try {
+    const program = await getProgramByAnyId(programId, tokenUserId)
+    if (program?.airtableRecordId && isValidRecordId(program.airtableRecordId)) {
+      return program.airtableRecordId
+    }
+  } catch (error) {
+    console.warn("[persoonlijke-overtuigingen] Failed to resolve program Airtable ID:", error)
+  }
+
+  return null
+}
 
 /**
  * GET /api/persoonlijke-overtuigingen
@@ -51,8 +75,12 @@ async function handlePost(req: Request, res: Response, tokenUserId: string) {
     return sendError(res, "Invalid user ID format", 400)
   }
 
-  if (body.programId && !isValidRecordId(body.programId)) {
-    return sendError(res, "Invalid program ID format", 400)
+  const resolvedProgramId = body.programId
+    ? await resolveProgramAirtableId(body.programId, tokenUserId)
+    : null
+
+  if (body.programId && !resolvedProgramId) {
+    console.warn("[persoonlijke-overtuigingen] Program ID could not be resolved, creating without program link:", body.programId)
   }
 
   const createFields: Record<string, unknown> = {
@@ -61,8 +89,8 @@ async function handlePost(req: Request, res: Response, tokenUserId: string) {
     [PERSOONLIJKE_OVERTUIGING_FIELDS.status]: "Actief"
   }
 
-  if (body.programId) {
-    createFields[PERSOONLIJKE_OVERTUIGING_FIELDS.program] = [body.programId]
+  if (resolvedProgramId) {
+    createFields[PERSOONLIJKE_OVERTUIGING_FIELDS.program] = [resolvedProgramId]
   }
 
   const record = await base(tables.persoonlijkeOvertuigingen).create(createFields, {
