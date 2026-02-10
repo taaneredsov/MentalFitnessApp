@@ -2,12 +2,11 @@
 
 ## Project-Specific Gotchas
 
-### Vercel Dev vs Docker/Hetzner
-- `api/_lib/airtable.js` uses dotenv to explicitly load `.env.local` because Vercel dev doesn't inject env vars at module load time
-- **Routes must be registered in BOTH places**:
-  - `api/` folder (for Vercel)
-  - `server.ts` (for Docker/Hetzner Express server)
+### Local Dev vs Production
+- `api/_lib/airtable.js` uses dotenv to explicitly load `.env.local` for local development
+- **Routes must be registered in server.ts** for production Express server
 - Missing routes in server.ts returns `{ error: "Not found" }` on production
+- Local dev uses `npm run dev` (Vite + Express), production uses Docker Swarm
 
 ### SPA Rewrites
 - Don't add SPA rewrites to `vercel.json` for dev - causes Vite to parse HTML as JavaScript
@@ -47,7 +46,7 @@
 
 ### 2024-02-03: Missing Server Routes
 **Mistake**: Added API endpoints in `api/` folder but forgot to register them in `server.ts`
-**Symptom**: "Not found" error on production (Hetzner) but works on Vercel
+**Symptom**: "Not found" error on production (Hetzner)
 **Fix**: Always update `server.ts` when adding new API endpoints
 **Prevention**: After adding any `api/*.ts` file, immediately add route to `server.ts`
 
@@ -86,16 +85,59 @@
 **Implementation**: Use `useEffect` watching `showFeedback` state, with `usageRegisteredRef` to prevent duplicates
 **Benefit**: Usage is always tracked, feedback/remarks are optional
 
+### 2026-02-10: Docker Swarm Service Hostnames
+**CRITICAL**: Service hostnames in Docker Swarm are prefixed with the stack name.
+- **Wrong**: `redis://redis:6379` or `postgresql://postgres@postgres:5432/db`
+- **Correct**: `redis://mfa_redis:6379` and `postgresql://postgres@mfa_postgres:5432/mfa`
+- **Why**: Multiple stacks share the same Swarm network namespace
+- **Impact**: Services won't resolve hostnames and connection will fail
+- **Prevention**: Always use stack-prefixed hostnames in connection strings
+
+### 2026-02-10: Adding Docker Secrets Requires Stack Removal
+**CRITICAL**: Simply running `docker stack deploy` does NOT add new secrets to running services.
+- **Wrong**: Create secret → `docker stack deploy` → expect service to get new secret
+- **Correct**: Create secret → `docker stack rm mfa` → wait for shutdown → `docker stack deploy`
+- **Why**: Swarm doesn't modify running containers when secrets change
+- **Impact**: Services won't have access to new secrets, causing auth failures
+- **Prevention**: Always do full stack removal when adding new secrets
+
+### 2026-02-10: Worker Needs External Network for API Access
+**Pattern**: Worker service needs BOTH `mfa_internal` AND `traefik-public` networks
+- **mfa_internal**: For postgres/redis communication
+- **traefik-public**: For external API calls (Airtable)
+- **Why**: Internal-only networks block all external traffic
+- **Impact**: Without traefik-public, worker cannot sync with Airtable
+- **Prevention**: Services that call external APIs need a public network attachment
+
+### 2026-02-10: ESM Main Guard in Docker
+**Pattern**: Node.js ESM files with `if (import.meta.url === \`file://\${process.argv[1]}\`) {}` fail in Docker
+- **Wrong**: `if (import.meta.url.endsWith(process.argv[1]))`
+- **Correct**: Use absolute path comparison or separate entry point file
+- **Why**: Docker paths may differ from local paths
+- **Impact**: Main guard never evaluates true, script doesn't run
+- **Prevention**: Keep worker entry points simple, no conditional execution
+
+### 2026-02-10: Migration Step Must Be Manual
+**Pattern**: Database migrations are NOT run automatically during deploy
+- **Why**: Migrations might fail or require rollback, should be explicit
+- **When**: After successful docker stack deploy
+- **How**: `docker exec $(docker ps -q -f name=mfa_app) node tasks/db-migrate.mjs`
+- **Prevention**: Add to deployment checklist, never assume migrations auto-run
+
 ---
 
 ## Deployment Checklist
 
-Before deploying to Hetzner:
+Before deploying to production:
 1. [ ] All new API endpoints added to `server.ts`
-2. [ ] TypeScript compiles without errors
-3. [ ] Test locally with `vercel dev`
-4. [ ] Commit and push to GitHub
-5. [ ] Deploy: `ssh hetzner-code` → git pull → docker build → docker push → service update
+2. [ ] TypeScript compiles without errors: `npm run build`
+3. [ ] Test locally with `npm run dev`
+4. [ ] Commit and push to GitHub: `git push origin main`
+5. [ ] Deploy to Hetzner: `git push dev main`
+6. [ ] Run migrations: `ssh -p 666 renaat@37.27.180.117 "docker exec \$(docker ps -q -f name=mfa_app) node tasks/db-migrate.mjs"`
+7. [ ] Verify deployment: `curl https://mfa.drvn.be/api/health`
+8. [ ] Check all services: `ssh -p 666 renaat@37.27.180.117 "docker service ls | grep mfa"`
+9. [ ] Monitor worker logs: `ssh -p 666 renaat@37.27.180.117 "docker service logs mfa_worker --tail 50"`
 
 ### 2026-02-03: ARM vs x64 Architecture
 **CRITICAL**: Always build Docker images ON the Hetzner server, not locally.
@@ -103,17 +145,26 @@ Before deploying to Hetzner:
 - Hetzner server: x64 (Linux)
 - Building locally produces ARM images that won't run on x64
 
-**Deployment steps**:
+**Current Deployment Method (Recommended)**:
+Use git push to trigger automatic build and deploy via post-receive hook:
 ```bash
-git push origin main
-ssh -p 666 renaat@37.27.180.117 "cd /mnt/build/mfa && git pull origin main"
-ssh -p 666 renaat@37.27.180.117 "cd /mnt/build/mfa && docker build -t registry.shop.drvn.be/mfa:latest . && docker push registry.shop.drvn.be/mfa:latest"
-ssh -p 666 renaat@37.27.180.117 "docker service update --force mfa_app"
+git push dev main
 ```
 
-**Private Registry**: `registry.shop.drvn.be`
-**Build Path**: `/mnt/build/mfa`
-**Compose Path**: `/mnt/compose/mfa.yml`
+**Manual Deployment** (if hook fails):
+```bash
+ssh -p 666 renaat@37.27.180.117 "cd /mnt/repo/mfa.git && git fetch origin main"
+ssh -p 666 renaat@37.27.180.117 "cd /mnt/repo/mfa.git && GIT_WORK_TREE=/mnt/data/mfa git checkout -f origin/main"
+ssh -p 666 renaat@37.27.180.117 "cd /mnt/data/mfa && docker build -t registry.shop.drvn.be/mfa:latest . && docker push registry.shop.drvn.be/mfa:latest"
+ssh -p 666 renaat@37.27.180.117 "docker stack deploy -c /mnt/compose/mfa.yml mfa"
+ssh -p 666 renaat@37.27.180.117 "docker exec \$(docker ps -q -f name=mfa_app) node tasks/db-migrate.mjs"
+```
+
+**Infrastructure**:
+- **Private Registry**: `registry.shop.drvn.be` (credentials at `/mnt/auth`)
+- **Bare Repo**: `/mnt/repo/mfa.git` (with post-receive hook)
+- **Working Directory**: `/mnt/data/mfa`
+- **Compose Path**: `/mnt/compose/mfa.yml`
 
 ---
 
