@@ -129,7 +129,7 @@ services:
 
   worker:
     image: registry.shop.drvn.be/mfa:latest
-    command: ["node", "api/workers/sync-worker.js"]
+    command: ["node", "/app/api/workers/sync-worker.js"]
     environment:
       - NODE_ENV=production
       - AIRTABLE_ACCESS_TOKEN_FILE=/run/secrets/airtable_access_token
