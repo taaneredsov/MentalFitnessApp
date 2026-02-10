@@ -7,7 +7,8 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install all dependencies (including dev for building)
-RUN npm ci
+# --force: skip platform-specific optional dep errors (lockfile from macOS, building on Linux)
+RUN npm ci --force
 
 # Copy source files
 COPY . .
@@ -34,7 +35,7 @@ RUN addgroup -g 1001 -S nodejs && \
 COPY package*.json ./
 
 # Install only production dependencies
-RUN npm ci --only=production && npm cache clean --force
+RUN npm ci --omit=dev --force && npm cache clean --force
 
 # Copy built frontend from builder
 COPY --from=builder /app/dist ./dist
