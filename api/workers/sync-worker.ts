@@ -222,16 +222,14 @@ async function loop(): Promise<void> {
   })
 
   let shuttingDown = false
-  const shutdown = async (signal: string) => {
+  const shutdown = (signal: string) => {
     if (shuttingDown) return
     shuttingDown = true
-    console.log(`[sync-worker] received ${signal}, shutting down`)
-    await closeDbPool()
-    process.exit(0)
+    console.log(`[sync-worker] received ${signal}, shutting down gracefully`)
   }
 
-  process.on("SIGINT", () => void shutdown("SIGINT"))
-  process.on("SIGTERM", () => void shutdown("SIGTERM"))
+  process.on("SIGINT", () => shutdown("SIGINT"))
+  process.on("SIGTERM", () => shutdown("SIGTERM"))
 
   while (!shuttingDown) {
     try {
@@ -248,6 +246,9 @@ async function loop(): Promise<void> {
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
     }
   }
+
+  console.log("[sync-worker] loop exited, closing connections")
+  await closeDbPool()
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
