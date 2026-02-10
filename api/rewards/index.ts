@@ -42,6 +42,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
     const rewards = transformUserRewards(records[0] as { id: string; fields: Record<string, unknown> })
 
+    // If last activity was more than 1 day ago, streak is broken — show 0
+    if (rewards.lastActiveDate && rewards.currentStreak > 0) {
+      const today = new Date()
+      today.setHours(0, 0, 0, 0)
+      const lastActive = new Date(rewards.lastActiveDate)
+      lastActive.setHours(0, 0, 0, 0)
+      const diffDays = Math.floor((today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
+      if (diffDays > 1) {
+        rewards.currentStreak = 0
+      }
+    }
+
     return sendSuccess(res, rewards)
   } catch (error) {
     return handleApiError(res, error)
