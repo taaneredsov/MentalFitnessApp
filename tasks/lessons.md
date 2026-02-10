@@ -117,6 +117,19 @@
 - **Impact**: Main guard never evaluates true, script doesn't run
 - **Prevention**: Keep worker entry points simple, no conditional execution
 
+### 2026-02-10: Worker Healthcheck Must Be Disabled
+**CRITICAL**: The worker service uses the same Docker image as the app, which includes a HEALTHCHECK that pings `localhost:3000/api/health`.
+- **Problem**: Worker doesn't serve HTTP, so health checks always fail
+- **Impact**: After 3 failed checks (~90s), Docker Swarm kills the worker with SIGTERM, causing a restart loop
+- **Fix**: Add `healthcheck: disable: true` in docker-compose.yml for the worker service
+- **Prevention**: When using the same image for a worker, always override/disable the healthcheck
+
+### 2026-02-10: Graceful Shutdown Must Not Close Pool While In-Flight
+**Pattern**: SIGTERM handler should NOT immediately call `closeDbPool()` while async operations are in-flight.
+- **Problem**: Closing pool while queries are running causes "Cannot use a pool after calling end on the pool" errors
+- **Fix**: Set a `shuttingDown` flag, let the loop exit naturally, THEN close connections
+- **Prevention**: Shutdown handlers should only set flags, not destroy resources still in use
+
 ### 2026-02-10: Migration Step Must Be Manual
 **Pattern**: Database migrations are NOT run automatically during deploy
 - **Why**: Migrations might fail or require rollback, should be explicit
