@@ -1,11 +1,25 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
-import { PERSONAL_GOAL_USAGE_FIELDS, PERSONAL_GOAL_FIELDS, USER_FIELDS, transformUserRewards, isValidRecordId } from "../_lib/field-mappings.js"
+import { PERSONAL_GOAL_USAGE_FIELDS, USER_FIELDS, transformUserRewards, isValidRecordId } from "../_lib/field-mappings.js"
+import { getDataBackendMode } from "../_lib/data-backend.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import {
+  countGoalUsageForUserGoalDate,
+  createPersonalGoalUsage,
+  listPersonalGoalCountsByUserDate,
+  personalGoalBelongsToUser,
+  upsertPersonalGoal
+} from "../_lib/repos/personal-goal-usage-repo.js"
+import { calculateNextStreak } from "../_lib/repos/streak-utils.js"
+import { getUserByIdWithReadThrough } from "../_lib/sync/user-readthrough.js"
+import { updateUserStreakFields } from "../_lib/repos/user-repo.js"
+import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 
-// Point values for personal goals
+const PERSONAL_GOAL_BACKEND_ENV = "DATA_BACKEND_PERSONAL_GOAL_USAGE"
+
 const POINTS = {
   personalGoal: 10
 } as const
@@ -16,22 +30,122 @@ const createUsageSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 })
 
-interface GoalCounts {
-  today: number
-  total: number
+async function ensurePersonalGoalForUser(personalGoalId: string, userId: string): Promise<boolean> {
+  if (await personalGoalBelongsToUser(personalGoalId, userId)) {
+    return true
+  }
+
+  try {
+    const goalRecord = await base(tables.personalGoals).find(personalGoalId)
+    const goalFields = goalRecord.fields as Record<string, unknown>
+    const goalUserIds = goalFields["Gebruikers"] as string[] | undefined
+    if (!goalUserIds?.includes(userId)) {
+      return false
+    }
+
+    await upsertPersonalGoal({
+      id: goalRecord.id,
+      userId,
+      name: String(goalFields["Naam"] || "Persoonlijk doel"),
+      description: goalFields["Beschrijving"] ? String(goalFields["Beschrijving"]) : null,
+      active: String(goalFields["Status"] || "Actief") !== "Gearchiveerd"
+    })
+
+    return true
+  } catch {
+    return false
+  }
 }
 
-/**
- * GET /api/personal-goal-usage?userId=xxx&date=YYYY-MM-DD
- * Returns completion counts per goal: { [goalId]: { today: number, total: number } }
- */
-async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
+async function handleGetPostgres(req: Request, res: Response, tokenUserId: string) {
   const { userId, date } = req.query
-
-  // Default to authenticated user if no userId provided
   const targetUserId = (typeof userId === "string" && userId) ? userId : tokenUserId
 
-  // Users can only view their own usage
+  if (targetUserId !== tokenUserId) {
+    return sendError(res, "Cannot view another user's personal goal usage", 403)
+  }
+  if (!date || typeof date !== "string") {
+    return sendError(res, "date is required", 400)
+  }
+
+  const counts = await listPersonalGoalCountsByUserDate(targetUserId, date)
+  return sendSuccess(res, counts)
+}
+
+async function handlePostPostgres(req: Request, res: Response, tokenUserId: string) {
+  const body = createUsageSchema.parse(parseBody(req))
+
+  if (body.userId !== tokenUserId) {
+    return sendError(res, "Cannot create personal goal usage for another user", 403)
+  }
+
+  const goalAllowed = await ensurePersonalGoalForUser(body.personalGoalId, tokenUserId)
+  if (!goalAllowed) {
+    return sendError(res, "Cannot complete another user's personal goal", 403)
+  }
+
+  const usage = await createPersonalGoalUsage({
+    userId: body.userId,
+    personalGoalId: body.personalGoalId,
+    date: body.date
+  })
+
+  await enqueueSyncEvent({
+    eventType: "upsert",
+    entityType: "personal_goal_usage",
+    entityId: usage.id,
+    payload: {
+      userId: body.userId,
+      personalGoalId: body.personalGoalId,
+      date: body.date
+    },
+    priority: 40
+  })
+
+  const counts = await countGoalUsageForUserGoalDate(body.userId, body.personalGoalId, body.date)
+
+  const user = await getUserByIdWithReadThrough(body.userId)
+  if (user) {
+    const next = calculateNextStreak({
+      lastActiveDate: user.lastActiveDate,
+      currentStreak: user.currentStreak,
+      longestStreak: user.longestStreak,
+      today: body.date
+    })
+
+    await updateUserStreakFields({
+      userId: body.userId,
+      currentStreak: next.currentStreak,
+      longestStreak: next.longestStreak,
+      lastActiveDate: body.date
+    })
+
+    await enqueueSyncEvent({
+      eventType: "upsert",
+      entityType: "user",
+      entityId: body.userId,
+      payload: {
+        userId: body.userId,
+        currentStreak: next.currentStreak,
+        longestStreak: next.longestStreak,
+        lastActiveDate: body.date
+      },
+      priority: 10
+    })
+  }
+
+  return sendSuccess(res, {
+    id: usage.id,
+    pointsAwarded: POINTS.personalGoal,
+    todayCount: counts.todayCount,
+    totalCount: counts.totalCount
+  }, 201)
+}
+
+async function handleGetAirtable(req: Request, res: Response, tokenUserId: string) {
+  const { userId, date } = req.query
+  const targetUserId = (typeof userId === "string" && userId) ? userId : tokenUserId
+
   if (targetUserId !== tokenUserId) {
     return sendError(res, "Cannot view another user's personal goal usage", 403)
   }
@@ -40,108 +154,63 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     return sendError(res, "date is required", 400)
   }
 
-  // Validate userId format
   if (!isValidRecordId(targetUserId)) {
     return sendError(res, "Invalid user ID format", 400)
   }
 
-  // Fetch ALL usage records for this user (to get total counts)
   const allRecords = await base(tables.personalGoalUsage)
     .select({
       returnFieldsByFieldId: true
     })
     .all()
 
-  // Filter by user and count per goal
-  const counts: Record<string, GoalCounts> = {}
-
+  const counts: Record<string, { today: number; total: number }> = {}
   allRecords.forEach(r => {
     const fields = r.fields as Record<string, unknown>
     const userField = fields[PERSONAL_GOAL_USAGE_FIELDS.user] as string[] | undefined
-
     if (!userField?.includes(targetUserId)) return
 
     const goalField = fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal] as string[] | undefined
     const recordDate = fields[PERSONAL_GOAL_USAGE_FIELDS.date] as string | undefined
     const goalId = goalField?.[0]
-
     if (!goalId) return
-
-    if (!counts[goalId]) {
-      counts[goalId] = { today: 0, total: 0 }
-    }
-
+    if (!counts[goalId]) counts[goalId] = { today: 0, total: 0 }
     counts[goalId].total += 1
-
-    // Check if this record is from today
-    if (recordDate === date) {
-      counts[goalId].today += 1
-    }
+    if (recordDate === date) counts[goalId].today += 1
   })
-
-  console.log("[personal-goal-usage] GET for date:", date, "user:", targetUserId, "goals with counts:", Object.keys(counts).length)
 
   return sendSuccess(res, counts)
 }
 
-/**
- * POST /api/personal-goal-usage
- * Creates a new personal goal usage record and awards points
- * Allows multiple completions per day
- */
-async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
-  const rawBody = parseBody(req)
-  const body = createUsageSchema.parse(rawBody)
+async function handlePostAirtable(req: Request, res: Response, tokenUserId: string) {
+  const body = createUsageSchema.parse(parseBody(req))
 
-  // Verify the user is creating a record for themselves
   if (body.userId !== tokenUserId) {
     return sendError(res, "Cannot create personal goal usage for another user", 403)
   }
-
-  // Validate IDs
   if (!isValidRecordId(body.userId) || !isValidRecordId(body.personalGoalId)) {
     return sendError(res, "Invalid ID format", 400)
   }
 
-  // Verify the goal belongs to the user
-  // Note: .find() returns field names, not IDs, so we use the field name directly
   try {
     const goalRecord = await base(tables.personalGoals).find(body.personalGoalId)
     const goalFields = goalRecord.fields as Record<string, unknown>
     const goalUserIds = goalFields["Gebruikers"] as string[] | undefined
-
     if (!goalUserIds?.includes(tokenUserId)) {
       return sendError(res, "Cannot complete another user's personal goal", 403)
     }
-  } catch (error) {
+  } catch {
     return sendError(res, "Personal goal not found", 404)
   }
 
-  // Create the usage record (no duplicate check - allow multiple per day)
-  console.log("[personal-goal-usage] Creating record with fields:", {
-    user: PERSONAL_GOAL_USAGE_FIELDS.user,
-    personalGoal: PERSONAL_GOAL_USAGE_FIELDS.personalGoal,
-    date: PERSONAL_GOAL_USAGE_FIELDS.date,
-    values: { userId: body.userId, goalId: body.personalGoalId, date: body.date }
+  const record = await base(tables.personalGoalUsage).create({
+    [PERSONAL_GOAL_USAGE_FIELDS.user]: [body.userId],
+    [PERSONAL_GOAL_USAGE_FIELDS.personalGoal]: [body.personalGoalId],
+    [PERSONAL_GOAL_USAGE_FIELDS.date]: body.date
+  }, {
+    typecast: true
   })
 
-  let record
-  try {
-    record = await base(tables.personalGoalUsage).create({
-      [PERSONAL_GOAL_USAGE_FIELDS.user]: [body.userId],
-      [PERSONAL_GOAL_USAGE_FIELDS.personalGoal]: [body.personalGoalId],
-      [PERSONAL_GOAL_USAGE_FIELDS.date]: body.date
-    }, {
-      typecast: true
-    })
-  } catch (createError) {
-    console.error("[personal-goal-usage] Airtable create error:", createError)
-    throw createError
-  }
-
-  console.log("[personal-goal-usage] Created record:", record.id, "for user:", body.userId, "goal:", body.personalGoalId, "date:", body.date)
-
-  // Count total completions for this goal
   const allRecords = await base(tables.personalGoalUsage)
     .select({
       returnFieldsByFieldId: true
@@ -150,27 +219,17 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
 
   let todayCount = 0
   let totalCount = 0
-
   allRecords.forEach(r => {
     const fields = r.fields as Record<string, unknown>
     const userField = fields[PERSONAL_GOAL_USAGE_FIELDS.user] as string[] | undefined
     const goalField = fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal] as string[] | undefined
     const recordDate = fields[PERSONAL_GOAL_USAGE_FIELDS.date] as string | undefined
-
     if (!userField?.includes(body.userId)) return
     if (goalField?.[0] !== body.personalGoalId) return
-
     totalCount += 1
-    if (recordDate === body.date) {
-      todayCount += 1
-    }
+    if (recordDate === body.date) todayCount += 1
   })
 
-  // Points are counted automatically by Airtable formula (Personal Goals Score = usage count × 10)
-  // We only need to update streak fields here - do NOT add to bonusPoints (that would double count)
-  const pointsAwarded = POINTS.personalGoal
-
-  // Fetch current user rewards to update streak
   const userRecords = await base(tables.users)
     .select({
       filterByFormula: `RECORD_ID() = "${body.userId}"`,
@@ -181,69 +240,48 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
 
   if (userRecords.length > 0) {
     const currentRewards = transformUserRewards(userRecords[0] as { id: string; fields: Record<string, unknown> })
-
-    // Calculate streak
-    const today = body.date
-    const lastActive = currentRewards.lastActiveDate
-    let newStreak = currentRewards.currentStreak
-    let newLongestStreak = currentRewards.longestStreak
-
-    if (lastActive !== today) {
-      const lastActiveDate = lastActive ? new Date(lastActive) : null
-      const todayDate = new Date(today)
-
-      if (lastActiveDate) {
-        const diffDays = Math.floor((todayDate.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24))
-        if (diffDays === 1) {
-          // Consecutive day
-          newStreak = currentRewards.currentStreak + 1
-        } else if (diffDays > 1) {
-          // Streak broken
-          newStreak = 1
-        }
-      } else {
-        newStreak = 1
-      }
-
-      if (newStreak > newLongestStreak) {
-        newLongestStreak = newStreak
-      }
-
-      console.log("[personal-goal-usage] Streak update - lastActive:", lastActive, "today:", today, "newStreak:", newStreak)
-    }
-
-    // Update user streak fields only (points are counted by Airtable formula automatically)
-    await base(tables.users).update(body.userId, {
-      [USER_FIELDS.currentStreak]: newStreak,
-      [USER_FIELDS.longestStreak]: newLongestStreak,
-      [USER_FIELDS.lastActiveDate]: today
+    const next = calculateNextStreak({
+      lastActiveDate: currentRewards.lastActiveDate || null,
+      currentStreak: currentRewards.currentStreak,
+      longestStreak: currentRewards.longestStreak,
+      today: body.date
     })
-
-    console.log("[personal-goal-usage] Updated user streak fields")
+    await base(tables.users).update(body.userId, {
+      [USER_FIELDS.currentStreak]: next.currentStreak,
+      [USER_FIELDS.longestStreak]: next.longestStreak,
+      [USER_FIELDS.lastActiveDate]: body.date
+    })
   }
 
   return sendSuccess(res, {
     id: record.id,
-    pointsAwarded,
+    pointsAwarded: POINTS.personalGoal,
     todayCount,
     totalCount
   }, 201)
 }
 
-/**
- * /api/personal-goal-usage
- * GET: Returns completion counts per goal { [goalId]: { today, total } }
- * POST: Creates a new usage record (allows multiple per day)
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
+    const mode = getDataBackendMode(PERSONAL_GOAL_BACKEND_ENV)
+    const usePostgres = mode === "postgres_primary" && isPostgresConfigured()
 
     switch (req.method) {
       case "GET":
-        return handleGet(req, res, auth.userId)
+        if (usePostgres) {
+          return handleGetPostgres(req, res, auth.userId)
+        }
+        if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
+          void handleGetPostgres(req, res, auth.userId)
+            .then(() => undefined)
+            .catch((error) => console.warn("[personal-goal-usage] shadow read failed:", error))
+        }
+        return handleGetAirtable(req, res, auth.userId)
       case "POST":
-        return handlePost(req, res, auth.userId)
+        return usePostgres
+          ? handlePostPostgres(req, res, auth.userId)
+          : handlePostAirtable(req, res, auth.userId)
       default:
         return sendError(res, "Method not allowed", 405)
     }
@@ -257,3 +295,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return handleApiError(res, error)
   }
 }
+

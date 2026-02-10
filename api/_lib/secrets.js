@@ -39,7 +39,8 @@ export function loadSecrets() {
     "SMTP_PORT",
     "SMTP_USER",
     "SMTP_PASSWORD",
-    "SMTP_FROM"
+    "SMTP_FROM",
+    "DATABASE_URL"
   ]
 
   for (const name of secretNames) {

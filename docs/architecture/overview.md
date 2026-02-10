@@ -21,7 +21,9 @@
 │  │  Docker Swarm                                            │   │
 │  │  ├── Traefik (reverse proxy, SSL)                        │   │
 │  │  ├── Express Server (API + static files)                 │   │
-│  │  └── Redis (caching)                                     │   │
+│  │  ├── Redis (caching + sync queue coordination)           │   │
+│  │  ├── PostgreSQL (operational data store)                 │   │
+│  │  └── Sync Worker (async Airtable sync)                   │   │
 │  └─────────────────────────────────────────────────────────┘   │
 └─────────────────────────────────────────────────────────────────┘
                               │
@@ -30,9 +32,35 @@
               ▼               ▼               ▼
         ┌──────────┐   ┌──────────┐   ┌──────────┐
         │ Airtable │   │  OpenAI  │   │   SMTP   │
-        │(Database)│   │ (GPT-4o) │   │ (Email)  │
+        │ (Synced) │   │ (GPT-4o) │   │ (Email)  │
         └──────────┘   └──────────┘   └──────────┘
 ```
+
+## Postgres + Async Airtable Sync
+
+Operational paths can now run in `postgres_primary` mode, where:
+
+1. API reads/writes from PostgreSQL.
+2. Writes also enqueue sync events in `sync_outbox`.
+3. `api/workers/sync-worker.ts` pushes events asynchronously to Airtable.
+4. Airtable inbound user updates can be ingested through `/api/sync/inbound`.
+
+Feature-flag modes:
+
+- `airtable_only`
+- `postgres_shadow_read`
+- `postgres_primary`
+
+Key environment variables:
+
+- `DATABASE_URL`
+- `DATA_BACKEND_PROGRAMS`
+- `DATA_BACKEND_HABIT_USAGE`
+- `DATA_BACKEND_METHOD_USAGE`
+- `DATA_BACKEND_PERSONAL_GOAL_USAGE`
+- `USER_FAST_LANE_ENABLED`
+- `USER_READTHROUGH_FALLBACK_ENABLED`
+- `AIRTABLE_INBOUND_SYNC_SECRET`
 
 ## Development vs Production
 

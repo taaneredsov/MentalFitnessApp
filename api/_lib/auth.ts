@@ -1,4 +1,4 @@
-import type { VercelRequest } from "@vercel/node"
+import type { Request } from "express"
 import { verifyAccessToken } from "./jwt.js"
 
 export class AuthError extends Error {
@@ -20,7 +20,7 @@ interface AuthPayload {
  * Extract and verify Bearer token from request.
  * Returns { userId, email } or throws AuthError.
  */
-export async function requireAuth(req: VercelRequest): Promise<AuthPayload> {
+export async function requireAuth(req: Request): Promise<AuthPayload> {
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith("Bearer ")) {
     throw new AuthError("Unauthorized", 401)

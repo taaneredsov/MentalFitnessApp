@@ -13,6 +13,8 @@ import { RewardToast } from "@/components/rewards"
 import { useMediaProgress } from "@/hooks/useMediaProgress"
 import type { MediaItem } from "@/types/program"
 import type { AwardResponse } from "@/types/rewards"
+import { POINTS } from "@/types/rewards"
+import Markdown from "react-markdown"
 import { Loader2, ArrowLeft, Clock, Volume2, Video, CheckCircle } from "lucide-react"
 
 interface MediaPlayerProps {
@@ -197,7 +199,11 @@ export function MethodDetailPage() {
             data: { activityType: "method", activityId: method.id },
             accessToken
           })
-          setRewardToast(awardResult)
+          setRewardToast({
+            ...awardResult,
+            // Method base points (10) + any extra bonus returned by /rewards/award (e.g. streak bonus)
+            pointsAwarded: POINTS.method + awardResult.pointsAwarded
+          })
 
           // Check for program milestone after method completion
           if (programId && programData) {
@@ -321,13 +327,23 @@ export function MethodDetailPage() {
         )}
       </div>
 
-      {/* Description */}
-      {method.description && (
+      {/* Beschrijving section should show Airtable "Techniek" content */}
+      {method.techniek && (
         <div className="space-y-2">
           <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Beschrijving</h2>
-          <p className="text-foreground leading-relaxed whitespace-pre-wrap">
-            {method.description}
-          </p>
+          <div className="prose prose-sm max-w-none text-foreground">
+            <Markdown>{method.techniek}</Markdown>
+          </div>
+        </div>
+      )}
+
+      {/* Techniek section should show Airtable "Beschrijving" content */}
+      {method.description && (
+        <div className="space-y-2">
+          <h2 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Techniek</h2>
+          <div className="prose prose-sm max-w-none text-foreground">
+            <Markdown>{method.description}</Markdown>
+          </div>
         </div>
       )}
 
@@ -345,6 +361,19 @@ export function MethodDetailPage() {
               />
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Manual completion for methods without media */}
+      {!hasMedia && (
+        <div className="pt-2">
+          <Button
+            className="w-full"
+            onClick={() => setShowFeedback(true)}
+            disabled={feedbackSubmitted || showFeedback}
+          >
+            Afgerond
+          </Button>
         </div>
       )}
 

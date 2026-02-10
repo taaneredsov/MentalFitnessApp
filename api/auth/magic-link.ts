@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
@@ -20,7 +20,7 @@ const schema = z.object({
  * POST /api/auth/magic-link
  * Request a magic link to be sent to the user's email
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "POST") {
     return sendError(res, "Method not allowed", 405)
   }

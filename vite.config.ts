@@ -1,4 +1,5 @@
 import path from "path"
+import { execSync } from "child_process"
 import { defineConfig } from "vite"
 import react from "@vitejs/plugin-react"
 import tailwindcss from "@tailwindcss/vite"
@@ -10,12 +11,17 @@ export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
     __BUILD_TIME__: JSON.stringify(new Date().toISOString()),
-    __BUILD_HASH__: JSON.stringify(process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7) || "dev")
+    __BUILD_HASH__: JSON.stringify(
+      (() => { try { return execSync("git rev-parse --short HEAD").toString().trim() } catch { return "dev" } })()
+    )
   },
   plugins: [
     tailwindcss(),
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src",
+      filename: "sw.js",
       registerType: "autoUpdate",
       includeAssets: ["favicon.ico", "apple-touch-icon.png", "pwa-192x192.png", "pwa-512x512.png"],
       manifest: {
@@ -47,21 +53,8 @@ export default defineConfig({
           }
         ]
       },
-      workbox: {
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,woff2}"],
-        runtimeCaching: [
-          {
-            urlPattern: /^https:\/\/api\.airtable\.com\/.*/i,
-            handler: "NetworkFirst",
-            options: {
-              cacheName: "airtable-api-cache",
-              expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 // 1 hour
-              }
-            }
-          }
-        ]
       }
     })
   ],

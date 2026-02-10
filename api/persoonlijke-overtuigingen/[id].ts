@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
@@ -41,7 +41,7 @@ async function fetchAndVerifyOwnership(recordId: string, tokenUserId: string): P
  * PATCH /api/persoonlijke-overtuigingen/[id]
  * Updates a persoonlijke overtuiging
  */
-async function handlePatch(req: VercelRequest, res: VercelResponse, recordId: string, tokenUserId: string) {
+async function handlePatch(req: Request, res: Response, recordId: string, tokenUserId: string) {
   const rawBody = parseBody(req)
   const body = updateSchema.parse(rawBody)
 
@@ -79,7 +79,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse, recordId: st
  * DELETE /api/persoonlijke-overtuigingen/[id]
  * Deletes a persoonlijke overtuiging
  */
-async function handleDelete(req: VercelRequest, res: VercelResponse, recordId: string, tokenUserId: string) {
+async function handleDelete(req: Request, res: Response, recordId: string, tokenUserId: string) {
   const { error, status } = await fetchAndVerifyOwnership(recordId, tokenUserId)
   if (error) {
     return sendError(res, error, status!)
@@ -97,11 +97,11 @@ async function handleDelete(req: VercelRequest, res: VercelResponse, recordId: s
  * PATCH: Update a persoonlijke overtuiging
  * DELETE: Delete a persoonlijke overtuiging
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
 
-    const { id } = req.query
+    const { id } = req.params
     if (!id || typeof id !== "string") {
       return sendError(res, "ID is required", 400)
     }

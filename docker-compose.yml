@@ -19,11 +19,30 @@ services:
       - SMTP_FROM_FILE=/run/secrets/smtp_from
       # Redis configuration
       - REDIS_URL=redis://redis:6379
+      # Postgres configuration
+      - DATABASE_URL_FILE=/run/secrets/database_url
+      # Data backend feature flags
+      - DATA_BACKEND_PROGRAMS=postgres_shadow_read
+      - DATA_BACKEND_HABIT_USAGE=airtable_only
+      - DATA_BACKEND_METHOD_USAGE=airtable_only
+      - DATA_BACKEND_PERSONAL_GOAL_USAGE=airtable_only
+      - DATA_BACKEND_OVERTUIGING_USAGE=airtable_only
+      - DATA_BACKEND_REWARDS=airtable_only
+      - DATA_BACKEND_METHODS=airtable_only
+      - DATA_BACKEND_OVERTUIGINGEN=airtable_only
+      - DATA_BACKEND_PERSONAL_GOALS=airtable_only
+      - USER_FAST_LANE_ENABLED=true
+      - USER_READTHROUGH_FALLBACK_ENABLED=true
+      # Push notifications
+      - PUSH_NOTIFICATIONS_ENABLED=true
+      - PUSH_NOTIFICATIONS_TEST_MODE=false
+      - NOTIFICATION_RECONCILE_SECONDS=120
     networks:
       - mfa_internal
       - traefik-public
     depends_on:
       - redis
+      - postgres
     deploy:
       replicas: 1
       restart_policy:
@@ -51,6 +70,7 @@ services:
       - smtp_user
       - smtp_password
       - smtp_from
+      - database_url
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -79,6 +99,71 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      - POSTGRES_DB=mfa
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD_FILE=/run/secrets/postgres_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - mfa_internal
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+      placement:
+        constraints:
+          - node.role == manager
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d mfa"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    secrets:
+      - postgres_password
+
+  worker:
+    image: registry.shop.drvn.be/mfa:latest
+    command: ["node", "api/workers/sync-worker.js"]
+    environment:
+      - NODE_ENV=production
+      - AIRTABLE_ACCESS_TOKEN_FILE=/run/secrets/airtable_access_token
+      - AIRTABLE_BASE_ID_FILE=/run/secrets/airtable_base_id
+      - REDIS_URL=redis://redis:6379
+      - DATABASE_URL_FILE=/run/secrets/database_url
+      - USER_FAST_LANE_ENABLED=true
+      - SYNC_USER_FALLBACK_POLL_SECONDS=60
+      - FULL_AIRTABLE_POLL_SYNC_ENABLED=true
+      - SYNC_FULL_POLL_SECONDS=120
+      - SYNC_BATCH_SIZE=20
+      - SYNC_MAX_RETRIES=6
+      - SYNC_POLL_INTERVAL_MS=2000
+      - SYNC_RETRY_BASE_SECONDS=5
+      - PUSH_NOTIFICATIONS_ENABLED=true
+      - NOTIFICATION_RECONCILE_SECONDS=120
+      - NOTIFICATION_BATCH_SIZE=20
+      - NOTIFICATION_MAX_RETRIES=6
+      - NOTIFICATION_RETRY_BASE_SECONDS=5
+    networks:
+      - mfa_internal
+    depends_on:
+      - redis
+      - postgres
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+    secrets:
+      - airtable_access_token
+      - airtable_base_id
+      - database_url
 
 networks:
   mfa_internal:
@@ -115,6 +200,12 @@ secrets:
   smtp_from:
     external: true
     name: mfa_smtp_from
+  database_url:
+    external: true
+    name: mfa_database_url
+  postgres_password:
+    external: true
+    name: mfa_postgres_password
 
 volumes:
   redis_data:
@@ -123,3 +214,9 @@ volumes:
       type: none
       o: bind
       device: /mnt/data/mfa-redis
+  postgres_data:
+    driver: local
+    driver_opts:
+      type: none
+      o: bind
+      device: /mnt/data/mfa-postgres

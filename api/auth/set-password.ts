@@ -1,10 +1,12 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { hashPassword } from "../_lib/password.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import { upsertUserFromAirtable } from "../_lib/repos/user-repo.js"
 import {
   hashCode,
   constantTimeCompare,
@@ -24,7 +26,7 @@ const setPasswordSchema = z.object({
  * Set initial password for a user during onboarding.
  * Requires email + verification code (sent by login endpoint).
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "POST") {
     return sendError(res, "Method not allowed", 405)
   }
@@ -105,6 +107,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       .firstPage()
 
     const updatedRecord = updatedRecords[0]
+
+    if (isPostgresConfigured()) {
+      await upsertUserFromAirtable({
+        id: updatedRecord.id,
+        name: String(updatedRecord.fields[USER_FIELDS.name] || ""),
+        email: String(updatedRecord.fields[USER_FIELDS.email] || email),
+        role: updatedRecord.fields[USER_FIELDS.role] as string | undefined,
+        languageCode: updatedRecord.fields[USER_FIELDS.languageCode] as string | undefined,
+        passwordHash: String(updatedRecord.fields[USER_FIELDS.passwordHash] || passwordHash),
+        lastLogin: String(updatedRecord.fields[USER_FIELDS.lastLogin] || new Date().toISOString().split("T")[0])
+      })
+    }
 
     // Generate tokens
     const accessToken = await signAccessToken({

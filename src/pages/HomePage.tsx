@@ -32,6 +32,7 @@ import { OvertuigingenSection } from "@/components/OvertuigingenSection"
 import { ScoreWidgets } from "@/components/ScoreWidgets"
 import { WelcomeScreen, GuidedTour, HOMEPAGE_TOUR_STEPS } from "@/components/Onboarding"
 import { MethodThumbnail } from "@/components/MethodThumbnail"
+import { InAppReminderBanner } from "@/components/InAppReminderBanner"
 import { useOnboarding } from "@/hooks/useOnboarding"
 
 function formatDate(dateStr: string): string {
@@ -196,6 +197,18 @@ export function HomePage() {
     return todaysMethods.reduce((sum, m) => sum + (m.duration || 0), 0)
   }, [todaysMethods])
 
+  const todayDueCount = useMemo(() => {
+    if (!runningProgram) return 0
+    const today = getLocalDateStr(new Date())
+    return runningProgram.schedule.filter((session) => {
+      if (session.date !== today) return false
+      const completedCount = session.completedMethodIds?.length ?? 0
+      const totalCount = session.methodIds?.length ?? 0
+      if (totalCount === 0) return false
+      return completedCount < totalCount
+    }).length
+  }, [runningProgram])
+
   // Show blocking message if user tries to create program while having one running
   if (showOnboarding && userHasRunningProgram && currentRunningProgram) {
     return (
@@ -267,6 +280,8 @@ export function HomePage() {
 
         {/* Hide install prompt during tour to avoid spotlight issues */}
         {!showTour && <InstallPrompt />}
+
+        <InAppReminderBanner dueCount={todayDueCount} />
 
         {isLoading ? (
           <div className="flex items-center justify-center h-32">

@@ -1,4 +1,4 @@
-import type { VercelResponse } from "@vercel/node"
+import type { Response } from "express"
 
 export interface ApiResponse<T = unknown> {
   success: boolean
@@ -6,21 +6,21 @@ export interface ApiResponse<T = unknown> {
   error?: string
 }
 
-export function sendSuccess<T>(res: VercelResponse, data: T, status = 200) {
+export function sendSuccess<T>(res: Response, data: T, status = 200) {
   return res.status(status).json({
     success: true,
     data
   })
 }
 
-export function sendError(res: VercelResponse, error: string, status = 400) {
+export function sendError(res: Response, error: string, status = 400) {
   return res.status(status).json({
     success: false,
     error
   })
 }
 
-export function handleApiError(res: VercelResponse, error: unknown) {
+export function handleApiError(res: Response, error: unknown) {
   console.error("API Error:", error)
 
   if (error instanceof Error) {

@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { base, tables } from "../../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../../_lib/api-utils.js"
 import { verifyToken } from "../../_lib/jwt.js"
@@ -181,7 +181,7 @@ function distributeMethodsEvenly(
  * Regenerates future schedule for an existing program
  * Body: { daysOfWeek: string[], goals?: string[], regenerateMethod: "ai" | "simple" }
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "POST") {
     return sendError(res, "Method not allowed", 405)
   }
@@ -198,7 +198,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Invalid token", 401)
     }
 
-    const { id } = req.query
+    const { id } = req.params
     if (!id || typeof id !== "string" || !isValidRecordId(id)) {
       return sendError(res, "Invalid program ID", 400)
     }

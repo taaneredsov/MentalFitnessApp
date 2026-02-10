@@ -1,14 +1,20 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
 import { PROGRAM_FIELDS, transformMethodUsage } from "../_lib/field-mappings.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
+import { getDataBackendMode } from "../_lib/data-backend.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import { isEntityId } from "../_lib/db/id-utils.js"
+import { listLatestByProgram, toApiMethodUsage } from "../_lib/repos/method-usage-repo.js"
+import { getProgramByAnyId } from "../_lib/repos/program-repo.js"
+
+const METHOD_USAGE_BACKEND_ENV = "DATA_BACKEND_METHOD_USAGE"
 
 /**
  * GET /api/method-usage/by-program?programId=xxx&limit=2
- * Returns method usage records for a specific program, sorted by date (newest first)
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "GET") {
     return sendError(res, "Method not allowed", 405)
   }
@@ -22,7 +28,32 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await requireAuth(req)
 
-    // First, fetch the program to get linked method usage IDs
+    const mode = getDataBackendMode(METHOD_USAGE_BACKEND_ENV)
+    if (mode === "postgres_primary" && isPostgresConfigured()) {
+      if (!isEntityId(programId)) {
+        return sendError(res, "Invalid Program ID format", 400)
+      }
+      const program = await getProgramByAnyId(programId)
+      if (!program) {
+        return sendError(res, "Program not found", 404)
+      }
+      const limitNum = parseInt(limit as string, 10) || 2
+      const usages = await listLatestByProgram(program.id, limitNum)
+      return sendSuccess(res, usages.map(toApiMethodUsage))
+    }
+
+    if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
+      if (isEntityId(programId)) {
+        void (async () => {
+          const program = await getProgramByAnyId(programId)
+          if (program) {
+            const limitNum = parseInt(limit as string, 10) || 2
+            await listLatestByProgram(program.id, limitNum)
+          }
+        })().catch((error) => console.warn("[method-usage/by-program] shadow read failed:", error))
+      }
+    }
+
     const programRecords = await base(tables.programs)
       .select({
         filterByFormula: `RECORD_ID() = "${programId}"`,
@@ -36,16 +67,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const methodUsageIds = programRecords[0].fields[PROGRAM_FIELDS.methodUsage] as string[] || []
-
     if (methodUsageIds.length === 0) {
       return sendSuccess(res, [])
     }
 
-    // Fetch the linked method usage records
     const limitNum = parseInt(limit as string, 10)
     const idsToFetch = methodUsageIds.slice(0, limitNum)
-
-    // Build OR formula to fetch specific records by ID
     const idFormulas = idsToFetch.map(id => `RECORD_ID() = "${id}"`).join(", ")
     const filterFormula = idsToFetch.length === 1 ? idFormulas : `OR(${idFormulas})`
 
@@ -56,7 +83,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
       .all()
 
-    // Sort by usedAt date (newest first) and transform
     const usages = records
       .map(record => transformMethodUsage(record as any))
       .sort((a, b) => {

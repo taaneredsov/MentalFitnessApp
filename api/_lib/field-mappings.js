@@ -133,14 +133,15 @@ export const GOAL_FIELDS = {
 export const METHOD_FIELDS = {
   name: "fldXP3qNngK3oXEjR",             // Methode Naam
   duration: "fldg3pJ3mtwBTVtd8",         // Duur (minuten)
-  description: "fldW7tdp7AJoeKerd",      // Beschrijving
+  description: "fldLrlnqtzxIRVImD",      // Beschrijving (Rich text)
   experienceLevel: "fldKppvap3PVPlMq8",  // Ervaringsniveau (gekoppeld) - Link to Ervaringsniveaus
   optimalFrequency: "fldX9SfbkhYUuRC3T", // Optimale frequentie (multipleSelects)
   linkedGoals: "fldymisqDYdypLbUc",      // Doelstellingen (gekoppeld) - Link to Goals
   photo: "fldT64jU7CfcgTe0y",            // Foto
   media: "fldobaP1oS9uZKTh2",            // Media (Link to Media table)
   users: "fldizDnwdWMO7UfSz",            // Gebruikers (Link)
-  programs: "fld36JCBhGcXYurrp"          // Mentale Fitnessprogramma's (Link)
+  programs: "fld36JCBhGcXYurrp",          // Mentale Fitnessprogramma's (Link)
+  techniek: "fldW7tdp7AJoeKerd"           // Techniek (Rich text)
 }
 
 // Experience Levels table field IDs (Ervaringsniveaus - tblt5lzx2Msw1aKxv)
@@ -227,6 +228,7 @@ export const PERSONAL_GOAL_USAGE_FIELDS = {
 export const OVERTUIGING_FIELDS = {
   name: "fldKjYM2dj1vcna13",              // Name (single line text)
   category: "fldmcm4ZeHKvUF1l2",          // Category (link to Mindset Category)
+  goals: "fldiXYJ9qw4mtArAh",             // Doelstellingen (link to Goals)
   order: "fldtb04N7NAENsWjX",             // Order (number)
   levels: "flddL1wlvZ8RVVEJu",            // Overtuigingsniveau (multipleSelects)
   overtuigingenGebruik: "fld8NYcKtJclld3qN" // Overtuigingen Gebruik (link)
@@ -482,6 +484,7 @@ export function transformMethod(record) {
     experienceLevelIds: fields[METHOD_FIELDS.experienceLevel] || [],  // Linked record IDs to Ervaringsniveaus
     optimalFrequency: fields[METHOD_FIELDS.optimalFrequency] || [],   // Array of frequency options
     linkedGoalIds: fields[METHOD_FIELDS.linkedGoals] || [],           // Linked record IDs to Goals
+    techniek: fields[METHOD_FIELDS.techniek],
     photo: fields[METHOD_FIELDS.photo]?.[0]?.thumbnails?.large?.url || fields[METHOD_FIELDS.photo]?.[0]?.url,
     media: fields[METHOD_FIELDS.media] || []  // Linked record IDs to Media table
   }
@@ -659,6 +662,7 @@ export function transformOvertuiging(record) {
     id: record.id,
     name: fields[OVERTUIGING_FIELDS.name],
     categoryIds: fields[OVERTUIGING_FIELDS.category] || [],
+    goalIds: fields[OVERTUIGING_FIELDS.goals] || [],
     order: fields[OVERTUIGING_FIELDS.order] || 0,
     levels: fields[OVERTUIGING_FIELDS.levels] || []
   }

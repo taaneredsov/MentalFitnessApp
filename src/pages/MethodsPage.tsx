@@ -14,6 +14,8 @@ function MethodCard({
   method: Method
   onClick: () => void
 }) {
+  const summary = method.techniek || method.description
+
   return (
     <Card
       className="overflow-hidden cursor-pointer hover:shadow-md transition-shadow"
@@ -28,9 +30,9 @@ function MethodCard({
         {/* Content */}
         <div className="flex-1 min-w-0 flex flex-col justify-center">
           <h3 className="font-medium text-sm line-clamp-1">{method.name}</h3>
-          {method.description && (
+          {summary && (
             <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">
-              {method.description}
+              {summary}
             </p>
           )}
           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1.5">
@@ -103,6 +105,7 @@ export function MethodsPage() {
       result = result.filter(method => {
         if (method.name.toLowerCase().includes(query)) return true
         if (method.description?.toLowerCase().includes(query)) return true
+        if (method.techniek?.toLowerCase().includes(query)) return true
         if (method.linkedGoalIds?.some(goalId => {
           const goalName = goalNameMap.get(goalId)
           return goalName?.includes(query)

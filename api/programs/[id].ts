@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
@@ -10,32 +10,238 @@ import {
   transformProgrammaplanning,
   transformOvertuiging,
   PROGRAM_FIELDS,
-  GOAL_FIELDS,
-  METHOD_FIELDS,
-  DAY_FIELDS,
-  PROGRAMMAPLANNING_FIELDS,
   METHOD_USAGE_FIELDS,
-  FIELD_NAMES,
+  PROGRAMMAPLANNING_FIELDS,
   isValidRecordId
 } from "../_lib/field-mappings.js"
+import { getDataBackendMode } from "../_lib/data-backend.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import { isEntityId, isAirtableRecordId } from "../_lib/db/id-utils.js"
+import {
+  getMethodUsageByProgram,
+  getProgramByAnyId,
+  listProgramSessions,
+  toApiProgram,
+  updateProgramById
+} from "../_lib/repos/program-repo.js"
+import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
+
+const PROGRAMS_BACKEND_ENV = "DATA_BACKEND_PROGRAMS"
 
 /**
  * GET /api/programs/[id] - Returns a single program with expanded relations
  * PATCH /api/programs/[id] - Updates a program
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
+  const mode = getDataBackendMode(PROGRAMS_BACKEND_ENV)
+
   if (req.method === "PATCH") {
-    return handlePatch(req, res)
+    if (mode === "postgres_primary" && isPostgresConfigured()) {
+      return handlePatchPostgres(req, res)
+    }
+    return handlePatchAirtable(req, res)
   }
 
   if (req.method !== "GET") {
     return sendError(res, "Method not allowed", 405)
   }
 
+  if (mode === "postgres_primary" && isPostgresConfigured()) {
+    return handleGetPostgres(req, res)
+  }
+
+  return handleGetAirtable(req, res)
+}
+
+async function fetchAirtableDetails(input: {
+  goalIds: string[]
+  methodIds: string[]
+  dayIds: string[]
+  overtuigingIds: string[]
+}) {
+  let goalDetails: any[] = []
+  let methodDetails: any[] = []
+  let dayNames: string[] = []
+  let overtuigingDetails: any[] = []
+
+  const validGoals = input.goalIds.filter(isAirtableRecordId)
+  if (validGoals.length > 0) {
+    const formula = `OR(${validGoals.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
+    const records = await base(tables.goals).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
+    goalDetails = records.map((r) => transformGoal(r as any))
+  }
+
+  const validMethods = input.methodIds.filter(isAirtableRecordId)
+  if (validMethods.length > 0) {
+    const formula = `OR(${validMethods.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
+    const records = await base(tables.methods).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
+    methodDetails = records.map((r) => transformMethod(r as any))
+  }
+
+  const validDays = input.dayIds.filter(isAirtableRecordId)
+  if (validDays.length > 0) {
+    const formula = `OR(${validDays.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
+    const records = await base(tables.daysOfWeek).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
+    dayNames = records.map((r) => transformDay(r as any).name)
+  }
+
+  const validOvertuigingen = input.overtuigingIds.filter(isAirtableRecordId)
+  if (validOvertuigingen.length > 0) {
+    const formula = `OR(${validOvertuigingen.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
+    const records = await base(tables.overtuigingen).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
+    overtuigingDetails = records.map((r) => transformOvertuiging(r as any))
+  }
+
+  return {
+    goalDetails,
+    methodDetails,
+    dayNames,
+    overtuigingDetails
+  }
+}
+
+async function handleGetPostgres(req: Request, res: Response) {
+  try {
+    const auth = await requireAuth(req)
+    const { id } = req.params
+    if (!id || typeof id !== "string") {
+      return sendError(res, "Program ID is required", 400)
+    }
+    if (!isEntityId(id)) {
+      return sendError(res, "Invalid program ID format", 400)
+    }
+
+    const program = await getProgramByAnyId(id, auth.userId)
+    if (!program) {
+      return sendError(res, "Program not found", 404)
+    }
+
+    const programApi = toApiProgram(program)
+    const sessions = await listProgramSessions(program.id)
+    const usage = await getMethodUsageByProgram(program.id)
+
+    const completedMethodBySession = new Map<string, string[]>()
+    let directCompletions = 0
+
+    for (const row of usage) {
+      const methodId = String(row.method_id)
+      if (row.program_schedule_id) {
+        const scheduleId = String(row.program_schedule_id)
+        const existing = completedMethodBySession.get(scheduleId) || []
+        existing.push(methodId)
+        completedMethodBySession.set(scheduleId, existing)
+      } else {
+        directCompletions += 1
+      }
+    }
+
+    const schedule = sessions.map((session) => ({
+      id: session.id,
+      planningId: session.planningId || undefined,
+      programId: session.programId,
+      date: session.date || "",
+      dayOfWeekId: session.dayOfWeekId || undefined,
+      sessionDescription: session.sessionDescription || undefined,
+      methodIds: session.methodIds,
+      goalIds: session.goalIds,
+      methodUsageIds: session.methodUsageIds,
+      completedMethodIds: completedMethodBySession.get(session.id) || [],
+      isCompleted: (completedMethodBySession.get(session.id) || []).length >= session.methodIds.length,
+      notes: session.notes || undefined
+    }))
+
+    const totalSessions = schedule.length
+    const completedSessions = schedule.filter((s) => s.isCompleted).length
+    const totalMethods = schedule.reduce((sum, s) => sum + s.methodIds.length, 0)
+    const completedMethods = schedule.reduce((sum, s) => sum + s.completedMethodIds.length, 0) + directCompletions
+
+    const details = await fetchAirtableDetails({
+      goalIds: (programApi.goals as string[]) || [],
+      methodIds: (programApi.methods as string[]) || [],
+      dayIds: (programApi.daysOfWeek as string[]) || [],
+      overtuigingIds: (programApi.overtuigingen as string[]) || []
+    })
+
+    return sendSuccess(res, {
+      ...programApi,
+      ...details,
+      schedule,
+      totalSessions,
+      completedSessions,
+      totalMethods,
+      completedMethods,
+      preservedCompletions: directCompletions
+    })
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
+    return handleApiError(res, error)
+  }
+}
+
+async function handlePatchPostgres(req: Request, res: Response) {
+  try {
+    const auth = await requireAuth(req)
+    const { id } = req.params
+    if (!id || typeof id !== "string") {
+      return sendError(res, "Program ID is required", 400)
+    }
+    if (!isEntityId(id)) {
+      return sendError(res, "Invalid program ID format", 400)
+    }
+
+    const existing = await getProgramByAnyId(id, auth.userId)
+    if (!existing) {
+      return sendError(res, "Program not found", 404)
+    }
+
+    const body = parseBody(req)
+    const updated = await updateProgramById(existing.id, auth.userId, {
+      goals: body.goals,
+      methods: body.methods,
+      daysOfWeek: body.daysOfWeek,
+      notes: body.notes,
+      overtuigingen: body.overtuigingen
+    })
+
+    if (!updated) {
+      return sendError(res, "Program not found", 404)
+    }
+
+    await enqueueSyncEvent({
+      eventType: "upsert",
+      entityType: "program",
+      entityId: updated.id,
+      payload: {
+        userId: updated.userId,
+        startDate: updated.startDate,
+        duration: updated.duration,
+        status: updated.status,
+        creationType: updated.creationType,
+        notes: updated.notes,
+        goals: updated.goals,
+        methods: updated.methods,
+        daysOfWeek: updated.daysOfWeek,
+        overtuigingen: updated.overtuigingen
+      },
+      priority: 30
+    })
+
+    return sendSuccess(res, toApiProgram(updated))
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
+    return handleApiError(res, error)
+  }
+}
+
+async function handleGetAirtable(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
 
-    const { id } = req.query
+    const { id } = req.params
     if (!id || typeof id !== "string") {
       return sendError(res, "Program ID is required", 400)
     }
@@ -44,7 +250,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Invalid program ID format", 400)
     }
 
-    // Fetch the program
     const records = await base(tables.programs)
       .select({
         filterByFormula: `RECORD_ID() = "${id}"`,
@@ -57,73 +262,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Program not found", 404)
     }
 
-    // Verify ownership
     const programUserId = (records[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
     if (programUserId !== auth.userId) {
       return sendError(res, "Forbidden: You don't own this program", 403)
     }
 
     const program = transformProgram(records[0] as any)
+    const details = await fetchAirtableDetails({
+      goalIds: program.goals || [],
+      methodIds: program.methods || [],
+      dayIds: program.daysOfWeek || [],
+      overtuigingIds: program.overtuigingen || []
+    })
 
-    // Fetch related goals
-    let goalDetails: any[] = []
-    const validGoals = program.goals.filter(gid => isValidRecordId(gid))
-    if (validGoals.length > 0) {
-      const goalFormula = `OR(${validGoals.map(gid => `RECORD_ID() = "${gid}"`).join(",")})`
-      const goalRecords = await base(tables.goals)
-        .select({
-          filterByFormula: goalFormula,
-          returnFieldsByFieldId: true
-        })
-        .all()
-      goalDetails = goalRecords.map(r => transformGoal(r as any))
-    }
-
-    // Fetch related overtuigingen
-    let overtuigingDetails: any[] = []
-    const validOvertuigingen = (program.overtuigingen || []).filter((oid: string) => isValidRecordId(oid))
-    if (validOvertuigingen.length > 0) {
-      const overtuigingFormula = `OR(${validOvertuigingen.map((oid: string) => `RECORD_ID() = "${oid}"`).join(",")})`
-      const overtuigingRecords = await base(tables.overtuigingen)
-        .select({
-          filterByFormula: overtuigingFormula,
-          returnFieldsByFieldId: true
-        })
-        .all()
-      overtuigingDetails = overtuigingRecords.map(r => transformOvertuiging(r as any))
-    }
-
-    // Fetch related methods
-    let methodDetails: any[] = []
-    const validMethods = program.methods.filter(mid => isValidRecordId(mid))
-    if (validMethods.length > 0) {
-      const methodFormula = `OR(${validMethods.map(mid => `RECORD_ID() = "${mid}"`).join(",")})`
-      const methodRecords = await base(tables.methods)
-        .select({
-          filterByFormula: methodFormula,
-          returnFieldsByFieldId: true
-        })
-        .all()
-      methodDetails = methodRecords.map(r => transformMethod(r as any))
-    }
-
-    // Fetch related days of week
-    let dayNames: string[] = []
-    const validDays = program.daysOfWeek.filter(did => isValidRecordId(did))
-    if (validDays.length > 0) {
-      const dayFormula = `OR(${validDays.map(did => `RECORD_ID() = "${did}"`).join(",")})`
-      const dayRecords = await base(tables.daysOfWeek)
-        .select({
-          filterByFormula: dayFormula,
-          returnFieldsByFieldId: true
-        })
-        .all()
-      dayNames = dayRecords.map(r => transformDay(r as any).name)
-    }
-
-    // Fetch Programmaplanning records for this program
-    // We fetch all and filter by programId because Airtable linked record formulas
-    // compare by display value which can be unreliable
     const allScheduleRecords = await base(tables.programmaplanning)
       .select({
         returnFieldsByFieldId: true,
@@ -131,25 +282,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       })
       .all()
 
-    // Filter by programId (the linked record ID stored in the field)
     const rawSchedule = allScheduleRecords
       .map(r => transformProgrammaplanning(r as any))
       .filter(s => s.programId === id)
 
-    // Collect all methodUsageIds from the schedule to fetch completed method IDs
     const allMethodUsageIds = rawSchedule.flatMap(s => s.methodUsageIds || [])
-
-    // Get method usage IDs directly from program record (includes both session and direct links)
     const programMethodUsageIds = (records[0].fields[PROGRAM_FIELDS.methodUsage] as string[]) || []
-
-    // "Direct" usages = those linked to program but NOT to any session
     const programDirectUsageIds = programMethodUsageIds.filter(uid => !allMethodUsageIds.includes(uid))
-
-    // Combine all method usage IDs (from sessions + direct program link)
     const combinedMethodUsageIds = [...new Set([...allMethodUsageIds, ...programDirectUsageIds])]
 
-    // Fetch Method Usage records to get the completed method IDs
-    let methodUsageToMethodMap = new Map<string, string>()
+    const methodUsageToMethodMap = new Map<string, string>()
     if (combinedMethodUsageIds.length > 0) {
       const usageFormula = `OR(${combinedMethodUsageIds.map(uid => `RECORD_ID() = "${uid}"`).join(",")})`
       const usageRecords = await base(tables.methodUsage)
@@ -159,7 +301,6 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         })
         .all()
 
-      // Map Method Usage ID -> Method ID
       for (const record of usageRecords) {
         const methodIds = record.fields[METHOD_USAGE_FIELDS.method] as string[] | undefined
         if (methodIds?.[0]) {
@@ -168,21 +309,18 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Count preserved completions (those linked directly to program but not to any session)
     const preservedCompletionMethodIds = programDirectUsageIds
       .filter(uid => !allMethodUsageIds.includes(uid))
       .map(uid => methodUsageToMethodMap.get(uid))
       .filter((mid): mid is string => !!mid)
 
-    // Add completedMethodIds to each session
     const schedule = rawSchedule.map(session => ({
       ...session,
       completedMethodIds: (session.methodUsageIds || [])
         .map(usageId => methodUsageToMethodMap.get(usageId))
-        .filter((id): id is string => !!id)
+        .filter((sid): sid is string => !!sid)
     }))
 
-    // Calculate progress tracking (method-based for partial progress)
     const totalSessions = schedule.length
     const completedSessions = schedule.filter(s => {
       const methodCount = s.methodIds?.length || 0
@@ -190,24 +328,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       return methodCount > 0 && completedCount >= methodCount
     }).length
 
-    // Method-based progress for more granular tracking
-    // Include both session-linked completions AND preserved completions (linked directly to program)
     const totalMethods = schedule.reduce((sum, s) => sum + (s.methodIds?.length || 0), 0)
     const sessionCompletedMethods = schedule.reduce((sum, s) => sum + (s.completedMethodIds?.length || 0), 0)
     const completedMethods = sessionCompletedMethods + preservedCompletionMethodIds.length
 
     return sendSuccess(res, {
       ...program,
-      goalDetails,
-      methodDetails,
-      overtuigingDetails,
-      dayNames,
+      ...details,
       schedule,
       totalSessions,
       completedSessions,
       totalMethods,
       completedMethods,
-      preservedCompletions: preservedCompletionMethodIds.length  // For debugging
+      preservedCompletions: preservedCompletionMethodIds.length
     })
   } catch (error) {
     if (error instanceof AuthError) {
@@ -217,26 +350,19 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 }
 
-/**
- * PATCH /api/programs/[id] - Update a program
- * Body: { methods?, notes? }
- * Requires authentication and ownership verification
- */
-async function handlePatch(req: VercelRequest, res: VercelResponse) {
+async function handlePatchAirtable(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
 
-    const { id } = req.query
+    const { id } = req.params
     if (!id || typeof id !== "string") {
       return sendError(res, "Program ID is required", 400)
     }
 
-    // Validate record ID format to prevent injection
     if (!isValidRecordId(id)) {
       return sendError(res, "Invalid program ID format", 400)
     }
 
-    // Fetch the program to verify ownership
     const existingRecords = await base(tables.programs)
       .select({
         filterByFormula: `RECORD_ID() = "${id}"`,
@@ -249,7 +375,6 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
       return sendError(res, "Program not found", 404)
     }
 
-    // Verify the authenticated user owns this program
     const programUserId = (existingRecords[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
     if (programUserId !== auth.userId) {
       return sendError(res, "Forbidden: You don't own this program", 403)
@@ -258,30 +383,17 @@ async function handlePatch(req: VercelRequest, res: VercelResponse) {
     const body = parseBody(req)
     const fields: Record<string, unknown> = {}
 
-    // Allow updating goals, daysOfWeek, methods, and notes
-    if (body.goals !== undefined) {
-      fields[PROGRAM_FIELDS.goals] = body.goals
-    }
-    if (body.daysOfWeek !== undefined) {
-      fields[PROGRAM_FIELDS.daysOfWeek] = body.daysOfWeek
-    }
-    if (body.methods !== undefined) {
-      fields[PROGRAM_FIELDS.methods] = body.methods
-    }
-    if (body.notes !== undefined) {
-      fields[PROGRAM_FIELDS.notes] = body.notes
-    }
-    if (body.overtuigingen !== undefined) {
-      fields[PROGRAM_FIELDS.overtuigingen] = body.overtuigingen
-    }
+    if (body.goals !== undefined) fields[PROGRAM_FIELDS.goals] = body.goals
+    if (body.daysOfWeek !== undefined) fields[PROGRAM_FIELDS.daysOfWeek] = body.daysOfWeek
+    if (body.methods !== undefined) fields[PROGRAM_FIELDS.methods] = body.methods
+    if (body.notes !== undefined) fields[PROGRAM_FIELDS.notes] = body.notes
+    if (body.overtuigingen !== undefined) fields[PROGRAM_FIELDS.overtuigingen] = body.overtuigingen
 
     if (Object.keys(fields).length === 0) {
       return sendError(res, "No valid fields to update", 400)
     }
 
-    // Update the program
     const record = await base(tables.programs).update(id, fields, { typecast: true })
-
     const program = transformProgram(record as any)
 
     return sendSuccess(res, program)

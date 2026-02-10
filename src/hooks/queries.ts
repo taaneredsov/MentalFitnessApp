@@ -3,6 +3,7 @@ import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData } from "@/types/program"
 import type { AwardRequest } from "@/types/rewards"
+import type { ReminderMode } from "@/types/notifications"
 import { useAuth } from "@/contexts/AuthContext"
 
 // Cache times matching server TTLs
@@ -58,6 +59,17 @@ export function useCompanies(ids: string[] | undefined) {
     queryFn: () => api.companies.lookup(ids!, accessToken!),
     enabled: !!ids?.length && !!accessToken,
     staleTime: CACHE_LONG
+  })
+}
+
+export function useNotificationPreferences() {
+  const { user, accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.notificationPreferences(user?.id || ""),
+    queryFn: () => api.notifications.getPreferences(accessToken!),
+    enabled: !!user?.id && !!accessToken,
+    staleTime: CACHE_SHORT
   })
 }
 
@@ -209,6 +221,34 @@ export function useAwardPoints() {
     onSuccess: () => {
       // Invalidate rewards cache to reflect new points
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+    }
+  })
+}
+
+export function useUpdateNotificationPreferences() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({
+      accessToken,
+      data
+    }: {
+      accessToken: string
+      data: {
+        enabled?: boolean
+        reminderMode?: ReminderMode
+        leadMinutes?: number
+        preferredTimeLocal?: string
+        timezone?: string
+        quietHoursStart?: string
+        quietHoursEnd?: string
+      }
+    }) => api.notifications.updatePreferences(data, accessToken),
+    onSuccess: () => {
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.notificationPreferences(user.id) })
+      }
     }
   })
 }

@@ -1,6 +1,7 @@
 import type { User } from "@/types/user"
 import type { Program, ProgramDetail, Method, MethodDetail, MethodUsage, Goal, Day, CreateProgramData, AIGenerateRequest, AIGenerateResponse, AIPreviewRequest, AIPreviewResponse, AIConfirmRequest, PersonalGoal, CreatePersonalGoalData, UpdatePersonalGoalData, Programmaplanning, UpdateProgrammaplanningData, Overtuiging, MindsetCategory, PersoonlijkeOvertuiging, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData, OvertuigingUsageMap } from "@/types/program"
 import type { UserRewards, AwardRequest, AwardResponse } from "@/types/rewards"
+import type { NotificationPreferences, ReminderMode } from "@/types/notifications"
 
 const API_BASE = "/api"
 
@@ -61,6 +62,14 @@ export interface MagicLinkResponse {
 export interface VerifyResponse {
   user: User
   accessToken: string
+}
+
+export interface PushSubscriptionPayload {
+  endpoint: string
+  keys: {
+    p256dh: string
+    auth: string
+  }
 }
 
 export const api = {
@@ -140,6 +149,65 @@ export const api = {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
+      })
+  },
+
+  notifications: {
+    getPreferences: (accessToken: string) =>
+      request<NotificationPreferences>("/notifications/preferences", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    updatePreferences: (
+      data: {
+        enabled?: boolean
+        reminderMode?: ReminderMode
+        leadMinutes?: number
+        preferredTimeLocal?: string
+        timezone?: string
+        quietHoursStart?: string
+        quietHoursEnd?: string
+      },
+      accessToken: string
+    ) =>
+      request<NotificationPreferences>("/notifications/preferences", {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    subscribe: (subscription: PushSubscriptionPayload, accessToken: string, timezone?: string) =>
+      request<{ id: number; endpoint: string; status: string }>("/notifications/subscribe", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({
+          ...subscription,
+          ...(timezone ? { timezone } : {})
+        })
+      }),
+
+    unsubscribe: (endpoint: string, accessToken: string) =>
+      request<{ success: boolean }>("/notifications/subscribe", {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify({ endpoint })
+      }),
+
+    sendTest: (accessToken: string, data?: { title?: string; body?: string }) =>
+      request<{ sent: number; failed: number; errors: string[] }>("/notifications/test", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data || {})
       })
   },
 

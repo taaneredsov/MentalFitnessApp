@@ -83,6 +83,7 @@ export interface Method {
   name: string
   duration: number
   description?: string
+  techniek?: string
   experienceLevel?: string
   optimalFrequency?: string[]  // Array of frequency options (Dagelijks, Wekelijks, etc.)
   linkedGoalIds?: string[]  // Linked record IDs to Goals
@@ -133,6 +134,7 @@ export interface Overtuiging {
   id: string
   name: string
   categoryIds: string[]
+  goalIds?: string[]
   order: number
   levels?: string[]
 }

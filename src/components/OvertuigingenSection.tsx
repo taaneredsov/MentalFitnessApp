@@ -2,7 +2,7 @@ import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AddOvertuigingDialog } from "@/components/AddOvertuigingDialog"
-import { useOvertuigingen, useOvertuigingUsage, usePersoonlijkeOvertuigingen, useCompleteOvertuiging, useUpdatePersoonlijkeOvertuiging, useProgram, useOvertuigingsByGoals } from "@/hooks/queries"
+import { useOvertuigingen, useOvertuigingUsage, usePersoonlijkeOvertuigingen, useCompleteOvertuiging, useUpdatePersoonlijkeOvertuiging, useProgram, useOvertuigingsByGoals, useMindsetCategories } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
@@ -20,12 +20,42 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
 
   const { data: program } = useProgram(programId)
   const { data: allOvertuigingen = [] } = useOvertuigingen()
+  const { data: mindsetCategories = [] } = useMindsetCategories()
   const { data: usageMap = {} as OvertuigingUsageMap, isLoading: isLoadingUsage } = useOvertuigingUsage(programId)
   const { data: persoonlijke = [], isLoading: isLoadingPersoonlijke } = usePersoonlijkeOvertuigingen()
 
   // Fetch overtuigingen related to program goals for the add dialog
   const goalIds = program?.goals || []
-  const { data: goalOvertuigingen = [] } = useOvertuigingsByGoals(goalIds)
+  const { data: goalOvertuigingenFromApi = [] } = useOvertuigingsByGoals(goalIds)
+
+  const goalOvertuigingenLocal = useMemo(() => {
+    if (goalIds.length === 0 || allOvertuigingen.length === 0) {
+      return []
+    }
+
+    const linkedOvertuigingIds = new Set(
+      mindsetCategories
+        .filter(category => category.goalIds.some(goalId => goalIds.includes(goalId)))
+        .flatMap(category => category.overtuigingIds)
+    )
+
+    return allOvertuigingen
+      .filter(overtuiging => {
+        const directGoalIds = Array.isArray(overtuiging.goalIds) ? overtuiging.goalIds : []
+        const matchesDirectGoal = directGoalIds.some(goalId => goalIds.includes(goalId))
+        const matchesCategoryGoal = linkedOvertuigingIds.has(overtuiging.id)
+        return matchesDirectGoal || matchesCategoryGoal
+      })
+      .sort((a, b) => a.order - b.order)
+  }, [goalIds, mindsetCategories, allOvertuigingen])
+
+  // Use union of API + local filtering to avoid partial results in mixed backend modes.
+  const goalOvertuigingen = useMemo(() => {
+    const merged = new Map<string, typeof allOvertuigingen[number]>()
+    goalOvertuigingenLocal.forEach(o => merged.set(o.id, o))
+    goalOvertuigingenFromApi.forEach(o => merged.set(o.id, o))
+    return Array.from(merged.values()).sort((a, b) => a.order - b.order)
+  }, [goalOvertuigingenLocal, goalOvertuigingenFromApi, allOvertuigingen])
 
   const completeOvertuigingMutation = useCompleteOvertuiging()
   const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()

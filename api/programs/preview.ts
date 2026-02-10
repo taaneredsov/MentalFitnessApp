@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
@@ -95,7 +95,7 @@ function calculateTrainingDates(
  * Body: { userId, goals[], startDate, duration, daysOfWeek[] }
  * Returns: AI schedule + available methods for editing
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "POST") {
     return sendError(res, "Method not allowed", 405)
   }

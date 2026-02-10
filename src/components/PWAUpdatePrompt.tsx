@@ -1,6 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { RefreshCw, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
+
+const UPDATE_REQUESTED_KEY = "pwa_update_requested"
 
 /**
  * Shows a toast banner when a new service worker is waiting
@@ -10,6 +12,7 @@ export function PWAUpdatePrompt() {
   const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
   const [showPrompt, setShowPrompt] = useState(false)
   const [updating, setUpdating] = useState(false)
+  const reloadHandledRef = useRef(false)
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return
@@ -42,7 +45,16 @@ export function PWAUpdatePrompt() {
 
     // Listen for controller change (new SW took over)
     const handleControllerChange = () => {
-      console.log("[PWAUpdate] New service worker activated, reloading...")
+      // Prevent reload loops (e.g. when DevTools "Update on reload" is enabled).
+      // Reload only when the user explicitly requested an in-app update.
+      const updateRequested = sessionStorage.getItem(UPDATE_REQUESTED_KEY) === "1"
+      if (!updateRequested || reloadHandledRef.current) {
+        return
+      }
+
+      reloadHandledRef.current = true
+      sessionStorage.removeItem(UPDATE_REQUESTED_KEY)
+      console.log("[PWAUpdate] New service worker activated after user update, reloading once...")
       window.location.reload()
     }
 
@@ -57,6 +69,7 @@ export function PWAUpdatePrompt() {
     if (!waitingWorker) return
 
     setUpdating(true)
+    sessionStorage.setItem(UPDATE_REQUESTED_KEY, "1")
     console.log("[PWAUpdate] Sending SKIP_WAITING message to service worker")
 
     // Tell the waiting worker to take over

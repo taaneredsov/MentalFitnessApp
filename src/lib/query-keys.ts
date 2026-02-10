@@ -31,6 +31,7 @@ export const queryKeys = {
 
   // Dynamic data - short cache (1 minute)
   methodUsage: (programId: string) => ["methodUsage", programId] as const,
+  notificationPreferences: (userId: string) => ["notificationPreferences", userId] as const,
 
   // Programmaplanning - for session editing
   programmaplanning: (programId: string, planningId: string) => ["programmaplanning", programId, planningId] as const

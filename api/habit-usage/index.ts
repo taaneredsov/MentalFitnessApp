@@ -1,11 +1,31 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
-import { HABIT_USAGE_FIELDS, FIELD_NAMES, USER_FIELDS, transformUserRewards, escapeFormulaValue, isValidRecordId } from "../_lib/field-mappings.js"
+import {
+  HABIT_USAGE_FIELDS,
+  FIELD_NAMES,
+  USER_FIELDS,
+  transformUserRewards,
+  escapeFormulaValue,
+  isValidRecordId
+} from "../_lib/field-mappings.js"
+import { getDataBackendMode } from "../_lib/data-backend.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import {
+  createHabitUsage,
+  deleteHabitUsage,
+  findHabitUsage,
+  listHabitMethodIdsForDate
+} from "../_lib/repos/habit-usage-repo.js"
+import { getUserByIdWithReadThrough } from "../_lib/sync/user-readthrough.js"
+import { calculateNextStreak } from "../_lib/repos/streak-utils.js"
+import { updateUserStreakFields } from "../_lib/repos/user-repo.js"
+import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 
-// Point values
+const HABIT_BACKEND_ENV = "DATA_BACKEND_HABIT_USAGE"
+
 const POINTS = {
   habit: 5,
   habitDayBonus: 5
@@ -17,11 +37,104 @@ const createUsageSchema = z.object({
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 })
 
-/**
- * GET /api/habit-usage?userId=xxx&date=YYYY-MM-DD
- * Returns habit IDs completed on that date
- */
-async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
+async function handleGetPostgres(req: Request, res: Response, tokenUserId: string) {
+  const { date } = req.query
+  if (!date || typeof date !== "string") {
+    return sendError(res, "date is required", 400)
+  }
+  const completed = await listHabitMethodIdsForDate(tokenUserId, date)
+  return sendSuccess(res, completed)
+}
+
+async function handlePostPostgres(req: Request, res: Response, tokenUserId: string) {
+  const body = createUsageSchema.parse(parseBody(req))
+
+  if (body.userId !== tokenUserId) {
+    return sendError(res, "Cannot create habit usage for another user", 403)
+  }
+
+  const existing = await findHabitUsage(body.userId, body.methodId, body.date)
+  if (existing) {
+    return sendSuccess(res, { id: existing.id, pointsAwarded: 0 })
+  }
+
+  const created = await createHabitUsage({
+    userId: body.userId,
+    methodId: body.methodId,
+    date: body.date
+  })
+
+  const user = await getUserByIdWithReadThrough(body.userId)
+  if (user) {
+    const next = calculateNextStreak({
+      lastActiveDate: user.lastActiveDate,
+      currentStreak: user.currentStreak,
+      longestStreak: user.longestStreak,
+      today: body.date
+    })
+
+    await updateUserStreakFields({
+      userId: body.userId,
+      currentStreak: next.currentStreak,
+      longestStreak: next.longestStreak,
+      lastActiveDate: body.date
+    })
+
+    await enqueueSyncEvent({
+      eventType: "upsert",
+      entityType: "user",
+      entityId: body.userId,
+      payload: {
+        userId: body.userId,
+        currentStreak: next.currentStreak,
+        longestStreak: next.longestStreak,
+        lastActiveDate: body.date
+      },
+      priority: 10
+    })
+  }
+
+  await enqueueSyncEvent({
+    eventType: "upsert",
+    entityType: "habit_usage",
+    entityId: created.id,
+    payload: {
+      userId: body.userId,
+      methodId: body.methodId,
+      date: body.date
+    },
+    priority: 40
+  })
+
+  return sendSuccess(res, { id: created.id, pointsAwarded: POINTS.habit }, 201)
+}
+
+async function handleDeletePostgres(req: Request, res: Response, tokenUserId: string) {
+  const { userId, methodId, date } = req.query
+  if (!userId || typeof userId !== "string") return sendError(res, "userId is required", 400)
+  if (!methodId || typeof methodId !== "string") return sendError(res, "methodId is required", 400)
+  if (!date || typeof date !== "string") return sendError(res, "date is required", 400)
+  if (userId !== tokenUserId) {
+    return sendError(res, "Cannot delete habit usage for another user", 403)
+  }
+
+  const existing = await findHabitUsage(userId, methodId, date)
+  await deleteHabitUsage(userId, methodId, date)
+
+  if (existing) {
+    await enqueueSyncEvent({
+      eventType: "delete",
+      entityType: "habit_usage",
+      entityId: existing.id,
+      payload: {},
+      priority: 40
+    })
+  }
+
+  return sendSuccess(res, null)
+}
+
+async function handleGetAirtable(req: Request, res: Response, tokenUserId: string) {
   const { date } = req.query
   const userId = tokenUserId
 
@@ -29,14 +142,10 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     return sendError(res, "date is required", 400)
   }
 
-  // Validate userId format to prevent injection
   if (!isValidRecordId(userId)) {
     return sendError(res, "Invalid user ID format", 400)
   }
 
-  // Fetch all habit usage for this date, then filter by user in code
-  // (Airtable's filterByFormula with linked records can be unreliable)
-  // Use IS_SAME for reliable date comparison (handles format differences)
   const records = await base(tables.habitUsage)
     .select({
       filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(date)}", 'day')`,
@@ -44,7 +153,6 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     })
     .all()
 
-  // Filter by user and extract method IDs
   const completedHabitIds = records
     .filter(r => {
       const fields = r.fields as Record<string, unknown>
@@ -58,33 +166,20 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     })
     .filter(Boolean)
 
-  console.log("[habit-usage] GET for date:", date, "user:", userId, "found records:", records.length, "filtered:", completedHabitIds.length)
-
   return sendSuccess(res, completedHabitIds)
 }
 
-/**
- * POST /api/habit-usage
- * Creates a new habit usage record and awards points
- */
-async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
-  const rawBody = parseBody(req)
-  const body = createUsageSchema.parse(rawBody)
+async function handlePostAirtable(req: Request, res: Response, tokenUserId: string) {
+  const body = createUsageSchema.parse(parseBody(req))
 
-  // Verify the user is creating a record for themselves
   if (body.userId !== tokenUserId) {
     return sendError(res, "Cannot create habit usage for another user", 403)
   }
 
-  // Validate IDs to prevent injection
   if (!isValidRecordId(body.userId) || !isValidRecordId(body.methodId)) {
     return sendError(res, "Invalid ID format", 400)
   }
 
-  // Check if already exists (idempotent)
-  // Fetch all records for this date, then filter in JavaScript
-  // (Airtable's ARRAYJOIN returns display values, not record IDs, so we can't filter properly in formula)
-  // Use IS_SAME for reliable date comparison
   const existingRecords = await base(tables.habitUsage)
     .select({
       filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(body.date)}", 'day')`,
@@ -92,7 +187,6 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
     })
     .all()
 
-  // Find matching record for this user and method
   const existing = existingRecords.find(r => {
     const fields = r.fields as Record<string, unknown>
     const userIds = fields[HABIT_USAGE_FIELDS.user] as string[] | undefined
@@ -101,11 +195,9 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
   })
 
   if (existing) {
-    // Already exists - return success without creating duplicate
     return sendSuccess(res, { id: existing.id, pointsAwarded: 0 })
   }
 
-  // Create the habit usage record
   const record = await base(tables.habitUsage).create({
     [HABIT_USAGE_FIELDS.user]: [body.userId],
     [HABIT_USAGE_FIELDS.method]: [body.methodId],
@@ -114,12 +206,6 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
     typecast: true
   })
 
-  console.log("[habit-usage] Created record:", record.id, "for user:", body.userId, "method:", body.methodId, "date:", body.date)
-
-  // Award points for completing the habit
-  const pointsAwarded = POINTS.habit
-
-  // Fetch current user rewards and update
   const userRecords = await base(tables.users)
     .select({
       filterByFormula: `RECORD_ID() = "${body.userId}"`,
@@ -130,80 +216,35 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
 
   if (userRecords.length > 0) {
     const currentRewards = transformUserRewards(userRecords[0] as { id: string; fields: Record<string, unknown> })
+    const next = calculateNextStreak({
+      lastActiveDate: currentRewards.lastActiveDate || null,
+      currentStreak: currentRewards.currentStreak,
+      longestStreak: currentRewards.longestStreak,
+      today: body.date
+    })
 
-    // Calculate streak
-    const today = body.date
-    const lastActive = currentRewards.lastActiveDate
-    let newStreak = currentRewards.currentStreak
-    let newLongestStreak = currentRewards.longestStreak
-
-    if (lastActive !== today) {
-      const lastActiveDate = lastActive ? new Date(lastActive) : null
-      const todayDate = new Date(today)
-
-      if (lastActiveDate) {
-        const diffDays = Math.floor((todayDate.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24))
-        if (diffDays === 1) {
-          // Consecutive day
-          newStreak = currentRewards.currentStreak + 1
-        } else if (diffDays > 1) {
-          // Streak broken
-          newStreak = 1
-        }
-      } else {
-        newStreak = 1
-      }
-
-      if (newStreak > newLongestStreak) {
-        newLongestStreak = newStreak
-      }
-
-      console.log("[habit-usage] Streak update - lastActive:", lastActive, "today:", today, "newStreak:", newStreak, "newLongestStreak:", newLongestStreak)
-    } else {
-      console.log("[habit-usage] Streak unchanged - already active today:", today)
-    }
-
-    // Update user streak fields (habit points are counted automatically by Airtable formula)
     await base(tables.users).update(body.userId, {
-      [USER_FIELDS.currentStreak]: newStreak,
-      [USER_FIELDS.longestStreak]: newLongestStreak,
-      [USER_FIELDS.lastActiveDate]: today
+      [USER_FIELDS.currentStreak]: next.currentStreak,
+      [USER_FIELDS.longestStreak]: next.longestStreak,
+      [USER_FIELDS.lastActiveDate]: body.date
     })
   }
 
-  return sendSuccess(res, { id: record.id, pointsAwarded }, 201)
+  return sendSuccess(res, { id: record.id, pointsAwarded: POINTS.habit }, 201)
 }
 
-/**
- * DELETE /api/habit-usage?userId=xxx&methodId=xxx&date=YYYY-MM-DD
- * Deletes a habit usage record (unchecking a habit)
- */
-async function handleDelete(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
+async function handleDeleteAirtable(req: Request, res: Response, tokenUserId: string) {
   const { userId, methodId, date } = req.query
-
-  if (!userId || typeof userId !== "string") {
-    return sendError(res, "userId is required", 400)
-  }
-  if (!methodId || typeof methodId !== "string") {
-    return sendError(res, "methodId is required", 400)
-  }
-  if (!date || typeof date !== "string") {
-    return sendError(res, "date is required", 400)
-  }
-
-  // Verify the user is deleting their own record
+  if (!userId || typeof userId !== "string") return sendError(res, "userId is required", 400)
+  if (!methodId || typeof methodId !== "string") return sendError(res, "methodId is required", 400)
+  if (!date || typeof date !== "string") return sendError(res, "date is required", 400)
   if (userId !== tokenUserId) {
     return sendError(res, "Cannot delete habit usage for another user", 403)
   }
-
-  // Validate IDs to prevent injection
   if (!isValidRecordId(userId) || !isValidRecordId(methodId)) {
     return sendError(res, "Invalid ID format", 400)
   }
 
-  // Fetch all records for this date, then filter in JavaScript
-  // (Airtable's ARRAYJOIN returns display values, not record IDs)
-  // Use IS_SAME for reliable date comparison
   const allRecords = await base(tables.habitUsage)
     .select({
       filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(date)}", 'day')`,
@@ -211,7 +252,6 @@ async function handleDelete(req: VercelRequest, res: VercelResponse, tokenUserId
     })
     .all()
 
-  // Find matching record for this user and method
   const recordToDelete = allRecords.find(r => {
     const fields = r.fields as Record<string, unknown>
     const userIds = fields[HABIT_USAGE_FIELDS.user] as string[] | undefined
@@ -226,23 +266,31 @@ async function handleDelete(req: VercelRequest, res: VercelResponse, tokenUserId
   return sendSuccess(res, null)
 }
 
-/**
- * /api/habit-usage
- * GET: Returns habit IDs completed on a date
- * POST: Creates a new habit usage record
- * DELETE: Removes a habit usage record
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
+    const mode = getDataBackendMode(HABIT_BACKEND_ENV)
+    const usePostgres = mode === "postgres_primary" && isPostgresConfigured()
 
     switch (req.method) {
       case "GET":
-        return handleGet(req, res, auth.userId)
+        if (usePostgres) {
+          return handleGetPostgres(req, res, auth.userId)
+        }
+        if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
+          void handleGetPostgres(req, res, auth.userId)
+            .then(() => undefined)
+            .catch((error) => console.warn("[habit-usage] shadow read failed:", error))
+        }
+        return handleGetAirtable(req, res, auth.userId)
       case "POST":
-        return handlePost(req, res, auth.userId)
+        return usePostgres
+          ? handlePostPostgres(req, res, auth.userId)
+          : handlePostAirtable(req, res, auth.userId)
       case "DELETE":
-        return handleDelete(req, res, auth.userId)
+        return usePostgres
+          ? handleDeletePostgres(req, res, auth.userId)
+          : handleDeleteAirtable(req, res, auth.userId)
       default:
         return sendError(res, "Method not allowed", 405)
     }
@@ -256,3 +304,4 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return handleApiError(res, error)
   }
 }
+

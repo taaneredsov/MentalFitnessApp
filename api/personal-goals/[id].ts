@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
@@ -48,7 +48,7 @@ async function fetchAndVerifyOwnership(goalId: string, tokenUserId: string): Pro
  * PATCH /api/personal-goals/[id]
  * Updates a personal goal
  */
-async function handlePatch(req: VercelRequest, res: VercelResponse, goalId: string, tokenUserId: string) {
+async function handlePatch(req: Request, res: Response, goalId: string, tokenUserId: string) {
   const rawBody = parseBody(req)
   const body = updateGoalSchema.parse(rawBody)
 
@@ -88,7 +88,7 @@ async function handlePatch(req: VercelRequest, res: VercelResponse, goalId: stri
  * DELETE /api/personal-goals/[id]
  * Archives a personal goal (soft delete by setting status to Gearchiveerd)
  */
-async function handleDelete(req: VercelRequest, res: VercelResponse, goalId: string, tokenUserId: string) {
+async function handleDelete(req: Request, res: Response, goalId: string, tokenUserId: string) {
   // Verify ownership
   const { error, status } = await fetchAndVerifyOwnership(goalId, tokenUserId)
   if (error) {
@@ -112,7 +112,7 @@ async function handleDelete(req: VercelRequest, res: VercelResponse, goalId: str
  * PATCH: Update a personal goal
  * DELETE: Archive a personal goal
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   // Verify authentication
   const authHeader = req.headers.authorization
   if (!authHeader?.startsWith("Bearer ")) {
@@ -126,7 +126,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   // Get goal ID from URL
-  const { id } = req.query
+  const { id } = req.params
   if (!id || typeof id !== "string") {
     return sendError(res, "Goal ID is required", 400)
   }

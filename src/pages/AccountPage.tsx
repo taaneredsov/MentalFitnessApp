@@ -1,14 +1,19 @@
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
-import { useCompanies, useUserRewards, usePersonalGoals, useDeletePersonalGoal } from "@/hooks/queries"
+import { useCompanies, useUserRewards, usePersonalGoals, useDeletePersonalGoal, useNotificationPreferences, useUpdateNotificationPreferences } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { ChangePasswordForm } from "@/components/ChangePasswordForm"
 import { LevelProgress, StreakCounter, BadgeGrid } from "@/components/rewards"
 import { PersonalGoalDialog } from "@/components/PersonalGoalDialog"
 import { formatPoints } from "@/lib/rewards-utils"
-import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2 } from "lucide-react"
+import { getCurrentPushSubscription, getNotificationPermission, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push"
+import { api } from "@/lib/api-client"
+import type { ReminderMode } from "@/types/notifications"
+import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell } from "lucide-react"
 import type { PersonalGoal } from "@/types/program"
 
 const MAX_GOALS = 10
@@ -26,11 +31,35 @@ export function AccountPage() {
   // Personal goals
   const { data: personalGoals = [], isLoading: isLoadingGoals } = usePersonalGoals()
   const deleteGoalMutation = useDeletePersonalGoal()
+  const { data: notificationPreferences, isLoading: isLoadingNotificationPreferences } = useNotificationPreferences()
+  const updateNotificationPreferences = useUpdateNotificationPreferences()
 
   // Dialog state
   const [goalDialogOpen, setGoalDialogOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<PersonalGoal | null>(null)
   const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null)
+  const [notificationMessage, setNotificationMessage] = useState<string | null>(null)
+  const [notificationError, setNotificationError] = useState<string | null>(null)
+  const [permission, setPermission] = useState<NotificationPermission | "unsupported">(getNotificationPermission())
+  const [isTogglingPush, setIsTogglingPush] = useState(false)
+  const [isSendingTest, setIsSendingTest] = useState(false)
+  const [prefsForm, setPrefsForm] = useState<{
+    enabled: boolean
+    reminderMode: ReminderMode
+    leadMinutes: number
+    preferredTimeLocal: string
+    timezone: string
+    quietHoursStart: string
+    quietHoursEnd: string
+  }>({
+    enabled: true,
+    reminderMode: "both",
+    leadMinutes: 60,
+    preferredTimeLocal: "19:00",
+    timezone: "Europe/Brussels",
+    quietHoursStart: "22:00",
+    quietHoursEnd: "07:00"
+  })
 
   const companyNames = useMemo(() => {
     if (!companyMap || !user?.company) return []
@@ -62,6 +91,128 @@ export function AccountPage() {
       console.error("[AccountPage] Failed to delete goal:", error)
     } finally {
       setDeletingGoalId(null)
+    }
+  }
+
+  useEffect(() => {
+    setPermission(getNotificationPermission())
+  }, [])
+
+  useEffect(() => {
+    if (!notificationPreferences) return
+    setPrefsForm({
+      enabled: notificationPreferences.enabled,
+      reminderMode: notificationPreferences.reminderMode,
+      leadMinutes: notificationPreferences.leadMinutes,
+      preferredTimeLocal: notificationPreferences.preferredTimeLocal,
+      timezone: notificationPreferences.timezone,
+      quietHoursStart: notificationPreferences.quietHoursStart,
+      quietHoursEnd: notificationPreferences.quietHoursEnd
+    })
+  }, [notificationPreferences])
+
+  const saveNotificationPreferences = async () => {
+    if (!accessToken) return
+    setNotificationMessage(null)
+    setNotificationError(null)
+
+    try {
+      await updateNotificationPreferences.mutateAsync({
+        accessToken,
+        data: {
+          enabled: prefsForm.enabled,
+          reminderMode: prefsForm.reminderMode,
+          leadMinutes: prefsForm.leadMinutes,
+          preferredTimeLocal: prefsForm.preferredTimeLocal,
+          timezone: prefsForm.timezone,
+          quietHoursStart: prefsForm.quietHoursStart,
+          quietHoursEnd: prefsForm.quietHoursEnd
+        }
+      })
+      setNotificationMessage("Notificatie-instellingen opgeslagen.")
+    } catch (error) {
+      setNotificationError(error instanceof Error ? error.message : "Opslaan mislukt")
+    }
+  }
+
+  const handleEnablePush = async () => {
+    if (!accessToken) return
+    if (!notificationPreferences?.vapidPublicKey) {
+      setNotificationError("Push is niet geconfigureerd op de server.")
+      return
+    }
+
+    const browserTz = Intl.DateTimeFormat().resolvedOptions().timeZone || prefsForm.timezone
+
+    setIsTogglingPush(true)
+    setNotificationMessage(null)
+    setNotificationError(null)
+
+    try {
+      const subscription = await subscribeToPush(notificationPreferences.vapidPublicKey)
+      await api.notifications.subscribe(subscription, accessToken, browserTz)
+      await updateNotificationPreferences.mutateAsync({
+        accessToken,
+        data: {
+          enabled: true,
+          timezone: browserTz
+        }
+      })
+      setPrefsForm((prev) => ({
+        ...prev,
+        enabled: true,
+        timezone: browserTz
+      }))
+      setPermission(getNotificationPermission())
+      setNotificationMessage("Push notificaties zijn geactiveerd.")
+    } catch (error) {
+      setPermission(getNotificationPermission())
+      setNotificationError(error instanceof Error ? error.message : "Push activeren mislukt")
+    } finally {
+      setIsTogglingPush(false)
+    }
+  }
+
+  const handleDisablePush = async () => {
+    if (!accessToken) return
+    setIsTogglingPush(true)
+    setNotificationMessage(null)
+    setNotificationError(null)
+
+    try {
+      const current = await getCurrentPushSubscription()
+      const unsubscribed = await unsubscribeFromPush()
+      const endpoint = unsubscribed?.endpoint || current?.endpoint
+      if (endpoint) {
+        await api.notifications.unsubscribe(endpoint, accessToken)
+      }
+      await updateNotificationPreferences.mutateAsync({
+        accessToken,
+        data: { enabled: false }
+      })
+      setPrefsForm((prev) => ({ ...prev, enabled: false }))
+      setPermission(getNotificationPermission())
+      setNotificationMessage("Push notificaties zijn uitgeschakeld.")
+    } catch (error) {
+      setNotificationError(error instanceof Error ? error.message : "Push uitschakelen mislukt")
+    } finally {
+      setIsTogglingPush(false)
+    }
+  }
+
+  const handleSendTestNotification = async () => {
+    if (!accessToken) return
+    setIsSendingTest(true)
+    setNotificationMessage(null)
+    setNotificationError(null)
+
+    try {
+      const result = await api.notifications.sendTest(accessToken)
+      setNotificationMessage(`Test verstuurd: ${result.sent} succesvol, ${result.failed} mislukt.`)
+    } catch (error) {
+      setNotificationError(error instanceof Error ? error.message : "Test notificatie mislukt")
+    } finally {
+      setIsSendingTest(false)
     }
   }
 
@@ -148,6 +299,158 @@ export function AccountPage() {
             </div>
           ) : (
             <p className="text-muted-foreground">Geen beloningsgegevens beschikbaar</p>
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Bell className="h-5 w-5" />
+            Notificaties
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="text-sm">
+            <p className="text-muted-foreground">Push ondersteuning</p>
+            <p className="font-medium">
+              {isPushSupported() ? "Ondersteund" : "Niet ondersteund"}
+            </p>
+          </div>
+          <div className="text-sm">
+            <p className="text-muted-foreground">Browser toestemming</p>
+            <p className="font-medium">{permission}</p>
+          </div>
+          {isLoadingNotificationPreferences ? (
+            <p className="text-muted-foreground text-sm">Notificatie-instellingen laden...</p>
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="notifications-enabled">Herinneringen actief</Label>
+                <input
+                  id="notifications-enabled"
+                  type="checkbox"
+                  checked={prefsForm.enabled}
+                  onChange={(e) => setPrefsForm((prev) => ({ ...prev, enabled: e.target.checked }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="reminder-mode">Herinneringsmodus</Label>
+                <select
+                  id="reminder-mode"
+                  className="w-full border rounded-md px-3 py-2 bg-background"
+                  value={prefsForm.reminderMode}
+                  onChange={(e) =>
+                    setPrefsForm((prev) => ({
+                      ...prev,
+                      reminderMode: e.target.value as ReminderMode
+                    }))
+                  }
+                >
+                  <option value="session">Per sessie</option>
+                  <option value="daily_summary">Dagelijkse samenvatting</option>
+                  <option value="both">Beide</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lead-minutes">Vooraankondiging (minuten)</Label>
+                <Input
+                  id="lead-minutes"
+                  type="number"
+                  min={0}
+                  max={1440}
+                  value={prefsForm.leadMinutes}
+                  onChange={(e) => {
+                    const value = Number(e.target.value)
+                    setPrefsForm((prev) => ({ ...prev, leadMinutes: Number.isFinite(value) ? value : prev.leadMinutes }))
+                  }}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="preferred-time">Voorkeurstijd</Label>
+                <Input
+                  id="preferred-time"
+                  type="time"
+                  value={prefsForm.preferredTimeLocal}
+                  onChange={(e) => setPrefsForm((prev) => ({ ...prev, preferredTimeLocal: e.target.value }))}
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="timezone">Tijdzone</Label>
+                <Input
+                  id="timezone"
+                  value={prefsForm.timezone}
+                  onChange={(e) => setPrefsForm((prev) => ({ ...prev, timezone: e.target.value }))}
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="quiet-start">Stilte start</Label>
+                  <Input
+                    id="quiet-start"
+                    type="time"
+                    value={prefsForm.quietHoursStart}
+                    onChange={(e) => setPrefsForm((prev) => ({ ...prev, quietHoursStart: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="quiet-end">Stilte einde</Label>
+                  <Input
+                    id="quiet-end"
+                    type="time"
+                    value={prefsForm.quietHoursEnd}
+                    onChange={(e) => setPrefsForm((prev) => ({ ...prev, quietHoursEnd: e.target.value }))}
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button
+                  variant="outline"
+                  onClick={saveNotificationPreferences}
+                  disabled={updateNotificationPreferences.isPending}
+                >
+                  Instellingen opslaan
+                </Button>
+                <Button
+                  onClick={handleEnablePush}
+                  disabled={isTogglingPush || !notificationPreferences?.webPushConfigured}
+                >
+                  Push activeren
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleDisablePush}
+                  disabled={isTogglingPush}
+                >
+                  Push uitschakelen
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={handleSendTestNotification}
+                  disabled={isSendingTest || !notificationPreferences?.webPushConfigured}
+                >
+                  Test notificatie
+                </Button>
+              </div>
+
+              {!notificationPreferences?.webPushConfigured && (
+                <p className="text-sm text-amber-700">
+                  Push serverconfiguratie ontbreekt (VAPID keys).
+                </p>
+              )}
+              {notificationMessage && (
+                <p className="text-sm text-green-700">{notificationMessage}</p>
+              )}
+              {notificationError && (
+                <p className="text-sm text-destructive">{notificationError}</p>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

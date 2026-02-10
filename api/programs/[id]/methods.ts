@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { base, tables } from "../../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../../_lib/api-utils.js"
 import { PROGRAM_FIELDS } from "../../_lib/field-mappings.js"
@@ -9,7 +9,7 @@ import { requireAuth, AuthError } from "../../_lib/auth.js"
  * Returns the method IDs linked to a program
  * Used for polling after Airtable automation populates suggested methods
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "GET") {
     return sendError(res, "Method not allowed", 405)
   }
@@ -17,7 +17,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     await requireAuth(req)
 
-    const { id } = req.query
+    const { id } = req.params
     if (!id || typeof id !== "string") {
       return sendError(res, "Program ID is required", 400)
     }

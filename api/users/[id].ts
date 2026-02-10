@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
@@ -12,7 +12,7 @@ const updateUserSchema = z.object({
   lastLogin: z.string().optional()
 })
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "PATCH") {
     return sendError(res, "Method not allowed", 405)
   }
@@ -28,7 +28,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return sendError(res, "Invalid token", 401)
   }
 
-  const { id } = req.query
+  const { id } = req.params
 
   if (!id || typeof id !== "string") {
     return sendError(res, "User ID is required", 400)

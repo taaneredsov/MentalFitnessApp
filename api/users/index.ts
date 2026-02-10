@@ -1,10 +1,12 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { hashPassword } from "../_lib/password.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import { upsertUserFromAirtable } from "../_lib/repos/user-repo.js"
 
 const createUserSchema = z.object({
   name: z.string().min(1),
@@ -14,7 +16,7 @@ const createUserSchema = z.object({
   languageCode: z.string().optional()
 })
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "POST") {
     return sendError(res, "Method not allowed", 405)
   }
@@ -51,6 +53,17 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       [USER_FIELDS.role]: body.role,
       [USER_FIELDS.languageCode]: body.languageCode
     })
+
+    if (isPostgresConfigured()) {
+      await upsertUserFromAirtable({
+        id: record.id,
+        name: body.name,
+        email: body.email,
+        role: body.role,
+        languageCode: body.languageCode,
+        passwordHash
+      })
+    }
 
     const user = transformUser(record as any)
     return sendSuccess(res, user, 201)

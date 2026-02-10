@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
@@ -9,7 +9,7 @@ import { hashToken, constantTimeCompare, randomDelay } from "../_lib/security.js
  * GET /api/auth/verify?token=xxx
  * Verify a magic link token and create a session
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   if (req.method !== "GET") {
     return sendError(res, "Method not allowed", 405)
   }

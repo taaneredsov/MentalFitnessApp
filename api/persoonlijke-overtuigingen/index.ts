@@ -1,4 +1,4 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node"
+import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
@@ -14,7 +14,7 @@ const createSchema = z.object({
  * GET /api/persoonlijke-overtuigingen
  * Returns active persoonlijke overtuigingen for the authenticated user
  */
-async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
+async function handleGet(req: Request, res: Response, tokenUserId: string) {
   if (!isValidRecordId(tokenUserId)) {
     return sendError(res, "Invalid user ID format", 400)
   }
@@ -43,7 +43,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
  * POST /api/persoonlijke-overtuigingen
  * Creates a new persoonlijke overtuiging for the authenticated user
  */
-async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
+async function handlePost(req: Request, res: Response, tokenUserId: string) {
   const rawBody = parseBody(req)
   const body = createSchema.parse(rawBody)
 
@@ -80,7 +80,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
  * GET: Returns all active persoonlijke overtuigingen for the user
  * POST: Creates a new persoonlijke overtuiging
  */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
 

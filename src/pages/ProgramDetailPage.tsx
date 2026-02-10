@@ -13,6 +13,7 @@ import { SessionEditDialog } from "@/components/SessionEditDialog"
 import { ProgramEditDialog } from "@/components/ProgramEditDialog"
 import { MethodThumbnail } from "@/components/MethodThumbnail"
 import { OvertuigingenSection } from "@/components/OvertuigingenSection"
+import { InAppReminderBanner } from "@/components/InAppReminderBanner"
 import { getProgramStatus } from "@/types/program"
 import type { Programmaplanning } from "@/types/program"
 import {
@@ -145,6 +146,15 @@ export function ProgramDetailPage() {
   }
 
   const status = getProgramStatus(program)
+  const now = new Date()
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+  const dueCountToday = program.schedule.filter((session) => {
+    if (session.date !== todayStr) return false
+    const completedCount = session.completedMethodIds?.length ?? 0
+    const totalCount = session.methodIds?.length ?? 0
+    if (totalCount === 0) return false
+    return completedCount < totalCount
+  }).length
 
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
@@ -169,6 +179,8 @@ export function ProgramDetailPage() {
           </Button>
         )}
       </div>
+
+      <InAppReminderBanner dueCount={dueCountToday} />
 
       {/* Program Info */}
       <Card>
