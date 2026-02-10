@@ -8,7 +8,7 @@ import { OVERTUIGING_USAGE_FIELDS, USER_FIELDS, transformUserRewards, isValidRec
 const createUsageSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
   overtuigingId: z.string().min(1, "Overtuiging ID is required"),
-  programId: z.string().min(1, "Program ID is required"),
+  programId: z.string().min(1).optional(),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 })
 
@@ -17,14 +17,17 @@ const createUsageSchema = z.object({
  * Returns { [overtuigingId]: { completed: boolean } }
  */
 async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: string) {
-  const { programId } = req.query
+  const { programId, all } = req.query
 
-  if (!programId || typeof programId !== "string") {
-    return sendError(res, "programId is required", 400)
-  }
+  const fetchAll = all === "true"
 
-  if (!isValidRecordId(programId)) {
-    return sendError(res, "Invalid program ID format", 400)
+  if (!fetchAll) {
+    if (!programId || typeof programId !== "string") {
+      return sendError(res, "programId is required (or use all=true)", 400)
+    }
+    if (!isValidRecordId(programId)) {
+      return sendError(res, "Invalid program ID format", 400)
+    }
   }
 
   // Fetch all usage records
@@ -34,7 +37,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     })
     .all()
 
-  // Filter by user and program, build completion map
+  // Filter by user (and optionally program), build completion map
   const progress: Record<string, { completed: boolean }> = {}
 
   allRecords.forEach(r => {
@@ -43,7 +46,15 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     const programField = fields[OVERTUIGING_USAGE_FIELDS.program] as string[] | undefined
 
     if (!userField?.includes(tokenUserId)) return
-    if (!programField?.includes(programId)) return
+
+    // If fetching for a specific program, include:
+    // 1. Records matching that program
+    // 2. Standalone records (no program) - beliefs completed from mindset page
+    if (!fetchAll && programId) {
+      const belongsToProgram = programField?.includes(programId as string)
+      const isStandalone = !programField || programField.length === 0
+      if (!belongsToProgram && !isStandalone) return
+    }
 
     const overtuigingField = fields[OVERTUIGING_USAGE_FIELDS.overtuiging] as string[] | undefined
     const overtuigingId = overtuigingField?.[0]
@@ -53,7 +64,7 @@ async function handleGet(req: VercelRequest, res: VercelResponse, tokenUserId: s
     progress[overtuigingId] = { completed: true }
   })
 
-  console.log("[overtuiging-usage] GET for program:", programId, "user:", tokenUserId, "completed:", Object.keys(progress).length)
+  console.log("[overtuiging-usage] GET", fetchAll ? "all" : `program:${programId}`, "user:", tokenUserId, "completed:", Object.keys(progress).length)
 
   return sendSuccess(res, progress)
 }
@@ -73,7 +84,7 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
   }
 
   // Validate IDs
-  if (!isValidRecordId(body.userId) || !isValidRecordId(body.overtuigingId) || !isValidRecordId(body.programId)) {
+  if (!isValidRecordId(body.userId) || !isValidRecordId(body.overtuigingId) || (body.programId && !isValidRecordId(body.programId))) {
     return sendError(res, "Invalid ID format", 400)
   }
 
@@ -88,24 +99,26 @@ async function handlePost(req: VercelRequest, res: VercelResponse, tokenUserId: 
     const fields = r.fields as Record<string, unknown>
     const userField = fields[OVERTUIGING_USAGE_FIELDS.user] as string[] | undefined
     const overtuigingField = fields[OVERTUIGING_USAGE_FIELDS.overtuiging] as string[] | undefined
-    const programField = fields[OVERTUIGING_USAGE_FIELDS.program] as string[] | undefined
 
     return userField?.includes(body.userId) &&
-      overtuigingField?.includes(body.overtuigingId) &&
-      programField?.includes(body.programId)
+      overtuigingField?.includes(body.overtuigingId)
   })
 
   if (alreadyCompleted) {
-    return sendError(res, "Overtuiging already completed in this program", 400)
+    return sendError(res, "Overtuiging already completed", 400)
   }
 
   // Create the usage record (no level field)
-  const record = await base(tables.overtuigingenGebruik).create({
+  const createFields: Record<string, unknown> = {
     [OVERTUIGING_USAGE_FIELDS.user]: [body.userId],
     [OVERTUIGING_USAGE_FIELDS.overtuiging]: [body.overtuigingId],
-    [OVERTUIGING_USAGE_FIELDS.program]: [body.programId],
     [OVERTUIGING_USAGE_FIELDS.date]: body.date
-  }, {
+  }
+  if (body.programId) {
+    createFields[OVERTUIGING_USAGE_FIELDS.program] = [body.programId]
+  }
+
+  const record = await base(tables.overtuigingenGebruik).create(createFields, {
     typecast: true
   })
 

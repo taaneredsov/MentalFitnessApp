@@ -1,24 +1,28 @@
 import { useState, useMemo } from "react"
-import { useOvertuigingen, useGoals, useMindsetCategories } from "@/hooks/queries"
+import { useOvertuigingen, useGoals, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging } from "@/hooks/queries"
+import { useAuth } from "@/contexts/AuthContext"
+import { getTodayDate } from "@/lib/rewards-utils"
+import { POINTS } from "@/types/rewards"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import type { Overtuiging } from "@/types/program"
-import { Loader2, Search, X, Lightbulb } from "lucide-react"
+import type { Overtuiging, OvertuigingUsageMap } from "@/types/program"
+import { Loader2, Search, X, Lightbulb, Check, Star, ChevronDown } from "lucide-react"
 
-function LevelDots({ count = 3 }: { count?: number }) {
-  return (
-    <div className="flex items-center gap-1">
-      {Array.from({ length: count }).map((_, i) => (
-        <div
-          key={i}
-          className="w-2.5 h-2.5 rounded-full bg-muted"
-        />
-      ))}
-    </div>
-  )
-}
-
-function OvertuigingCard({ overtuiging, categoryName }: { overtuiging: Overtuiging; categoryName?: string }) {
+function OvertuigingCard({
+  overtuiging,
+  categoryName,
+  completed,
+  onComplete,
+  isPending,
+  recentlyCompleted
+}: {
+  overtuiging: Overtuiging
+  categoryName?: string
+  completed: boolean
+  onComplete: () => void
+  isPending: boolean
+  recentlyCompleted: boolean
+}) {
   return (
     <Card className="overflow-hidden">
       <div className="flex gap-3 p-3">
@@ -35,9 +39,35 @@ function OvertuigingCard({ overtuiging, categoryName }: { overtuiging: Overtuigi
               {categoryName}
             </p>
           )}
-          <div className="mt-1.5">
-            <LevelDots />
-          </div>
+          {completed ? (
+            <span className="text-xs text-[#007D72] font-medium mt-0.5">Voltooid</span>
+          ) : (
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Print in met de balansmethode. Indien je inprint met de balansmethode, zet een vinkje.
+            </p>
+          )}
+        </div>
+
+        {/* Check button + points */}
+        <div className="flex items-center gap-2 shrink-0">
+          {recentlyCompleted && (
+            <span className="flex items-center gap-0.5 text-xs font-medium text-primary animate-in fade-in zoom-in duration-300">
+              <Star className="h-3 w-3" />
+              +{POINTS.overtuiging}
+            </span>
+          )}
+          <button
+            onClick={onComplete}
+            disabled={completed || isPending}
+            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-100 ${
+              completed
+                ? "bg-[#00978A] text-white"
+                : "bg-gray-200 text-gray-400 hover:bg-gray-300"
+            }`}
+            aria-label={completed ? "Voltooid" : "Overtuiging voltooien"}
+          >
+            <Check className="h-5 w-5" />
+          </button>
         </div>
       </div>
     </Card>
@@ -47,13 +77,46 @@ function OvertuigingCard({ overtuiging, categoryName }: { overtuiging: Overtuigi
 export function OvertuigingenPage() {
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
+  const [showCompleted, setShowCompleted] = useState(false)
+  const [recentlyCompletedId, setRecentlyCompletedId] = useState<string | null>(null)
+
+  const { user, accessToken } = useAuth()
+  const today = useMemo(() => getTodayDate(), [])
 
   const { data: overtuigingen = [], isLoading: overtuigingenLoading, error: overtuigingenError } = useOvertuigingen()
   const { data: goals = [], isLoading: goalsLoading } = useGoals()
   const { data: categories = [], isLoading: categoriesLoading } = useMindsetCategories()
+  const { data: usageMap = {} as OvertuigingUsageMap } = useAllOvertuigingUsage()
+
+  const completeOvertuigingMutation = useCompleteOvertuiging()
 
   const isLoading = overtuigingenLoading || goalsLoading || categoriesLoading
   const error = overtuigingenError ? "Kon overtuigingen niet laden" : null
+
+  const isCompleted = (overtuigingId: string): boolean => {
+    return usageMap[overtuigingId]?.completed === true
+  }
+
+  const handleComplete = (overtuigingId: string) => {
+    if (!user?.id || !accessToken) return
+    if (isCompleted(overtuigingId)) return
+
+    setRecentlyCompletedId(overtuigingId)
+    setTimeout(() => setRecentlyCompletedId(null), 2000)
+
+    completeOvertuigingMutation.mutate({
+      data: {
+        userId: user.id,
+        overtuigingId,
+        date: today
+      },
+      accessToken
+    }, {
+      onError: () => {
+        setRecentlyCompletedId(null)
+      }
+    })
+  }
 
   // Build category name lookup
   const categoryNameMap = useMemo(() => {
@@ -112,6 +175,15 @@ export function OvertuigingenPage() {
 
     return result
   }, [overtuigingen, selectedGoalId, searchQuery, overtuigingGoalMap, categoryNameMap])
+
+  // Split into active and completed
+  const activeOvertuigingen = useMemo(() => {
+    return filteredOvertuigingen.filter(o => !isCompleted(o.id))
+  }, [filteredOvertuigingen, usageMap])
+
+  const completedOvertuigingen = useMemo(() => {
+    return filteredOvertuigingen.filter(o => isCompleted(o.id))
+  }, [filteredOvertuigingen, usageMap])
 
   if (isLoading) {
     return (
@@ -199,13 +271,43 @@ export function OvertuigingenPage() {
         </div>
       ) : (
         <div className="space-y-3">
-          {filteredOvertuigingen.map(overtuiging => (
+          {/* Active beliefs */}
+          {activeOvertuigingen.map(overtuiging => (
             <OvertuigingCard
               key={overtuiging.id}
               overtuiging={overtuiging}
               categoryName={categoryNameMap.get(overtuiging.id)}
+              completed={false}
+              onComplete={() => handleComplete(overtuiging.id)}
+              isPending={completeOvertuigingMutation.isPending}
+              recentlyCompleted={recentlyCompletedId === overtuiging.id}
             />
           ))}
+
+          {/* Completed toggle */}
+          {completedOvertuigingen.length > 0 && (
+            <>
+              <button
+                onClick={() => setShowCompleted(!showCompleted)}
+                className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
+              >
+                <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showCompleted ? "rotate-180" : ""}`} />
+                {showCompleted ? "Verberg voltooide" : `Bekijk voltooide (${completedOvertuigingen.length})`}
+              </button>
+              {showCompleted && completedOvertuigingen.map(overtuiging => (
+                <div key={overtuiging.id} className="opacity-60">
+                  <OvertuigingCard
+                    overtuiging={overtuiging}
+                    categoryName={categoryNameMap.get(overtuiging.id)}
+                    completed={true}
+                    onComplete={() => {}}
+                    isPending={false}
+                    recentlyCompleted={false}
+                  />
+                </div>
+              ))}
+            </>
+          )}
         </div>
       )}
     </div>

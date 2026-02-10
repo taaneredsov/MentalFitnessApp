@@ -403,7 +403,14 @@ export const api = {
         }
       }),
 
-    create: (data: { userId: string; overtuigingId: string; programId: string; date: string }, accessToken: string) =>
+    getAll: (accessToken: string) =>
+      request<OvertuigingUsageMap>(`/overtuiging-usage?all=true`, {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      }),
+
+    create: (data: { userId: string; overtuigingId: string; programId?: string; date: string }, accessToken: string) =>
       request<{ id: string; pointsAwarded: number }>("/overtuiging-usage", {
         method: "POST",
         headers: {

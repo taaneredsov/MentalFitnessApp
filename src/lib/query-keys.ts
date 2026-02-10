@@ -22,6 +22,7 @@ export const queryKeys = {
 
   // Overtuigingen - user data
   overtuigingUsage: (programId: string) => ["overtuigingUsage", programId] as const,
+  allOvertuigingUsage: ["allOvertuigingUsage"] as const,
   persoonlijkeOvertuigingen: (userId: string) => ["persoonlijkeOvertuigingen", userId] as const,
 
   // Rewards data - short cache (1 minute)

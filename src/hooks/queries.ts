@@ -481,6 +481,17 @@ export function useOvertuigingUsage(programId: string) {
   })
 }
 
+export function useAllOvertuigingUsage() {
+  const { accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.allOvertuigingUsage,
+    queryFn: () => api.overtuigingUsage.getAll(accessToken!),
+    enabled: !!accessToken,
+    staleTime: CACHE_SHORT
+  })
+}
+
 export function usePersoonlijkeOvertuigingen() {
   const { user, accessToken } = useAuth()
 
@@ -552,12 +563,16 @@ export function useCompleteOvertuiging() {
       data,
       accessToken
     }: {
-      data: { userId: string; overtuigingId: string; programId: string; date: string }
+      data: { userId: string; overtuigingId: string; programId?: string; date: string }
       accessToken: string
     }) => api.overtuigingUsage.create(data, accessToken),
     onSuccess: (_data, variables) => {
-      // Invalidate overtuiging usage for the program
-      queryClient.invalidateQueries({ queryKey: queryKeys.overtuigingUsage(variables.data.programId) })
+      // Invalidate overtuiging usage for the program (if applicable)
+      if (variables.data.programId) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.overtuigingUsage(variables.data.programId) })
+      }
+      // Invalidate all overtuiging usage (for mindset page)
+      queryClient.invalidateQueries({ queryKey: queryKeys.allOvertuigingUsage })
       // Invalidate rewards cache to reflect point changes
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
     }
