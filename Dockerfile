@@ -43,6 +43,9 @@ COPY --from=builder /app/dist ./dist
 # Copy compiled server files from builder
 COPY --from=builder /app/dist-server ./
 
+# Copy migration scripts and SQL files
+COPY --from=builder /app/tasks ./tasks
+
 # Set ownership
 RUN chown -R nodejs:nodejs /app
 
