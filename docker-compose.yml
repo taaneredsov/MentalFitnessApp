@@ -18,7 +18,7 @@ services:
       - SMTP_PASSWORD_FILE=/run/secrets/smtp_password
       - SMTP_FROM_FILE=/run/secrets/smtp_from
       # Redis configuration
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://mfa_redis:6379
       # Postgres configuration
       - DATABASE_URL_FILE=/run/secrets/database_url
       # Data backend feature flags
@@ -134,7 +134,7 @@ services:
       - NODE_ENV=production
       - AIRTABLE_ACCESS_TOKEN_FILE=/run/secrets/airtable_access_token
       - AIRTABLE_BASE_ID_FILE=/run/secrets/airtable_base_id
-      - REDIS_URL=redis://redis:6379
+      - REDIS_URL=redis://mfa_redis:6379
       - DATABASE_URL_FILE=/run/secrets/database_url
       - USER_FAST_LANE_ENABLED=true
       - SYNC_USER_FALLBACK_POLL_SECONDS=60
@@ -151,6 +151,7 @@ services:
       - NOTIFICATION_RETRY_BASE_SECONDS=5
     networks:
       - mfa_internal
+      - traefik-public
     depends_on:
       - redis
       - postgres
