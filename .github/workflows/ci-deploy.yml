@@ -19,6 +19,8 @@ jobs:
       - run: npm run lint
       - run: npx tsc -b
       - run: npm run test:run
+        env:
+          JWT_SECRET: test-secret-for-ci
 
   build-and-deploy:
     needs: test
