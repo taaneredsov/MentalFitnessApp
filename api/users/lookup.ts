@@ -5,6 +5,7 @@ import { transformUser, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-ma
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { getUserByEmailWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 export default async function handler(req: Request, res: Response) {
   if (req.method !== "GET") {
@@ -39,7 +40,7 @@ export default async function handler(req: Request, res: Response) {
       return sendError(res, "User not found", 404)
     }
 
-    return sendSuccess(res, transformUser(records[0] as any))
+    return sendSuccess(res, transformUser(records[0] as AirtableRecord))
   } catch (error) {
     if (error instanceof AuthError) {
       return sendError(res, error.message, error.status)

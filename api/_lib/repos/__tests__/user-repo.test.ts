@@ -139,11 +139,13 @@ describe("getUserRewardsData", () => {
   it("returns user with counts when user exists", async () => {
     // First call: findUserById
     mockDbQuery.mockResolvedValueOnce({ rows: [fakeUserRow], rowCount: 1, command: "", oid: 0, fields: [] })
-    // Next 4 calls: COUNT queries for habits, methods, goals, overtuigingen
+    // Next 6 calls: COUNT queries for habits, methods, goals, overtuigingen, habit days, programs completed
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "5" }], rowCount: 1, command: "", oid: 0, fields: [] })
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "10" }], rowCount: 1, command: "", oid: 0, fields: [] })
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "3" }], rowCount: 1, command: "", oid: 0, fields: [] })
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "2" }], rowCount: 1, command: "", oid: 0, fields: [] })
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "4" }], rowCount: 1, command: "", oid: 0, fields: [] })
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "1" }], rowCount: 1, command: "", oid: 0, fields: [] })
 
     const data = await getUserRewardsData("rec123")
     expect(data).not.toBeNull()

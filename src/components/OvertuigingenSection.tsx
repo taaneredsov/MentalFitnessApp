@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AddOvertuigingDialog } from "@/components/AddOvertuigingDialog"
@@ -25,7 +25,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
   const { data: persoonlijke = [], isLoading: isLoadingPersoonlijke } = usePersoonlijkeOvertuigingen()
 
   // Fetch overtuigingen related to program goals for the add dialog
-  const goalIds = program?.goals || []
+  const goalIds = useMemo(() => program?.goals || [], [program?.goals])
   const { data: goalOvertuigingenFromApi = [] } = useOvertuigingsByGoals(goalIds)
 
   const goalOvertuigingenLocal = useMemo(() => {
@@ -55,7 +55,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     goalOvertuigingenLocal.forEach(o => merged.set(o.id, o))
     goalOvertuigingenFromApi.forEach(o => merged.set(o.id, o))
     return Array.from(merged.values()).sort((a, b) => a.order - b.order)
-  }, [goalOvertuigingenLocal, goalOvertuigingenFromApi, allOvertuigingen])
+  }, [goalOvertuigingenLocal, goalOvertuigingenFromApi])
 
   const completeOvertuigingMutation = useCompleteOvertuiging()
   const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()
@@ -83,16 +83,16 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     return persoonlijke.filter(p => p.status === "Actief")
   }, [persoonlijke])
 
-  const isCompleted = (overtuigingId: string): boolean => {
+  const isCompleted = useCallback((overtuigingId: string): boolean => {
     return usageMap[overtuigingId]?.completed === true
-  }
+  }, [usageMap])
 
   // Split into active and completed
   const { activeOvertuigingen, completedOvertuigingen } = useMemo(() => {
     const active = programOvertuigingen.filter(o => !isCompleted(o.id))
     const completed = programOvertuigingen.filter(o => isCompleted(o.id))
     return { activeOvertuigingen: active, completedOvertuigingen: completed }
-  }, [programOvertuigingen, usageMap])
+  }, [programOvertuigingen, isCompleted])
 
   const handleComplete = async (overtuigingId: string) => {
     if (!user?.id || !accessToken) return

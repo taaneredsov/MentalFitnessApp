@@ -5,6 +5,7 @@ import { transformMethod, transformMedia } from "../_lib/field-mappings.js"
 import { getDataBackendMode } from "../_lib/data-backend.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { getMethodById } from "../_lib/repos/reference-repo.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const METHODS_BACKEND_ENV = "DATA_BACKEND_METHODS"
 
@@ -41,9 +42,9 @@ async function handleGetAirtable(req: Request, res: Response) {
   }
 
   const record = records[0]
-  const method = transformMethod({ id: record.id, fields: record.fields } as any)
+  const method = transformMethod({ id: record.id, fields: record.fields } as AirtableRecord)
 
-  let mediaDetails: any[] = []
+  let mediaDetails: Record<string, unknown>[] = []
   const mediaIds = method.media
   if (mediaIds && mediaIds.length > 0) {
     const mediaRecords = await base(tables.media)
@@ -53,7 +54,7 @@ async function handleGetAirtable(req: Request, res: Response) {
       })
       .all()
 
-    mediaDetails = mediaRecords.map(r => transformMedia({ id: r.id, fields: r.fields } as any))
+    mediaDetails = mediaRecords.map(r => transformMedia({ id: r.id, fields: r.fields } as AirtableRecord))
   }
 
   return sendSuccess(res, {

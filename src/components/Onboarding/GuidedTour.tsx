@@ -82,6 +82,7 @@ export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
 
   // Update rect on step change
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- measuring DOM element position on step change
     updateTargetRect()
   }, [updateTargetRect])
 

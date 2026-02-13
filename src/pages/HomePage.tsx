@@ -203,6 +203,7 @@ export function HomePage() {
   // Reset welcome screen state when wizard closes
   useEffect(() => {
     if (!shouldShowOnboardingWizard) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting wizard state when wizard closes
       setShowWelcomeInWizard(true)
     }
   }, [shouldShowOnboardingWizard])

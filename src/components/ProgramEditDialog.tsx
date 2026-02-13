@@ -138,6 +138,7 @@ export function ProgramEditDialog({
         .map(name => dayNameToId.get(name))
         .filter((id): id is string => id !== undefined)
 
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initializing form state from props when dialog opens
       setSelectedGoalIds(goalIds)
       setSelectedDayIds(dayIds)
       setOriginalGoalIds(goalIds)

@@ -25,6 +25,7 @@ import {
   updateProgramById
 } from "../_lib/repos/program-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const PROGRAMS_BACKEND_ENV = "DATA_BACKEND_PROGRAMS"
 
@@ -59,37 +60,37 @@ async function fetchAirtableDetails(input: {
   dayIds: string[]
   overtuigingIds: string[]
 }) {
-  let goalDetails: any[] = []
-  let methodDetails: any[] = []
+  let goalDetails: Record<string, unknown>[] = []
+  let methodDetails: Record<string, unknown>[] = []
   let dayNames: string[] = []
-  let overtuigingDetails: any[] = []
+  let overtuigingDetails: Record<string, unknown>[] = []
 
   const validGoals = input.goalIds.filter(isAirtableRecordId)
   if (validGoals.length > 0) {
     const formula = `OR(${validGoals.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
     const records = await base(tables.goals).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
-    goalDetails = records.map((r) => transformGoal(r as any))
+    goalDetails = records.map((r) => transformGoal(r as AirtableRecord))
   }
 
   const validMethods = input.methodIds.filter(isAirtableRecordId)
   if (validMethods.length > 0) {
     const formula = `OR(${validMethods.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
     const records = await base(tables.methods).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
-    methodDetails = records.map((r) => transformMethod(r as any))
+    methodDetails = records.map((r) => transformMethod(r as AirtableRecord))
   }
 
   const validDays = input.dayIds.filter(isAirtableRecordId)
   if (validDays.length > 0) {
     const formula = `OR(${validDays.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
     const records = await base(tables.daysOfWeek).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
-    dayNames = records.map((r) => transformDay(r as any).name)
+    dayNames = records.map((r) => transformDay(r as AirtableRecord).name)
   }
 
   const validOvertuigingen = input.overtuigingIds.filter(isAirtableRecordId)
   if (validOvertuigingen.length > 0) {
     const formula = `OR(${validOvertuigingen.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
     const records = await base(tables.overtuigingen).select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
-    overtuigingDetails = records.map((r) => transformOvertuiging(r as any))
+    overtuigingDetails = records.map((r) => transformOvertuiging(r as AirtableRecord))
   }
 
   return {
@@ -267,7 +268,7 @@ async function handleGetAirtable(req: Request, res: Response) {
       return sendError(res, "Forbidden: You don't own this program", 403)
     }
 
-    const program = transformProgram(records[0] as any)
+    const program = transformProgram(records[0] as AirtableRecord)
     const details = await fetchAirtableDetails({
       goalIds: program.goals || [],
       methodIds: program.methods || [],
@@ -283,7 +284,7 @@ async function handleGetAirtable(req: Request, res: Response) {
       .all()
 
     const rawSchedule = allScheduleRecords
-      .map(r => transformProgrammaplanning(r as any))
+      .map(r => transformProgrammaplanning(r as AirtableRecord))
       .filter(s => s.programId === id)
 
     const allMethodUsageIds = rawSchedule.flatMap(s => s.methodUsageIds || [])
@@ -394,7 +395,7 @@ async function handlePatchAirtable(req: Request, res: Response) {
     }
 
     const record = await base(tables.programs).update(id, fields, { typecast: true })
-    const program = transformProgram(record as any)
+    const program = transformProgram(record as AirtableRecord)
 
     return sendSuccess(res, program)
   } catch (error) {

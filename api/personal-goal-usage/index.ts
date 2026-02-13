@@ -3,7 +3,7 @@ import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
-import { PERSONAL_GOAL_USAGE_FIELDS, USER_FIELDS, transformUserRewards, isValidRecordId } from "../_lib/field-mappings.js"
+import { PERSONAL_GOAL_USAGE_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
 import { getDataBackendMode } from "../_lib/data-backend.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import {
@@ -13,10 +13,8 @@ import {
   personalGoalBelongsToUser,
   upsertPersonalGoal
 } from "../_lib/repos/personal-goal-usage-repo.js"
-import { calculateNextStreak } from "../_lib/repos/streak-utils.js"
-import { getUserByIdWithReadThrough } from "../_lib/sync/user-readthrough.js"
-import { updateUserStreakFields } from "../_lib/repos/user-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
+import { awardRewardActivity } from "../_lib/rewards/engine.js"
 
 const PERSONAL_GOAL_BACKEND_ENV = "DATA_BACKEND_PERSONAL_GOAL_USAGE"
 
@@ -104,35 +102,12 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
 
   const counts = await countGoalUsageForUserGoalDate(body.userId, body.personalGoalId, body.date)
 
-  const user = await getUserByIdWithReadThrough(body.userId)
-  if (user) {
-    const next = calculateNextStreak({
-      lastActiveDate: user.lastActiveDate,
-      currentStreak: user.currentStreak,
-      longestStreak: user.longestStreak,
-      today: body.date
-    })
-
-    await updateUserStreakFields({
-      userId: body.userId,
-      currentStreak: next.currentStreak,
-      longestStreak: next.longestStreak,
-      lastActiveDate: body.date
-    })
-
-    await enqueueSyncEvent({
-      eventType: "upsert",
-      entityType: "user",
-      entityId: body.userId,
-      payload: {
-        userId: body.userId,
-        currentStreak: next.currentStreak,
-        longestStreak: next.longestStreak,
-        lastActiveDate: body.date
-      },
-      priority: 10
-    })
-  }
+  await awardRewardActivity({
+    userId: body.userId,
+    activityType: "personalGoal",
+    activityDate: body.date,
+    forcePostgres: true
+  })
 
   return sendSuccess(res, {
     id: usage.id,
@@ -230,28 +205,11 @@ async function handlePostAirtable(req: Request, res: Response, tokenUserId: stri
     if (recordDate === body.date) todayCount += 1
   })
 
-  const userRecords = await base(tables.users)
-    .select({
-      filterByFormula: `RECORD_ID() = "${body.userId}"`,
-      maxRecords: 1,
-      returnFieldsByFieldId: true
-    })
-    .firstPage()
-
-  if (userRecords.length > 0) {
-    const currentRewards = transformUserRewards(userRecords[0] as { id: string; fields: Record<string, unknown> })
-    const next = calculateNextStreak({
-      lastActiveDate: currentRewards.lastActiveDate || null,
-      currentStreak: currentRewards.currentStreak,
-      longestStreak: currentRewards.longestStreak,
-      today: body.date
-    })
-    await base(tables.users).update(body.userId, {
-      [USER_FIELDS.currentStreak]: next.currentStreak,
-      [USER_FIELDS.longestStreak]: next.longestStreak,
-      [USER_FIELDS.lastActiveDate]: body.date
-    })
-  }
+  await awardRewardActivity({
+    userId: body.userId,
+    activityType: "personalGoal",
+    activityDate: body.date
+  })
 
   return sendSuccess(res, {
     id: record.id,
@@ -295,4 +253,3 @@ export default async function handler(req: Request, res: Response) {
     return handleApiError(res, error)
   }
 }
-

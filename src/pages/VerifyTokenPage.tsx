@@ -24,6 +24,7 @@ export function VerifyTokenPage() {
     const token = searchParams.get("token")
 
     if (!token) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- error state from URL validation on mount
       setError("Geen geldige link")
       setVerifying(false)
       return

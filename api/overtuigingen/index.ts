@@ -2,6 +2,7 @@ import type { Request, Response } from "express"
 import { sendSuccess, handleApiError } from "../_lib/api-utils.js"
 import { transformOvertuiging } from "../_lib/field-mappings.js"
 import { cachedSelect } from "../_lib/cached-airtable.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 /**
  * GET /api/overtuigingen
@@ -16,7 +17,7 @@ export default async function handler(req: Request, res: Response) {
     const overtuigingen = await cachedSelect(
       "overtuigingen",
       {},
-      (records) => records.map(r => transformOvertuiging(r as any))
+      (records) => records.map(r => transformOvertuiging(r as AirtableRecord))
     )
 
     return sendSuccess(res, overtuigingen)

@@ -32,15 +32,12 @@ export interface AwardResponse {
  * Request body for POST /api/rewards/award
  */
 export interface AwardRequest {
-  activityType: "method" | "habit" | "program" | "sessionBonus" | "habitDayBonus" | "programMilestone" | "overtuiging"
+  activityType: "method" | "habit" | "program" | "sessionBonus" | "habitDayBonus" | "programMilestone" | "overtuiging" | "personalGoal"
   activityId?: string
-  methodsCompleted?: number
-  habitsCompleted?: number
-  habitDaysCompleted?: number
-  programsCompleted?: number
   // Program milestone fields
   programId?: string
   milestone?: number
+  activityDate?: string
 }
 
 /**

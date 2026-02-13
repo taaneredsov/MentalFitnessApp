@@ -53,7 +53,7 @@ async function handlePatch(req: Request, res: Response, goalId: string, tokenUse
   const body = updateGoalSchema.parse(rawBody)
 
   // Verify ownership
-  const { error, status, record } = await fetchAndVerifyOwnership(goalId, tokenUserId)
+  const { error, status, record: _record } = await fetchAndVerifyOwnership(goalId, tokenUserId)
   if (error) {
     return sendError(res, error, status!)
   }

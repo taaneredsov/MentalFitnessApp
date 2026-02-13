@@ -22,6 +22,7 @@ import {
   type TrainingDate,
   type AIMethod
 } from "../../_lib/openai.js"
+import type { AirtableRecord } from "../../_lib/types.js"
 
 // Day name to JS weekday mapping
 const DAY_NAME_TO_WEEKDAY: Record<string, number> = {
@@ -41,14 +42,6 @@ interface ScheduleDay {
   dayOfWeek: string
   dayId: string
   methods: ScheduleMethod[]
-}
-
-/**
- * Parse duration string to number of weeks
- */
-function parseWeeks(duration: string): number {
-  const match = duration.match(/(\d+)/)
-  return match ? parseInt(match[1], 10) : 4
 }
 
 /**
@@ -226,7 +219,7 @@ export default async function handler(req: Request, res: Response) {
       return sendError(res, "Program not found", 404)
     }
 
-    const program = transformProgram(programRecords[0] as any)
+    const program = transformProgram(programRecords[0] as AirtableRecord)
 
     // Verify ownership
     const programUserId = (programRecords[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
@@ -247,7 +240,7 @@ export default async function handler(req: Request, res: Response) {
       .all()
 
     const allSessions = scheduleRecords
-      .map(r => transformProgrammaplanning(r as any))
+      .map(r => transformProgrammaplanning(r as AirtableRecord))
       .filter(s => s.programId === id)
 
     // Separate past and future sessions
@@ -295,7 +288,7 @@ export default async function handler(req: Request, res: Response) {
         returnFieldsByFieldId: true
       })
       .all()
-    const days = dayRecords.map(r => transformDay(r as any))
+    const days = dayRecords.map(r => transformDay(r as AirtableRecord))
 
     // Determine goals to use
     const goalIds = body.goals || program.goals
@@ -325,13 +318,13 @@ export default async function handler(req: Request, res: Response) {
           returnFieldsByFieldId: true
         })
         .all()
-      const goals = goalRecords.map(r => transformGoal(r as any))
+      const goals = goalRecords.map(r => transformGoal(r as AirtableRecord))
 
       // Fetch prompts
       const promptRecords = await base(tables.programPrompts)
         .select({ returnFieldsByFieldId: true })
         .all()
-      const allPrompts = promptRecords.map(r => transformProgramPrompt(r as any))
+      const allPrompts = promptRecords.map(r => transformProgramPrompt(r as AirtableRecord))
       const systemPromptRecords = allPrompts.filter(p => p.promptType === "Systeem")
       const systemPrompts = new Map<string, string>()
       for (const sp of systemPromptRecords) {
@@ -345,13 +338,13 @@ export default async function handler(req: Request, res: Response) {
       // Fetch experience levels
       const expRecords = await base(tables.experienceLevels).select({ returnFieldsByFieldId: true }).all()
       const experienceLevelMap = new Map(expRecords.map(r => {
-        const el = transformExperienceLevel(r as any)
+        const el = transformExperienceLevel(r as AirtableRecord)
         return [el.id, el.name]
       }))
 
       // Fetch methods
       const methodRecords = await base(tables.methods).select({ returnFieldsByFieldId: true }).all()
-      const rawMethods = methodRecords.map(r => transformMethod(r as any))
+      const rawMethods = methodRecords.map(r => transformMethod(r as AirtableRecord))
 
       const methods: AIMethod[] = rawMethods.map(m => ({
         id: m.id,
@@ -422,7 +415,7 @@ export default async function handler(req: Request, res: Response) {
           })
           .all()
         methodsToUse = methodRecords.map(r => {
-          const m = transformMethod(r as any)
+          const m = transformMethod(r as AirtableRecord)
           return { id: m.id, name: m.name, duration: m.duration }
         })
       }
@@ -446,7 +439,7 @@ export default async function handler(req: Request, res: Response) {
 
     // Fetch updated program
     const updatedRecord = await base(tables.programs).find(id)
-    const updatedProgram = transformProgram(updatedRecord as any)
+    const updatedProgram = transformProgram(updatedRecord as AirtableRecord)
 
     return sendSuccess(res, {
       program: updatedProgram,

@@ -81,7 +81,9 @@ vi.mock("../../field-mappings.js", () => ({
     longestStreak: "fldLongestStreak",
     lastActiveDate: "fldLastActive",
     lastLogin: "fldLastLogin",
-    bonusPoints: "fldBonusPoints"
+    bonusPoints: "fldBonusPoints",
+    badges: "fldBadges",
+    level: "fldLevel"
   }
 }))
 
@@ -264,12 +266,23 @@ describe("writeOutboxEventToAirtable - upsert", () => {
         eventType: "upsert",
         entityType: "user",
         entityId: "rec123",
-        payload: { userId: "recUser12345678901", currentStreak: 5, longestStreak: 10 }
+        payload: {
+          userId: "recUser12345678901",
+          currentStreak: 5,
+          longestStreak: 10,
+          badges: "[\"eerste_sessie\"]",
+          level: 2
+        }
       })
 
       expect(mockUpdate).toHaveBeenCalledWith(
         "recUser12345678901",
-        expect.objectContaining({ fldCurrentStreak: 5, fldLongestStreak: 10 }),
+        expect.objectContaining({
+          fldCurrentStreak: 5,
+          fldLongestStreak: 10,
+          fldBadges: "[\"eerste_sessie\"]",
+          fldLevel: 2
+        }),
         { typecast: true }
       )
     })

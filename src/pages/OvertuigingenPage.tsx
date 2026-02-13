@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
 import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
@@ -102,9 +102,9 @@ export function OvertuigingenPage() {
       ? "Kon eigen overtuigingen niet laden"
       : null
 
-  const isCompleted = (overtuigingId: string): boolean => {
+  const isCompleted = useCallback((overtuigingId: string): boolean => {
     return usageMap[overtuigingId]?.completed === true
-  }
+  }, [usageMap])
 
   const handleComplete = (overtuigingId: string) => {
     if (!user?.id || !accessToken) return
@@ -249,11 +249,11 @@ export function OvertuigingenPage() {
   // Split system overtuigingen into active and completed
   const activeOvertuigingen = useMemo(() => {
     return filteredSystemOvertuigingen.filter(o => !isCompleted(o.id))
-  }, [filteredSystemOvertuigingen, usageMap])
+  }, [filteredSystemOvertuigingen, isCompleted])
 
   const completedOvertuigingen = useMemo(() => {
     return filteredSystemOvertuigingen.filter(o => isCompleted(o.id))
-  }, [filteredSystemOvertuigingen, usageMap])
+  }, [filteredSystemOvertuigingen, isCompleted])
 
   const totalFilteredCount = filteredSystemOvertuigingen.length + filteredPersoonlijkeOvertuigingen.length
 

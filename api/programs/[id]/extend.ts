@@ -16,6 +16,7 @@ import {
 import { getProgramByAnyId, toApiProgram } from "../../_lib/repos/program-repo.js"
 import { enqueueSyncEvent } from "../../_lib/sync/outbox.js"
 import { syncNotificationJobsForUser } from "../../_lib/notifications/planner.js"
+import type { AirtableRecord } from "../../_lib/types.js"
 
 const PROGRAMS_BACKEND_ENV = "DATA_BACKEND_PROGRAMS"
 const DAY_NAME_TO_WEEKDAY: Record<string, number> = {
@@ -163,7 +164,7 @@ async function fetchDays(dayIds: string[]): Promise<Array<{ id: string; name: st
       returnFieldsByFieldId: true
     })
     .all()
-  return records.map((record) => transformDay(record as any))
+  return records.map((record) => transformDay(record as AirtableRecord))
 }
 
 async function fetchMethods(methodIds: string[]): Promise<Array<{ id: string; name: string; duration: number }>> {
@@ -182,7 +183,7 @@ async function fetchMethods(methodIds: string[]): Promise<Array<{ id: string; na
 
   const detailsById = new Map<string, ReturnType<typeof transformMethod>>()
   for (const record of records) {
-    detailsById.set(record.id, transformMethod(record as any))
+    detailsById.set(record.id, transformMethod(record as AirtableRecord))
   }
 
   return methodIds.map((id) => {
@@ -266,7 +267,7 @@ async function handlePostAirtable(req: Request, res: Response) {
       return sendError(res, "Forbidden: You don't own this program", 403)
     }
 
-    const program = transformProgram(programRecords[0] as any)
+    const program = transformProgram(programRecords[0] as AirtableRecord)
     if (!Array.isArray(program.daysOfWeek) || program.daysOfWeek.length === 0) {
       return sendError(res, "Program has no training days configured", 400)
     }
@@ -300,7 +301,7 @@ async function handlePostAirtable(req: Request, res: Response) {
     const createdSessions = await createProgramplanningRecords(id, program.goals || [], newSchedule)
 
     const refreshed = await base(tables.programs).find(id)
-    const updatedProgram = transformProgram(refreshed as any)
+    const updatedProgram = transformProgram(refreshed as AirtableRecord)
     return sendSuccess(res, {
       program: updatedProgram,
       createdSessions,

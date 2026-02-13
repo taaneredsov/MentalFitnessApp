@@ -42,7 +42,7 @@ describe("enqueueSyncEvent", () => {
         entityId: "uuid-2",
         payload: {}
       },
-      mockClient as any
+      mockClient as unknown as import("pg").PoolClient
     )
 
     expect(mockDbQuery).not.toHaveBeenCalled()

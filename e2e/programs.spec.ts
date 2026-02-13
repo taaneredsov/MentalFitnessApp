@@ -136,7 +136,7 @@ test.describe("Programs - Progress Tracking", () => {
       await page.waitForLoadState("networkidle")
 
       // Check for completed session indicators (checkmarks or similar)
-      const completedIndicator = page.locator(
+      const _completedIndicator = page.locator(
         '[data-completed="true"], .bg-green-100, .text-green-600, [aria-label*="voltooid"], [aria-label*="completed"]'
       )
 

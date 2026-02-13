@@ -61,7 +61,7 @@ export function FirstTimeUserPage() {
 
       // This shouldn't happen - if login succeeded, user has a password
       setError("Dit account heeft al een wachtwoord. Ga naar de inlogpagina.")
-    } catch (err) {
+    } catch {
       setError("Er is een fout opgetreden. Probeer het opnieuw.")
     }
   }

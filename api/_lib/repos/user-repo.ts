@@ -18,6 +18,16 @@ export interface PgUser {
   updatedAt: string
 }
 
+export interface UserRewardStats {
+  user: PgUser
+  habitCount: number
+  methodCount: number
+  personalGoalCount: number
+  overtuigingCount: number
+  habitDaysCount: number
+  programsCompleted: number
+}
+
 function mapUserRow(row: Record<string, unknown>): PgUser {
   return {
     id: String(row.id),
@@ -206,14 +216,34 @@ export async function getUserRewardsData(userId: string): Promise<{
   personalGoalCount: number
   overtuigingCount: number
 } | null> {
+  const stats = await getUserRewardStats(userId)
+  if (!stats) return null
+  return {
+    user: stats.user,
+    habitCount: stats.habitCount,
+    methodCount: stats.methodCount,
+    personalGoalCount: stats.personalGoalCount,
+    overtuigingCount: stats.overtuigingCount
+  }
+}
+
+export async function getUserRewardStats(userId: string): Promise<UserRewardStats | null> {
   const user = await findUserById(userId)
   if (!user) return null
 
-  const [habits, methods, goals, overtuigingen] = await Promise.all([
+  const [habits, methods, goals, overtuigingen, habitDays, programsCompleted] = await Promise.all([
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM habit_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM method_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM personal_goal_usage_pg WHERE user_id = $1`, [userId]),
-    dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM overtuiging_usage_pg WHERE user_id = $1`, [userId])
+    dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM overtuiging_usage_pg WHERE user_id = $1`, [userId]),
+    dbQuery<{ count: string }>(`SELECT COUNT(DISTINCT usage_date) as count FROM habit_usage_pg WHERE user_id = $1`, [userId]),
+    dbQuery<{ count: string }>(
+      `SELECT COUNT(*) as count
+       FROM programs_pg
+       WHERE user_id = $1
+         AND status IN ('Afgewerkt', 'finished', 'Finished')`,
+      [userId]
+    )
   ])
 
   return {
@@ -221,6 +251,39 @@ export async function getUserRewardsData(userId: string): Promise<{
     habitCount: Number(habits.rows[0]?.count || 0),
     methodCount: Number(methods.rows[0]?.count || 0),
     personalGoalCount: Number(goals.rows[0]?.count || 0),
-    overtuigingCount: Number(overtuigingen.rows[0]?.count || 0)
+    overtuigingCount: Number(overtuigingen.rows[0]?.count || 0),
+    habitDaysCount: Number(habitDays.rows[0]?.count || 0),
+    programsCompleted: Number(programsCompleted.rows[0]?.count || 0)
   }
+}
+
+export async function updateUserRewardFields(input: {
+  userId: string
+  bonusPoints: number
+  currentStreak: number
+  longestStreak: number
+  lastActiveDate: string | null
+  badges: string[]
+  level: number
+}): Promise<void> {
+  await dbQuery(
+    `UPDATE users_pg
+     SET bonus_points = $2,
+         current_streak = $3,
+         longest_streak = $4,
+         last_active_date = $5::date,
+         badges = $6,
+         level = $7,
+         updated_at = NOW()
+     WHERE id = $1`,
+    [
+      input.userId,
+      input.bonusPoints,
+      input.currentStreak,
+      input.longestStreak,
+      input.lastActiveDate,
+      JSON.stringify(input.badges),
+      input.level
+    ]
+  )
 }

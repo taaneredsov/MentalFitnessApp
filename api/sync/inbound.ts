@@ -7,6 +7,7 @@ import {
   type AirtableUserSyncRecord
 } from "../_lib/sync/user-fast-lane.js"
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any -- webhook payload has dynamic shape
 function normalizeUserRecord(input: any): AirtableUserSyncRecord | null {
   if (!input) return null
   if (typeof input.id !== "string") return null

@@ -3,7 +3,7 @@ import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
-import { OVERTUIGING_USAGE_FIELDS, USER_FIELDS, transformUserRewards, isValidRecordId } from "../_lib/field-mappings.js"
+import { OVERTUIGING_USAGE_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
 import { getDataBackendMode } from "../_lib/data-backend.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import {
@@ -13,11 +13,9 @@ import {
   listOvertuigingUsageByUserAndProgram
 } from "../_lib/repos/overtuiging-usage-repo.js"
 import { getProgramByAnyId } from "../_lib/repos/program-repo.js"
-import { getUserByIdWithReadThrough } from "../_lib/sync/user-readthrough.js"
-import { calculateNextStreak } from "../_lib/repos/streak-utils.js"
-import { updateUserStreakFields, incrementUserBonusPoints } from "../_lib/repos/user-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { isEntityId } from "../_lib/db/id-utils.js"
+import { awardRewardActivity } from "../_lib/rewards/engine.js"
 
 const OVERTUIGING_BACKEND_ENV = "DATA_BACKEND_OVERTUIGING_USAGE"
 
@@ -84,38 +82,12 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
     date: body.date
   })
 
-  const user = await getUserByIdWithReadThrough(body.userId)
-  if (user) {
-    const next = calculateNextStreak({
-      lastActiveDate: user.lastActiveDate,
-      currentStreak: user.currentStreak,
-      longestStreak: user.longestStreak,
-      today: body.date
-    })
-
-    await updateUserStreakFields({
-      userId: body.userId,
-      currentStreak: next.currentStreak,
-      longestStreak: next.longestStreak,
-      lastActiveDate: body.date
-    })
-
-    await incrementUserBonusPoints(body.userId, 1)
-
-    await enqueueSyncEvent({
-      eventType: "upsert",
-      entityType: "user",
-      entityId: body.userId,
-      payload: {
-        userId: body.userId,
-        currentStreak: next.currentStreak,
-        longestStreak: next.longestStreak,
-        lastActiveDate: body.date,
-        bonusPoints: (user.bonusPoints || 0) + 1
-      },
-      priority: 10
-    })
-  }
+  await awardRewardActivity({
+    userId: body.userId,
+    activityType: "overtuiging",
+    activityDate: body.date,
+    forcePostgres: true
+  })
 
   await enqueueSyncEvent({
     eventType: "upsert",
@@ -230,53 +202,11 @@ async function handlePostAirtable(req: Request, res: Response, tokenUserId: stri
 
   console.log("[overtuiging-usage] Created record:", record.id, "for user:", body.userId, "overtuiging:", body.overtuigingId)
 
-  const userRecords = await base(tables.users)
-    .select({
-      filterByFormula: `RECORD_ID() = "${body.userId}"`,
-      maxRecords: 1,
-      returnFieldsByFieldId: true
-    })
-    .firstPage()
-
-  if (userRecords.length > 0) {
-    const currentRewards = transformUserRewards(userRecords[0] as { id: string; fields: Record<string, unknown> })
-
-    const today = body.date
-    const lastActive = currentRewards.lastActiveDate
-    let newStreak = currentRewards.currentStreak
-    let newLongestStreak = currentRewards.longestStreak
-
-    if (lastActive !== today) {
-      const lastActiveDate = lastActive ? new Date(lastActive) : null
-      const todayDate = new Date(today)
-
-      if (lastActiveDate) {
-        const diffDays = Math.floor((todayDate.getTime() - lastActiveDate.getTime()) / (1000 * 60 * 60 * 24))
-        if (diffDays === 1) {
-          newStreak = currentRewards.currentStreak + 1
-        } else if (diffDays > 1) {
-          newStreak = 1
-        }
-      } else {
-        newStreak = 1
-      }
-
-      if (newStreak > newLongestStreak) {
-        newLongestStreak = newStreak
-      }
-
-      console.log("[overtuiging-usage] Streak update - lastActive:", lastActive, "today:", today, "newStreak:", newStreak)
-    }
-
-    await base(tables.users).update(body.userId, {
-      [USER_FIELDS.currentStreak]: newStreak,
-      [USER_FIELDS.longestStreak]: newLongestStreak,
-      [USER_FIELDS.lastActiveDate]: today,
-      [USER_FIELDS.bonusPoints]: (currentRewards.bonusPoints || 0) + 1
-    })
-
-    console.log("[overtuiging-usage] Updated user streak fields and awarded 1 bonus point")
-  }
+  await awardRewardActivity({
+    userId: body.userId,
+    activityType: "overtuiging",
+    activityDate: body.date
+  })
 
   return sendSuccess(res, {
     id: record.id,

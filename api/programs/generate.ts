@@ -23,6 +23,7 @@ import {
   type AIMethod,
   type AIOvertuiging
 } from "../_lib/openai.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 // Day name to JS weekday mapping (0 = Sunday, 1 = Monday, etc.)
 const DAY_NAME_TO_WEEKDAY: Record<string, number> = {
@@ -171,7 +172,7 @@ export default async function handler(req: Request, res: Response) {
       })
       .all()
 
-    const goals = goalRecords.map(record => transformGoal(record as any))
+    const goals = goalRecords.map(record => transformGoal(record as AirtableRecord))
 
     // Fetch all program prompts (both Systeem and Programmaopbouw types)
     const promptRecords = await base(tables.programPrompts)
@@ -181,7 +182,7 @@ export default async function handler(req: Request, res: Response) {
       .all()
 
     // Transform and separate prompts by type
-    const allPrompts = promptRecords.map(record => transformProgramPrompt(record as any))
+    const allPrompts = promptRecords.map(record => transformProgramPrompt(record as AirtableRecord))
 
     // Extract system prompts (Type: Systeem) into a Map keyed by name
     const systemPromptRecords = allPrompts.filter(p => p.promptType === "Systeem")
@@ -208,7 +209,7 @@ export default async function handler(req: Request, res: Response) {
       })
       .all()
 
-    const experienceLevels = experienceLevelRecords.map(record => transformExperienceLevel(record as any))
+    const experienceLevels = experienceLevelRecords.map(record => transformExperienceLevel(record as AirtableRecord))
     const experienceLevelMap = new Map(experienceLevels.map(el => [el.id, el.name]))
 
     // Fetch all methods (including optimalFrequency, linkedGoals, experienceLevel)
@@ -218,7 +219,7 @@ export default async function handler(req: Request, res: Response) {
       })
       .all()
 
-    const rawMethods = methodRecords.map(record => transformMethod(record as any))
+    const rawMethods = methodRecords.map(record => transformMethod(record as AirtableRecord))
 
     // Transform methods to AIMethod format with frequency, experience level, and goal relevance
     const methods: AIMethod[] = rawMethods.map(m => {
@@ -248,7 +249,7 @@ export default async function handler(req: Request, res: Response) {
       })
       .all()
 
-    const days = dayRecords.map(record => transformDay(record as any))
+    const days = dayRecords.map(record => transformDay(record as AirtableRecord))
 
     // Calculate all training dates for the program duration
     const trainingDates = calculateTrainingDates(body.startDate, body.duration, days)
@@ -261,7 +262,7 @@ export default async function handler(req: Request, res: Response) {
     const categoryRecords = await base(tables.mindsetCategories)
       .select({ returnFieldsByFieldId: true })
       .all()
-    const categories = categoryRecords.map(r => transformMindsetCategory(r as any))
+    const categories = categoryRecords.map(r => transformMindsetCategory(r as AirtableRecord))
 
     const matchingCategories = categories.filter(cat =>
       cat.goalIds.some((gid: string) => body.goals.includes(gid))
@@ -281,7 +282,7 @@ export default async function handler(req: Request, res: Response) {
         .all()
 
       allOvertuigingen = overtuigingRecords
-        .map(r => transformOvertuiging(r as any))
+        .map(r => transformOvertuiging(r as AirtableRecord))
         .filter(o => o.levels.includes("Niveau 1"))
         .sort((a, b) => (a.order || 0) - (b.order || 0))
     }
@@ -388,7 +389,7 @@ export default async function handler(req: Request, res: Response) {
 
     // Fetch created program with computed fields
     const createdRecord = await base(tables.programs).find(programRecord.id)
-    const program = transformProgram(createdRecord as any)
+    const program = transformProgram(createdRecord as AirtableRecord)
 
     // Return response
     return sendSuccess(res, {

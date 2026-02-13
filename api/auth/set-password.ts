@@ -14,6 +14,7 @@ import {
   recordFailedAttempt,
   clearRateLimit
 } from "../_lib/security.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const setPasswordSchema = z.object({
   email: z.string().email(),
@@ -54,7 +55,7 @@ export default async function handler(req: Request, res: Response) {
       return sendError(res, "Ongeldige code", 401)
     }
 
-    const record = records[0] as any
+    const record = records[0] as AirtableRecord
     const fields = record.fields
     const existingHash = fields[USER_FIELDS.passwordHash]
 
@@ -139,7 +140,7 @@ export default async function handler(req: Request, res: Response) {
     const user = transformUser({
       id: updatedRecord.id,
       fields: updatedRecord.fields
-    } as any)
+    } as AirtableRecord)
 
     return sendSuccess(res, {
       user,

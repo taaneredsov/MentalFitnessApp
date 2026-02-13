@@ -6,6 +6,7 @@ import { verifyToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { updateUserProfileFields } from "../_lib/repos/user-repo.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
@@ -68,7 +69,7 @@ export default async function handler(req: Request, res: Response) {
       })
     }
 
-    const user = transformUser(record as any)
+    const user = transformUser(record as AirtableRecord)
 
     return sendSuccess(res, user)
   } catch (error) {

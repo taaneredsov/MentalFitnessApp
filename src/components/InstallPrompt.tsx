@@ -15,12 +15,14 @@ declare global {
 }
 
 function isIOS(): boolean {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- MSStream is IE-specific non-standard property
   return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream
 }
 
 function isInStandaloneMode(): boolean {
   return (
     window.matchMedia("(display-mode: standalone)").matches ||
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- standalone is Safari-specific non-standard property
     (window.navigator as any).standalone === true
   )
 }
@@ -50,6 +52,7 @@ export function InstallPrompt({ variant = "default" }: InstallPromptProps) {
 
   useEffect(() => {
     // Update standalone check (in case it changes)
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing with external browser state
     setIsStandalone(isInStandaloneMode())
 
     // Handle Android/Chrome install prompt

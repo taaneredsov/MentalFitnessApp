@@ -19,6 +19,7 @@ import {
 } from "../../../_lib/repos/program-repo.js"
 import { enqueueSyncEvent } from "../../../_lib/sync/outbox.js"
 import { syncNotificationJobsForUser } from "../../../_lib/notifications/planner.js"
+import type { AirtableRecord } from "../../../_lib/types.js"
 
 const PROGRAMS_BACKEND_ENV = "DATA_BACKEND_PROGRAMS"
 
@@ -75,7 +76,7 @@ async function buildSessionDescription(methodIds: string[]): Promise<string> {
 
   const methodDetailsMap = new Map<string, ReturnType<typeof transformMethod>>()
   for (const record of methodRecords) {
-    methodDetailsMap.set(record.id, transformMethod(record as any))
+    methodDetailsMap.set(record.id, transformMethod(record as AirtableRecord))
   }
 
   return methodIds
@@ -276,7 +277,7 @@ async function handlePatchAirtable(req: Request, res: Response) {
       { typecast: true }
     )
 
-    const updatedPlanning = transformProgrammaplanning(updatedRecord as any)
+    const updatedPlanning = transformProgrammaplanning(updatedRecord as AirtableRecord)
     return sendSuccess(res, updatedPlanning)
   } catch (error) {
     if (error instanceof AuthError) {

@@ -45,6 +45,7 @@ export function AddOvertuigingDialog({
   // Reset state when dialog opens
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting state when dialog opens is intentional
       setSelected(new Set())
       setShowPersonalForm(false)
       setPersonalName("")

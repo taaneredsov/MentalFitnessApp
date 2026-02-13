@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from "react"
+import { useState, useRef, useCallback, useEffect } from "react"
 
 interface UseMediaProgressOptions {
   pauseThreshold?: number // Threshold for pause trigger (0-1), default 0.97 (97%)
@@ -37,12 +37,13 @@ export function useMediaProgress(
   const mediaIdRef = useRef(mediaId)
 
   // Reset if mediaId changes
-  if (mediaIdRef.current !== mediaId) {
+  useEffect(() => {
     mediaIdRef.current = mediaId
     hasTriggered.current = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting progress when media changes
     setCompleted(false)
     setProgress(0)
-  }
+  }, [mediaId])
 
   const triggerComplete = useCallback(() => {
     if (!hasTriggered.current) {

@@ -71,10 +71,10 @@ export function ProgramCard({ program, status, onClick }: ProgramCardProps) {
           </div>
           {(() => {
             // methodDetails may not be present in list view
-            const methodDetails = (program as any).methodDetails
+            const methodDetails = (program as unknown as Record<string, unknown>).methodDetails as Array<Record<string, unknown>> | undefined
             if (!methodDetails || methodDetails.length === 0) return null
             const durations = methodDetails
-              .map((m: any) => m.duration)
+              .map((m) => m.duration as number)
               .filter((d: number) => d > 0)
             if (durations.length === 0) return null
             const minDuration = Math.min(...durations)

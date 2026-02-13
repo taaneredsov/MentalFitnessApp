@@ -38,7 +38,7 @@ describe("createHabitUsage", () => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({ rows: [fakeRow], rowCount: 1 })
       }
-      return fn(mockClient as any)
+      return fn(mockClient as unknown as import("pg").PoolClient)
     })
 
     const result = await createHabitUsage({

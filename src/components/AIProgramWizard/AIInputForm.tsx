@@ -76,6 +76,7 @@ export function AIInputForm({
   }
 
   // Check for overlapping programs in Step 1
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- deps are correct, compiler inference is too broad
   const overlapCheck = useMemo(() => {
     if (!state.startDate || !state.duration) return null
 

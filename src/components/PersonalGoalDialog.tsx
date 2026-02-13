@@ -38,6 +38,7 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
   useEffect(() => {
     if (open) {
       if (goal) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing form state with prop
         setName(goal.name)
         setDescription(goal.description || "")
       } else {

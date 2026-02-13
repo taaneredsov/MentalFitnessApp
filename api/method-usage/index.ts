@@ -16,6 +16,7 @@ import {
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { getProgramByAnyId, getProgramSessionByAnyId } from "../_lib/repos/program-repo.js"
 import { syncNotificationJobsForUser } from "../_lib/notifications/planner.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const METHOD_USAGE_BACKEND_ENV = "DATA_BACKEND_METHOD_USAGE"
 
@@ -208,7 +209,7 @@ async function handlePostAirtable(req: Request, res: Response) {
     }
 
     const record = await base(tables.methodUsage).create(fields, { typecast: true })
-    const usage = transformMethodUsage(record as any)
+    const usage = transformMethodUsage(record as AirtableRecord)
     return sendSuccess(res, usage, 201)
   } catch (error) {
     if (error instanceof AuthError) {
@@ -247,7 +248,7 @@ async function handlePatchAirtable(req: Request, res: Response) {
       [METHOD_USAGE_FIELDS.remark]: body.remark
     })
 
-    const usage = transformMethodUsage(updated as any)
+    const usage = transformMethodUsage(updated as AirtableRecord)
     return sendSuccess(res, usage)
   } catch (error) {
     if (error instanceof AuthError) {

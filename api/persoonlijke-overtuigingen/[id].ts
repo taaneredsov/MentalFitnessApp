@@ -13,7 +13,7 @@ const updateSchema = z.object({
 /**
  * Fetch a persoonlijke overtuiging and verify ownership
  */
-async function fetchAndVerifyOwnership(recordId: string, tokenUserId: string): Promise<{ error?: string; status?: number; record?: any }> {
+async function fetchAndVerifyOwnership(recordId: string, tokenUserId: string): Promise<{ error?: string; status?: number; record?: Record<string, unknown> }> {
   if (!isValidRecordId(recordId)) {
     return { error: "Invalid ID format", status: 400 }
   }

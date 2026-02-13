@@ -12,6 +12,7 @@ import { getUserByEmailWithReadThrough, toApiUserPayload } from "../_lib/sync/us
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { updateUserLastLogin } from "../_lib/repos/user-repo.js"
 import { isAirtableRecordId } from "../_lib/db/id-utils.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const loginSchema = z.object({
   email: z.string().email(),
@@ -106,7 +107,7 @@ async function loginViaAirtable(req: Request, res: Response, email: string, pass
     return sendError(res, "Invalid email or password", 401)
   }
 
-  const record = records[0] as any
+  const record = records[0] as AirtableRecord
   const passwordHash = record.fields[USER_FIELDS.passwordHash]
 
   if (!passwordHash) {

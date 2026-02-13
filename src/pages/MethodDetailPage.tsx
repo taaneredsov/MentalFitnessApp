@@ -5,7 +5,7 @@ import { api } from "@/lib/api-client"
 import { useAuth } from "@/contexts/AuthContext"
 import { useMethod, useProgram, useAwardPoints } from "@/hooks/queries"
 import { queryKeys } from "@/lib/query-keys"
-import { checkProgramMilestones } from "@/lib/rewards-utils"
+import { checkProgramMilestones, getTodayDate } from "@/lib/rewards-utils"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { FeedbackModal } from "@/components/FeedbackModal"
@@ -148,6 +148,7 @@ export function MethodDetailPage() {
   const [feedbackSubmitted, setFeedbackSubmitted] = useState(false)
   const [rewardToast, setRewardToast] = useState<AwardResponse | null>(null)
   const [milestoneToast, setMilestoneToast] = useState<AwardResponse | null>(null)
+  const today = getTodayDate()
 
   // Track if usage was already registered for this session to avoid duplicates
   const usageRegisteredRef = useRef(false)
@@ -196,7 +197,7 @@ export function MethodDetailPage() {
         // Award points for completing the method
         try {
           const awardResult = await awardPointsMutation.mutateAsync({
-            data: { activityType: "method", activityId: method.id },
+            data: { activityType: "method", activityId: method.id, activityDate: today },
             accessToken
           })
           setRewardToast({
@@ -220,7 +221,8 @@ export function MethodDetailPage() {
                   data: {
                     activityType: "programMilestone",
                     programId: programId,
-                    milestone: milestone.milestone
+                    milestone: milestone.milestone,
+                    activityDate: today
                   },
                   accessToken
                 })
@@ -250,7 +252,7 @@ export function MethodDetailPage() {
     }
 
     registerUsage()
-  }, [showFeedback, user?.id, method?.id, accessToken, programmaplanningId, programId, programData, awardPointsMutation, queryClient])
+  }, [showFeedback, user?.id, method?.id, accessToken, programmaplanningId, programId, programData, awardPointsMutation, queryClient, today])
 
   // Submit feedback with optional remark (usage already registered)
   const handleSubmitFeedback = async (remark: string) => {

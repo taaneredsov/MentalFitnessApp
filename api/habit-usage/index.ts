@@ -6,8 +6,6 @@ import { requireAuth, AuthError } from "../_lib/auth.js"
 import {
   HABIT_USAGE_FIELDS,
   FIELD_NAMES,
-  USER_FIELDS,
-  transformUserRewards,
   escapeFormulaValue,
   isValidRecordId
 } from "../_lib/field-mappings.js"
@@ -19,10 +17,8 @@ import {
   findHabitUsage,
   listHabitMethodIdsForDate
 } from "../_lib/repos/habit-usage-repo.js"
-import { getUserByIdWithReadThrough } from "../_lib/sync/user-readthrough.js"
-import { calculateNextStreak } from "../_lib/repos/streak-utils.js"
-import { updateUserStreakFields } from "../_lib/repos/user-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
+import { awardRewardActivity } from "../_lib/rewards/engine.js"
 
 const HABIT_BACKEND_ENV = "DATA_BACKEND_HABIT_USAGE"
 
@@ -64,36 +60,6 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
     date: body.date
   })
 
-  const user = await getUserByIdWithReadThrough(body.userId)
-  if (user) {
-    const next = calculateNextStreak({
-      lastActiveDate: user.lastActiveDate,
-      currentStreak: user.currentStreak,
-      longestStreak: user.longestStreak,
-      today: body.date
-    })
-
-    await updateUserStreakFields({
-      userId: body.userId,
-      currentStreak: next.currentStreak,
-      longestStreak: next.longestStreak,
-      lastActiveDate: body.date
-    })
-
-    await enqueueSyncEvent({
-      eventType: "upsert",
-      entityType: "user",
-      entityId: body.userId,
-      payload: {
-        userId: body.userId,
-        currentStreak: next.currentStreak,
-        longestStreak: next.longestStreak,
-        lastActiveDate: body.date
-      },
-      priority: 10
-    })
-  }
-
   await enqueueSyncEvent({
     eventType: "upsert",
     entityType: "habit_usage",
@@ -104,6 +70,13 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
       date: body.date
     },
     priority: 40
+  })
+
+  await awardRewardActivity({
+    userId: body.userId,
+    activityType: "habit",
+    activityDate: body.date,
+    forcePostgres: true
   })
 
   return sendSuccess(res, { id: created.id, pointsAwarded: POINTS.habit }, 201)
@@ -206,29 +179,11 @@ async function handlePostAirtable(req: Request, res: Response, tokenUserId: stri
     typecast: true
   })
 
-  const userRecords = await base(tables.users)
-    .select({
-      filterByFormula: `RECORD_ID() = "${body.userId}"`,
-      maxRecords: 1,
-      returnFieldsByFieldId: true
-    })
-    .firstPage()
-
-  if (userRecords.length > 0) {
-    const currentRewards = transformUserRewards(userRecords[0] as { id: string; fields: Record<string, unknown> })
-    const next = calculateNextStreak({
-      lastActiveDate: currentRewards.lastActiveDate || null,
-      currentStreak: currentRewards.currentStreak,
-      longestStreak: currentRewards.longestStreak,
-      today: body.date
-    })
-
-    await base(tables.users).update(body.userId, {
-      [USER_FIELDS.currentStreak]: next.currentStreak,
-      [USER_FIELDS.longestStreak]: next.longestStreak,
-      [USER_FIELDS.lastActiveDate]: body.date
-    })
-  }
+  await awardRewardActivity({
+    userId: body.userId,
+    activityType: "habit",
+    activityDate: body.date
+  })
 
   return sendSuccess(res, { id: record.id, pointsAwarded: POINTS.habit }, 201)
 }
@@ -304,4 +259,3 @@ export default async function handler(req: Request, res: Response) {
     return handleApiError(res, error)
   }
 }
-

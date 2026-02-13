@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react"
+import { useEffect, useId, useMemo, useRef } from "react"
 import type { ReactNode } from "react"
 import PullToRefresh from "pulltorefreshjs"
 
@@ -16,7 +16,8 @@ function isIOSPWA(): boolean {
 }
 
 export function PullToRefreshWrapper({ onRefresh, children }: PullToRefreshWrapperProps) {
-  const containerId = useRef(`ptr-container-${Math.random().toString(36).slice(2, 9)}`)
+  const reactId = useId()
+  const containerId = useMemo(() => `ptr-container-${reactId.replace(/:/g, "")}`, [reactId])
   const instanceRef = useRef<ReturnType<typeof PullToRefresh.init> | null>(null)
 
   useEffect(() => {
@@ -24,10 +25,10 @@ export function PullToRefreshWrapper({ onRefresh, children }: PullToRefreshWrapp
     const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches
 
     // For iOS PWA, we need to use body as trigger element
-    const triggerEl = isIOSPWA() ? "body" : `#${containerId.current}`
+    const triggerEl = isIOSPWA() ? "body" : `#${containerId}`
 
     instanceRef.current = PullToRefresh.init({
-      mainElement: `#${containerId.current}`,
+      mainElement: `#${containerId}`,
       triggerElement: triggerEl,
       onRefresh: async () => {
         // Trigger haptic feedback if available
@@ -55,11 +56,11 @@ export function PullToRefreshWrapper({ onRefresh, children }: PullToRefreshWrapp
         instanceRef.current = null
       }
     }
-  }, [onRefresh])
+  }, [onRefresh, containerId])
 
   return (
     <div
-      id={containerId.current}
+      id={containerId}
       className="min-h-screen"
       style={{
         // Prevent iOS bounce/overscroll to allow library to handle it

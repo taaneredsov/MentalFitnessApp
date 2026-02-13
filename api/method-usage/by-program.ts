@@ -8,6 +8,7 @@ import { isPostgresConfigured } from "../_lib/db/client.js"
 import { isEntityId } from "../_lib/db/id-utils.js"
 import { listLatestByProgram, toApiMethodUsage } from "../_lib/repos/method-usage-repo.js"
 import { getProgramByAnyId } from "../_lib/repos/program-repo.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const METHOD_USAGE_BACKEND_ENV = "DATA_BACKEND_METHOD_USAGE"
 
@@ -84,7 +85,7 @@ export default async function handler(req: Request, res: Response) {
       .all()
 
     const usages = records
-      .map(record => transformMethodUsage(record as any))
+      .map(record => transformMethodUsage(record as AirtableRecord))
       .sort((a, b) => {
         if (!a.usedAt || !b.usedAt) return 0
         return new Date(b.usedAt).getTime() - new Date(a.usedAt).getTime()

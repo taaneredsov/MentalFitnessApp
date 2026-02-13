@@ -38,7 +38,7 @@ describe("createOvertuigingUsage", () => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({ rows: [fakeRow], rowCount: 1 })
       }
-      return fn(mockClient as any)
+      return fn(mockClient as unknown as import("pg").PoolClient)
     })
 
     const result = await createOvertuigingUsage({
@@ -57,7 +57,7 @@ describe("createOvertuigingUsage", () => {
       const mockClient = {
         query: vi.fn().mockResolvedValueOnce({ rows: [], rowCount: 0 })
       }
-      return fn(mockClient as any)
+      return fn(mockClient as unknown as import("pg").PoolClient)
     })
 
     await expect(

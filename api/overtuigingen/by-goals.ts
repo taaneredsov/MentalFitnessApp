@@ -6,6 +6,7 @@ import { cachedSelect } from "../_lib/cached-airtable.js"
 import { getDataBackendMode } from "../_lib/data-backend.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { getOvertuigingenByGoalIds } from "../_lib/repos/reference-repo.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const OVERTUIGINGEN_BACKEND_ENV = "DATA_BACKEND_OVERTUIGINGEN"
 
@@ -45,12 +46,12 @@ async function handleGetAirtable(req: Request, res: Response) {
     cachedSelect(
       "mindsetCategories",
       {},
-      (records) => records.map(r => transformMindsetCategory(r as any))
+      (records) => records.map(r => transformMindsetCategory(r as AirtableRecord))
     ),
     cachedSelect(
       "overtuigingen",
       {},
-      (records) => records.map(r => transformOvertuiging(r as any))
+      (records) => records.map(r => transformOvertuiging(r as AirtableRecord))
     )
   ])
 

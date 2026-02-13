@@ -33,6 +33,7 @@ export function PersoonlijkeOvertuigingDialog({ open, onOpenChange, programId }:
   // Reset form when dialog opens/closes
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting form when dialog opens
       setName("")
       setError(null)
     }

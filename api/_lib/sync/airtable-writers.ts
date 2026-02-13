@@ -218,6 +218,8 @@ async function upsertUser(_entityId: string, payload: Record<string, unknown>): 
   if (payload.lastActiveDate !== undefined) fields[USER_FIELDS.lastActiveDate] = payload.lastActiveDate
   if (payload.lastLogin !== undefined) fields[USER_FIELDS.lastLogin] = payload.lastLogin
   if (payload.bonusPoints !== undefined) fields[USER_FIELDS.bonusPoints] = payload.bonusPoints
+  if (payload.badges !== undefined) fields[USER_FIELDS.badges] = payload.badges
+  if (payload.level !== undefined) fields[USER_FIELDS.level] = payload.level
 
   if (Object.keys(fields).length === 0) return
 

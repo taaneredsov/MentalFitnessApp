@@ -3,6 +3,7 @@ import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import { transformProgram, parseEuropeanDate, PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS } from "../_lib/field-mappings.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 interface ScheduleMethod {
   methodId: string
@@ -136,7 +137,7 @@ export default async function handler(req: Request, res: Response) {
       const existingEnd = parseEuropeanDate(existingEndRaw)
 
       if (existingStart && existingEnd && dateRangesOverlap(body.startDate, newEndDate, existingStart, existingEnd)) {
-        const program = transformProgram(record as any)
+        const program = transformProgram(record as AirtableRecord)
         return sendError(res, `Dit programma overlapt met een bestaand programma (${program.name || 'Naamloos'}). Kies andere datums.`, 409)
       }
     }
@@ -191,7 +192,7 @@ export default async function handler(req: Request, res: Response) {
 
     // Fetch created program with computed fields
     const createdRecord = await base(tables.programs).find(programRecord.id)
-    const program = transformProgram(createdRecord as any)
+    const program = transformProgram(createdRecord as AirtableRecord)
 
     // Return response (same format as generate endpoint)
     return sendSuccess(res, {

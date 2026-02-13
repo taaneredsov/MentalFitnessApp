@@ -6,19 +6,20 @@ import { transformUserRewards } from "../_lib/field-mappings.js"
 import { getDataBackendMode } from "../_lib/data-backend.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { getUserRewardsData } from "../_lib/repos/user-repo.js"
+import { diffIsoDays, getTodayLocalDate, normalizeDateString } from "../_lib/rewards/date-utils.js"
+import { shouldUsePostgresRewards } from "../_lib/rewards/engine.js"
 
 const REWARDS_BACKEND_ENV = "DATA_BACKEND_REWARDS"
 
 function applyStreakStaleCheck(rewards: Record<string, unknown>): void {
-  if (rewards.lastActiveDate && (rewards.currentStreak as number) > 0) {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const lastActive = new Date(rewards.lastActiveDate as string)
-    lastActive.setHours(0, 0, 0, 0)
-    const diffDays = Math.floor((today.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24))
-    if (diffDays > 1) {
-      rewards.currentStreak = 0
-    }
+  const lastActiveDate = normalizeDateString(rewards.lastActiveDate as string | null | undefined)
+  if (!lastActiveDate || (rewards.currentStreak as number) <= 0) {
+    return
+  }
+
+  const diffDays = diffIsoDays(lastActiveDate, getTodayLocalDate())
+  if (diffDays !== null && diffDays > 1) {
+    rewards.currentStreak = 0
   }
 }
 
@@ -28,7 +29,7 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
     return sendError(res, "User not found", 404)
   }
 
-  const { user, habitCount, methodCount, personalGoalCount, overtuigingCount } = data
+  const { user, habitCount, methodCount, personalGoalCount, overtuigingCount: _overtuigingCount } = data
 
   let badges: unknown[] = []
   try {
@@ -81,7 +82,7 @@ export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
     const mode = getDataBackendMode(REWARDS_BACKEND_ENV)
-    const usePostgres = mode === "postgres_primary" && isPostgresConfigured()
+    const usePostgres = shouldUsePostgresRewards()
 
     if (usePostgres) {
       return handleGetPostgres(req, res, auth.userId)

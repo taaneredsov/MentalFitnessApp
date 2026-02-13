@@ -5,6 +5,7 @@ import { verifyToken } from "../_lib/jwt.js"
 import { transformUser } from "../_lib/field-mappings.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { getUserByIdWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 export default async function handler(req: Request, res: Response) {
   if (req.method !== "GET") {
@@ -43,7 +44,7 @@ export default async function handler(req: Request, res: Response) {
       return sendError(res, "User not found", 404)
     }
 
-    return sendSuccess(res, transformUser(records[0] as any))
+    return sendSuccess(res, transformUser(records[0] as AirtableRecord))
   } catch (error) {
     return handleApiError(res, error)
   }

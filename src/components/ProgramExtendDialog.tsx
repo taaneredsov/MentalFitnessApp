@@ -33,6 +33,7 @@ export function ProgramExtendDialog({
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- resetting to default when dialog opens
       setSelectedWeeks(4)
     }
   }, [open])

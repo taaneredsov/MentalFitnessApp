@@ -7,6 +7,7 @@ import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { upsertUserFromAirtable } from "../_lib/repos/user-repo.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const createUserSchema = z.object({
   name: z.string().min(1),
@@ -65,7 +66,7 @@ export default async function handler(req: Request, res: Response) {
       })
     }
 
-    const user = transformUser(record as any)
+    const user = transformUser(record as AirtableRecord)
     return sendSuccess(res, user, 201)
   } catch (error) {
     if (error instanceof AuthError) {

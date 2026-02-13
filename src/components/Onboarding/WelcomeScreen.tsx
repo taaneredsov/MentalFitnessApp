@@ -36,6 +36,7 @@ export function WelcomeScreen({ onStart }: WelcomeScreenProps) {
   // Entrance animation
   useEffect(() => {
     if (prefersReducedMotion) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- initializing animation state for reduced motion
       setIsVisible(true)
       setStepsVisible([true, true, true])
       return

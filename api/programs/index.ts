@@ -19,6 +19,7 @@ import {
 } from "../_lib/repos/program-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { getUserByIdWithReadThrough } from "../_lib/sync/user-readthrough.js"
+import type { AirtableRecord } from "../_lib/types.js"
 
 const PROGRAMS_BACKEND_ENV = "DATA_BACKEND_PROGRAMS"
 
@@ -169,7 +170,7 @@ async function handleGetAirtable(req: Request, res: Response) {
       return userIds?.includes(userId)
     })
 
-    const programs = userPrograms.map(record => transformProgram(record as any))
+    const programs = userPrograms.map(record => transformProgram(record as AirtableRecord))
 
     if (programs.length === 0) {
       return sendSuccess(res, programs)
@@ -181,7 +182,7 @@ async function handleGetAirtable(req: Request, res: Response) {
       })
       .all()
 
-    const allSchedule = allScheduleRecords.map(r => transformProgrammaplanning(r as any))
+    const allSchedule = allScheduleRecords.map(r => transformProgrammaplanning(r as AirtableRecord))
     const allMethodUsageIds = allSchedule.flatMap(s => s.methodUsageIds || [])
 
     const allMethodUsageRecords = await base(tables.methodUsage)
@@ -288,7 +289,7 @@ async function handlePostAirtable(req: Request, res: Response) {
       const existingEnd = parseEuropeanDate(existingEndRaw)
 
       if (existingStart && existingEnd && dateRangesOverlap(body.startDate, newEndDate, existingStart, existingEnd)) {
-        const program = transformProgram(record as any)
+        const program = transformProgram(record as AirtableRecord)
         return sendError(res, `Dit programma overlapt met een bestaand programma (${program.name || "Naamloos"}). Kies andere datums.`, 409)
       }
     }
@@ -316,7 +317,7 @@ async function handlePostAirtable(req: Request, res: Response) {
 
     const record = await base(tables.programs).create(fields, { typecast: true })
     const createdRecord = await base(tables.programs).find(record.id)
-    const program = transformProgram(createdRecord as any)
+    const program = transformProgram(createdRecord as AirtableRecord)
 
     return sendSuccess(res, program, 201)
   } catch (error) {
