@@ -158,26 +158,72 @@ Before deploying to production:
 - Hetzner server: x64 (Linux)
 - Building locally produces ARM images that won't run on x64
 
-**Current Deployment Method (Recommended)**:
-Use git push to trigger automatic build and deploy via post-receive hook:
+### 2026-02-13: docker stack deploy Does NOT Force-Restart Services
+**CRITICAL**: `docker stack deploy` with the same `:latest` tag does NOT restart containers.
+- **Problem**: Hook built new image as `:latest`, ran `docker stack deploy`, but Swarm saw same tag → no restart
+- **Symptom**: Server kept serving old code despite successful deploy
+- **Fix**: After `docker stack deploy`, run `docker service update --force --image IMAGE:TAG mfa_app`
+- **Why `:TAG` not `:latest`**: Using the unique tag (e.g. `20260213-161258-04c85d1`) ensures Swarm sees a genuine image change
+- **Prevention**: Always force-update services after stack deploy, use unique tags
+
+### 2026-02-13: GitHub CI/CD Deploy Never Worked
+**Issue**: The `.github/workflows/ci-deploy.yml` build-and-deploy job requires `REGISTRY_USERNAME`, `REGISTRY_PASSWORD`, `HETZNER_HOST`, `HETZNER_SSH_USER`, `HETZNER_SSH_KEY` — none of these GitHub secrets were configured.
+- **Impact**: Test job passed, but deploy was always skipped/failed
+- **Primary deploy method**: `git push dev main` via bare repo post-receive hook
+- **To enable GitHub CI deploy**: Add secrets in GitHub repo settings → Secrets → Actions
+
+---
+
+## Deployment Infrastructure
+
+### Primary Method: Git Push (Fully Automatic)
 ```bash
 git push dev main
 ```
+Triggers post-receive hook at `/mnt/repo/mfa.git/hooks/post-receive` which:
+1. Checks out code to `/mnt/data/mfa/`
+2. Builds Docker image on server (x64 native)
+3. Tags with timestamp+commit hash AND `:latest`
+4. Pushes to private registry `registry.shop.drvn.be`
+5. Runs `docker stack deploy` to update compose
+6. Force-updates `mfa_app` and `mfa_worker` services with unique tag
+7. Runs database migrations automatically
+8. Runs health check
 
-**Manual Deployment** (if hook fails):
-```bash
-ssh -p 666 renaat@37.27.180.117 "cd /mnt/repo/mfa.git && git fetch origin main"
-ssh -p 666 renaat@37.27.180.117 "cd /mnt/repo/mfa.git && GIT_WORK_TREE=/mnt/data/mfa git checkout -f origin/main"
-ssh -p 666 renaat@37.27.180.117 "cd /mnt/data/mfa && docker build -t registry.shop.drvn.be/mfa:latest . && docker push registry.shop.drvn.be/mfa:latest"
-ssh -p 666 renaat@37.27.180.117 "docker stack deploy -c /mnt/compose/mfa.yml mfa"
-ssh -p 666 renaat@37.27.180.117 "docker exec \$(docker ps -q -f name=mfa_app) node tasks/db-migrate.mjs"
+### Server Layout
+```
+/mnt/repo/mfa.git          # Bare git repo (push target)
+/mnt/data/mfa/              # Working directory (checkout target)
+/mnt/compose/mfa.yml        # Active compose file (copied from repo)
+/mnt/auth/registry.password # Registry htpasswd (testuser + renaat)
 ```
 
-**Infrastructure**:
-- **Private Registry**: `registry.shop.drvn.be` (credentials at `/mnt/auth`)
-- **Bare Repo**: `/mnt/repo/mfa.git` (with post-receive hook)
-- **Working Directory**: `/mnt/data/mfa`
-- **Compose Path**: `/mnt/compose/mfa.yml`
+### Registry
+- **URL**: `registry.shop.drvn.be`
+- **Auth**: Docker login stored at `~/.docker/config.json` on server (user: renaat)
+- **Credentials file**: `/mnt/auth/registry.password` (htpasswd format)
+
+### Docker Swarm Services
+- `mfa_app` — Express server + Vite static files (port 3000, healthcheck enabled)
+- `mfa_worker` — Airtable↔Postgres sync worker (healthcheck disabled)
+- `mfa_postgres` — PostgreSQL 16 Alpine
+- `mfa_redis` — Redis 7 Alpine
+- Secrets: All `mfa_*` prefixed in Docker secrets (see `docker secret ls | grep mfa`)
+
+### Manual Deployment (if hook fails)
+```bash
+ssh -p 666 renaat@37.27.180.117 "cd /mnt/data/mfa && git --git-dir=/mnt/repo/mfa.git --work-tree=. checkout -f main"
+ssh -p 666 renaat@37.27.180.117 "cd /mnt/data/mfa && docker build -t registry.shop.drvn.be/mfa:latest . && docker push registry.shop.drvn.be/mfa:latest"
+ssh -p 666 renaat@37.27.180.117 "docker service update --force --image registry.shop.drvn.be/mfa:latest mfa_app"
+ssh -p 666 renaat@37.27.180.117 "docker service update --force --image registry.shop.drvn.be/mfa:latest mfa_worker"
+ssh -p 666 renaat@37.27.180.117 "sleep 15 && docker exec \$(docker ps -q -f name=mfa_app) node tasks/db-migrate.mjs"
+```
+
+### PWA Update Delivery
+- Service worker (`sw.js`) served with `Cache-Control: no-cache` so browsers always check
+- `PWAUpdatePrompt` component checks for SW updates every 60s + on app focus
+- New SW activates immediately (`skipWaiting` + `clientsClaim`)
+- App auto-reloads when new SW takes control — no user interaction needed
 
 ---
 
