@@ -1,11 +1,12 @@
 {
   "name": "mental-fitness-app",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Corporate Mental Fitness PWA with Airtable backend",
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "prebuild": "node scripts/bump-version.js",
     "build": "tsc -b && vite build",
     "build:server": "tsc --project tsconfig.server.json",
     "db:migrate": "node tasks/db-migrate.mjs",

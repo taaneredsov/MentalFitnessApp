@@ -13,7 +13,7 @@ import { formatPoints } from "@/lib/rewards-utils"
 import { getCurrentPushSubscription, getNotificationPermission, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push"
 import { api } from "@/lib/api-client"
 import type { ReminderMode } from "@/types/notifications"
-import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell } from "lucide-react"
+import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText } from "lucide-react"
 import type { PersonalGoal } from "@/types/program"
 
 const MAX_GOALS = 10
@@ -547,6 +547,44 @@ export function AccountPage() {
         </CardHeader>
         <CardContent>
           <ChangePasswordForm />
+        </CardContent>
+      </Card>
+
+      {/* Over deze app */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Info className="h-5 w-5" />
+            Over deze app
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Prana Mental Fitness — jouw persoonlijke tool voor mentale fitheid op het werk.
+          </p>
+          <div className="space-y-2">
+            <a
+              href="https://prana.be/privacy-policy"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-primary hover:underline"
+            >
+              <Shield className="h-4 w-4" />
+              Privacybeleid
+              <ExternalLink className="h-3 w-3" />
+            </a>
+            <a
+              href="https://prana.be/general-conditions"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-2 text-sm text-primary hover:underline"
+            >
+              <FileText className="h-4 w-4" />
+              Algemene voorwaarden
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          </div>
+          <p className="text-xs text-muted-foreground">Versie {__APP_VERSION__}</p>
         </CardContent>
       </Card>
 
