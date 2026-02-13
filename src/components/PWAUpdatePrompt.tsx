@@ -1,116 +1,96 @@
-import { useState, useEffect, useRef } from "react"
-import { RefreshCw, X } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { useEffect, useRef } from "react"
 
-const UPDATE_REQUESTED_KEY = "pwa_update_requested"
+const SW_CHECK_INTERVAL = 60_000 // Check for updates every 60 seconds
 
 /**
- * Shows a toast banner when a new service worker is waiting
- * Allows user to update the app immediately
+ * Invisible component that ensures PWA users always get the latest version.
+ *
+ * Strategy:
+ * 1. On mount + every 60s + every time the app regains focus → call registration.update()
+ * 2. When a new SW is found and reaches "installed" state → tell it to skipWaiting
+ * 3. When the new SW takes control (controllerchange) → reload to load new assets
+ *
+ * Because sw.js already calls self.skipWaiting() + clientsClaim() unconditionally,
+ * step 2 is a belt-and-suspenders safety net.
  */
 export function PWAUpdatePrompt() {
-  const [waitingWorker, setWaitingWorker] = useState<ServiceWorker | null>(null)
-  const [showPrompt, setShowPrompt] = useState(false)
-  const [updating, setUpdating] = useState(false)
-  const reloadHandledRef = useRef(false)
+  const reloadingRef = useRef(false)
 
   useEffect(() => {
     if (!("serviceWorker" in navigator)) return
 
-    const checkForWaitingWorker = async () => {
+    let intervalId: ReturnType<typeof setInterval>
+
+    const triggerUpdate = (registration: ServiceWorkerRegistration) => {
+      registration.update().catch(() => {
+        // Network error - silently ignore, will retry on next interval/focus
+      })
+    }
+
+    const activateWaitingWorker = (worker: ServiceWorker) => {
+      worker.postMessage({ type: "SKIP_WAITING" })
+    }
+
+    const setup = async () => {
       const registration = await navigator.serviceWorker.ready
 
-      // Check if there's already a waiting worker
+      // If there's already a waiting worker, activate it immediately
       if (registration.waiting) {
-        setWaitingWorker(registration.waiting)
-        setShowPrompt(true)
+        activateWaitingWorker(registration.waiting)
       }
 
-      // Listen for new workers installing
+      // When a new worker is found installing, watch for it to become installed
       registration.addEventListener("updatefound", () => {
         const newWorker = registration.installing
         if (!newWorker) return
 
         newWorker.addEventListener("statechange", () => {
           if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-            // New content is available, show update prompt
-            setWaitingWorker(newWorker)
-            setShowPrompt(true)
+            // New SW is installed but waiting — tell it to activate now
+            activateWaitingWorker(newWorker)
           }
         })
       })
+
+      // Periodic check
+      intervalId = setInterval(() => triggerUpdate(registration), SW_CHECK_INTERVAL)
+
+      // Check on app focus (user switches back to PWA)
+      const handleVisibility = () => {
+        if (document.visibilityState === "visible") {
+          triggerUpdate(registration)
+        }
+      }
+      document.addEventListener("visibilitychange", handleVisibility)
+
+      // Store for cleanup
+      return handleVisibility
     }
 
-    checkForWaitingWorker()
+    let visibilityHandler: ((this: Document, ev: Event) => void) | undefined
 
-    // Listen for controller change (new SW took over)
+    setup().then((handler) => {
+      visibilityHandler = handler
+    })
+
+    // When a new SW takes control → reload to pick up new assets
     const handleControllerChange = () => {
-      // Prevent reload loops (e.g. when DevTools "Update on reload" is enabled).
-      // Reload only when the user explicitly requested an in-app update.
-      const updateRequested = sessionStorage.getItem(UPDATE_REQUESTED_KEY) === "1"
-      if (!updateRequested || reloadHandledRef.current) {
-        return
-      }
-
-      reloadHandledRef.current = true
-      sessionStorage.removeItem(UPDATE_REQUESTED_KEY)
-      console.log("[PWAUpdate] New service worker activated after user update, reloading once...")
+      if (reloadingRef.current) return
+      reloadingRef.current = true
       window.location.reload()
     }
 
     navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange)
 
     return () => {
+      clearInterval(intervalId)
       navigator.serviceWorker.removeEventListener("controllerchange", handleControllerChange)
+      if (visibilityHandler) {
+        document.removeEventListener("visibilitychange", visibilityHandler)
+      }
     }
   }, [])
 
-  const handleUpdate = () => {
-    if (!waitingWorker) return
-
-    setUpdating(true)
-    sessionStorage.setItem(UPDATE_REQUESTED_KEY, "1")
-    console.log("[PWAUpdate] Sending SKIP_WAITING message to service worker")
-
-    // Tell the waiting worker to take over
-    waitingWorker.postMessage({ type: "SKIP_WAITING" })
-  }
-
-  const handleDismiss = () => {
-    setShowPrompt(false)
-  }
-
-  if (!showPrompt) return null
-
-  return (
-    <div className="fixed bottom-20 left-4 right-4 z-50 animate-in slide-in-from-bottom-5">
-      <div className="bg-primary text-primary-foreground rounded-lg shadow-lg p-4 flex items-center justify-between gap-3">
-        <div className="flex-1 min-w-0">
-          <p className="font-medium">Update beschikbaar</p>
-          <p className="text-sm opacity-90">Nieuwe versie klaar om te installeren</p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Button
-            onClick={handleUpdate}
-            disabled={updating}
-            variant="secondary"
-            size="sm"
-          >
-            {updating ? (
-              <RefreshCw className="h-4 w-4 animate-spin" />
-            ) : (
-              "Update"
-            )}
-          </Button>
-          <button
-            onClick={handleDismiss}
-            className="p-1 rounded-full hover:bg-primary-foreground/20"
-            aria-label="Sluiten"
-          >
-            <X className="h-4 w-4" />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  // This component renders nothing — updates happen automatically
+  return null
 }
