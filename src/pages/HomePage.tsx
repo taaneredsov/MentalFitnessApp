@@ -125,12 +125,12 @@ export function HomePage() {
   const [showWelcomeInWizard, setShowWelcomeInWizard] = useState(true)
   const [showExtendDialog, setShowExtendDialog] = useState(false)
 
-  // Onboarding state (for tour only now)
+  // Onboarding state — per-user so each new user gets the tour
   const {
     shouldShowTour,
     markTourCompleted,
     markTourSkipped
-  } = useOnboarding()
+  } = useOnboarding(user?.id)
 
   const firstName = user?.name?.split(" ")[0] || "there"
 
