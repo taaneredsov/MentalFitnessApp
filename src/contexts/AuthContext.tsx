@@ -7,6 +7,7 @@ import {
   type ReactNode
 } from "react"
 import type { User } from "@/types/user"
+import { syncLanguageWithUserPreference } from "@/lib/i18n"
 
 interface LoginResult {
   success: true
@@ -42,6 +43,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const setAuthFromResponse = useCallback((user: User, token: string) => {
     setAccessToken(token)
     setUser(user)
+    void syncLanguageWithUserPreference(user.languageCode)
   }, [])
 
   const login = useCallback(async (email: string, password?: string): Promise<LoginResponse> => {
@@ -68,6 +70,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     setAccessToken(data.data.accessToken)
     setUser(data.data.user)
+    void syncLanguageWithUserPreference(data.data.user.languageCode)
 
     return { success: true }
   }, [])
@@ -90,6 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (data.success) {
         setAccessToken(data.data.accessToken)
         setUser(data.data.user)
+        void syncLanguageWithUserPreference(data.data.user.languageCode)
         return
       }
     } catch {

@@ -7,6 +7,7 @@ import { AuthProvider } from "@/contexts/AuthContext"
 import { queryClient } from "@/lib/query-client"
 import App from "./App"
 import "./index.css"
+import "./lib/i18n"
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

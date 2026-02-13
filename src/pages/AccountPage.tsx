@@ -15,11 +15,18 @@ import { api } from "@/lib/api-client"
 import type { ReminderMode } from "@/types/notifications"
 import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText } from "lucide-react"
 import type { PersonalGoal } from "@/types/program"
+import { useTranslation } from "react-i18next"
 
 const MAX_GOALS = 10
+const LANGUAGE_OPTIONS = [
+  { code: "nl", key: "account.language.nl", fallback: "Nederlands" },
+  { code: "fr", key: "account.language.fr", fallback: "Frans" },
+  { code: "en", key: "account.language.en", fallback: "Engels" }
+] as const
 
 export function AccountPage() {
   const { user, logout, accessToken } = useAuth()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
 
   // Use React Query for company names (cached)
@@ -43,6 +50,8 @@ export function AccountPage() {
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(getNotificationPermission())
   const [isTogglingPush, setIsTogglingPush] = useState(false)
   const [isSendingTest, setIsSendingTest] = useState(false)
+  const [isSavingLanguage, setIsSavingLanguage] = useState(false)
+  const [languageError, setLanguageError] = useState<string | null>(null)
   const [prefsForm, setPrefsForm] = useState<{
     enabled: boolean
     reminderMode: ReminderMode
@@ -69,6 +78,35 @@ export function AccountPage() {
   const handleLogout = async () => {
     await logout()
     navigate("/login")
+  }
+
+  const handleLanguageChange = async (languageCode: "nl" | "fr" | "en") => {
+    if (!user?.id) return
+
+    const currentLanguage = (i18n.resolvedLanguage || i18n.language || "nl").split("-")[0]
+    if (currentLanguage === languageCode && user.languageCode === languageCode) {
+      return
+    }
+
+    const previousLanguage = currentLanguage
+    setLanguageError(null)
+    setIsSavingLanguage(true)
+
+    try {
+      await i18n.changeLanguage(languageCode)
+      if (accessToken) {
+        await api.users.update(
+          user.id,
+          { languageCode },
+          accessToken
+        )
+      }
+    } catch {
+      setLanguageError(t("account.language.saveError", { defaultValue: "Kon taalvoorkeur niet opslaan." }))
+      await i18n.changeLanguage(previousLanguage)
+    } finally {
+      setIsSavingLanguage(false)
+    }
   }
 
   const handleCreateGoal = () => {
@@ -217,6 +255,7 @@ export function AccountPage() {
   }
 
   if (!user) return null
+  const activeLanguage = (i18n.resolvedLanguage || i18n.language || "nl").split("-")[0]
 
   return (
     <div className="px-4 py-6 space-y-6">
@@ -255,6 +294,33 @@ export function AccountPage() {
                 <p className="text-muted-foreground">No company linked</p>
               )}
             </div>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t">
+            <p className="text-sm text-muted-foreground">
+              {t("account.language.label", { defaultValue: "Taal" })}
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {LANGUAGE_OPTIONS.map((option) => (
+                <Button
+                  key={option.code}
+                  size="sm"
+                  variant={activeLanguage === option.code ? "default" : "outline"}
+                  onClick={() => handleLanguageChange(option.code)}
+                  disabled={isSavingLanguage}
+                >
+                  {t(option.key, { defaultValue: option.fallback })}
+                </Button>
+              ))}
+            </div>
+            {isSavingLanguage && (
+              <p className="text-xs text-muted-foreground">
+                {t("account.language.saving", { defaultValue: "Taal opslaan..." })}
+              </p>
+            )}
+            {languageError && (
+              <p className="text-xs text-destructive">{languageError}</p>
+            )}
           </div>
         </CardContent>
       </Card>

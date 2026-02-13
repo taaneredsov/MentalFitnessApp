@@ -251,8 +251,8 @@ Add running program and upcoming activity to Home page.
 
 - [x] Add running program card to HomePage
 - [x] Add upcoming activity section
-- [x] Calculate next scheduled day
-- [x] Show methods for next session
+- [x] Calculate next open session
+- [x] Show methods for next open session
 - [x] Handle no running program state
 
 ### Technical Details
@@ -262,36 +262,77 @@ Add running program and upcoming activity to Home page.
 // After welcome section:
 // 1. "Current Program" card (if running program exists)
 // 2. "Upcoming Activity" card showing:
-//    - Next scheduled day (e.g., "Tomorrow - Woensdag")
+//    - Next open session day label (Vandaag/Morgen/weekday)
 //    - Methods list
 //    - Total time estimate
 ```
 
-**Next scheduled day calculation:**
+**Next open session calculation:**
 ```typescript
-function getNextScheduledDay(daysOfWeek: string[]): { day: string; isToday: boolean; daysUntil: number } | null {
-  const dayNames = ['Zondag', 'Maandag', 'Dinsdag', 'Woensdag', 'Donderdag', 'Vrijdag', 'Zaterdag']
-  const today = new Date()
-  const todayIndex = today.getDay()
-
-  for (let i = 0; i < 7; i++) {
-    const checkIndex = (todayIndex + i) % 7
-    const dayName = dayNames[checkIndex]
-    if (daysOfWeek.includes(dayName)) {
-      return {
-        day: dayName,
-        isToday: i === 0,
-        daysUntil: i
-      }
-    }
-  }
-  return null
+function getNextOpenSession(schedule: Programmaplanning[]): Programmaplanning | null {
+  // 1) today's open session first
+  // 2) otherwise first future open session
+  // open = completedMethodIds.length < methodIds.length
 }
 ```
 
 **Display logic:**
 ```typescript
-// If daysUntil === 0: "Today"
-// If daysUntil === 1: "Tomorrow"
-// Otherwise: Day name (e.g., "Vrijdag")
+// If next session is today: "Vandaag"
+// If next session is tomorrow: "Morgen"
+// Otherwise: weekday label
+// If no next open session: do not show "Volgende Activiteit"
 ```
+
+## Phase 5: Ended Program UX + Extend Flow
+
+Fix edge case where Home still shows stale upcoming-day behavior while there is no real next open session.
+
+### Tasks
+
+- [x] Replace weekday fallback logic with real next-open-session lookup from schedule records
+- [x] Add Home top-card fallback state when no next open activity exists
+- [x] Add actions on fallback state:
+  - [x] Primary: `Programma verlengen` (only when incomplete)
+  - [x] Secondary: `Maak nieuw programma`
+- [x] Add ended-complete state with `Maak nieuw programma`
+- [x] Implement extend API flow (`POST /api/programs/:id/extend`)
+- [x] Add extension picker with options `2 / 4 / 6 weken`
+- [ ] Add analytics/log events for `program_extend_started`, `program_extend_completed`, `program_new_started_from_ended`
+
+### Technical Details
+
+**Home state decision order:**
+```typescript
+// 1) Show next activity only when a real open session exists
+const nextSession = getNextOpenSession(schedule, today)
+
+// 2) If no next open session:
+//    - if incomplete => show fallback with extend CTA
+//    - if complete => show completion fallback without extend
+//    - title "Programma afgelopen" if endedByDate else "Geen volgende activiteit"
+```
+
+**Files updated:**
+- `src/pages/HomePage.tsx`
+- `src/components/ProgramExtendDialog.tsx` (new)
+- `src/lib/api-client.ts` (`programs.extend`)
+- `src/hooks/queries.ts` (`useExtendProgram`)
+- `api/programs/[id]/extend.ts` (new endpoint)
+- `server.ts` (route registration)
+
+**Extend behavior:**
+1. Keep completed historical sessions untouched.
+2. Recalculate extension schedule from `extensionStart = max(today, oldEndDate + 1 day)`.
+3. `newEndDate = extensionStart + selectedWeeks * 7 - 1`.
+4. Update program `duration`/`endDate` consistently.
+5. Return refreshed program detail + schedule counts.
+
+### Validation Checklist
+
+- [x] Program ended on `2026-02-13` with incomplete sessions: no fake weekday fallback
+- [x] No-next-open-session case shows fallback card
+- [x] Clicking `Programma verlengen` opens selector (`2/4/6 weken`)
+- [x] Confirm extend generates new future sessions and restores next activity when applicable
+- [x] Clicking `Maak nieuw programma` opens existing creation flow
+- [x] Fully completed program shows no extend CTA

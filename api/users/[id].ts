@@ -4,6 +4,8 @@ import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { verifyToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import { updateUserProfileFields } from "../_lib/repos/user-repo.js"
 
 const updateUserSchema = z.object({
   name: z.string().min(1).optional(),
@@ -55,6 +57,17 @@ export default async function handler(req: Request, res: Response) {
     if (body.lastLogin) fields[USER_FIELDS.lastLogin] = body.lastLogin
 
     const record = await base(tables.users).update(id, fields)
+
+    if (isPostgresConfigured()) {
+      await updateUserProfileFields({
+        id,
+        name: body.name,
+        role: body.role,
+        languageCode: body.languageCode,
+        lastLogin: body.lastLogin
+      })
+    }
+
     const user = transformUser(record as any)
 
     return sendSuccess(res, user)

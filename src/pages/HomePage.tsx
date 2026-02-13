@@ -2,14 +2,12 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/AuthContext"
-import { usePrograms, useProgram } from "@/hooks/queries"
+import { usePrograms, useProgram, useExtendProgram } from "@/hooks/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import type { Programmaplanning } from "@/types/program"
 import {
   getProgramStatus,
-  getNextScheduledDay,
-  formatNextDay,
   getSessionProgress,
   hasRunningProgram,
   getRunningProgram
@@ -33,6 +31,7 @@ import { ScoreWidgets } from "@/components/ScoreWidgets"
 import { WelcomeScreen, GuidedTour, HOMEPAGE_TOUR_STEPS } from "@/components/Onboarding"
 import { MethodThumbnail } from "@/components/MethodThumbnail"
 import { InAppReminderBanner } from "@/components/InAppReminderBanner"
+import { ProgramExtendDialog } from "@/components/ProgramExtendDialog"
 import { useOnboarding } from "@/hooks/useOnboarding"
 
 function formatDate(dateStr: string): string {
@@ -55,25 +54,63 @@ function getLocalDateStr(date: Date): string {
 
 /**
  * Find the next scheduled session from the program schedule
- * Returns today's session if available, otherwise the next upcoming session
+ * Returns today's open session if available, otherwise the next upcoming open session
  */
-function getNextScheduledSession(schedule: Programmaplanning[]): Programmaplanning | null {
+function getNextOpenSession(schedule: Programmaplanning[]): Programmaplanning | null {
   if (!schedule?.length) return null
 
   const today = new Date()
   today.setHours(0, 0, 0, 0)
   const todayStr = getLocalDateStr(today)
 
-  // Find today's session first
-  const todaySession = schedule.find(s => s.date === todayStr)
+  const isOpenSession = (session: Programmaplanning) => {
+    const totalMethods = session.methodIds?.length ?? 0
+    const completedMethods = session.completedMethodIds?.length ?? 0
+    return totalMethods > 0 && completedMethods < totalMethods
+  }
+
+  // Find today's open session first
+  const todaySession = schedule.find(s => s.date === todayStr && isOpenSession(s))
   if (todaySession) return todaySession
 
-  // Find next upcoming session
+  // Find next upcoming open session
   return schedule.find(s => {
+    if (!isOpenSession(s)) return false
     const sessionDate = new Date(s.date)
     sessionDate.setHours(0, 0, 0, 0)
     return sessionDate > today
   }) || null
+}
+
+function getSessionDayLabel(sessionDate: string): { label: string; isToday: boolean } {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+
+  const session = new Date(sessionDate)
+  session.setHours(0, 0, 0, 0)
+
+  const diffDays = Math.round((session.getTime() - today.getTime()) / (24 * 60 * 60 * 1000))
+  if (diffDays === 0) return { label: "Vandaag", isToday: true }
+  if (diffDays === 1) return { label: "Morgen", isToday: false }
+  return {
+    label: session.toLocaleDateString("nl-NL", { weekday: "long" }),
+    isToday: false
+  }
+}
+
+function parseDateOnly(value: string): Date | null {
+  if (!value) return null
+
+  const normalized = value.includes("T") ? value.split("T")[0] : value
+  const euMatch = normalized.match(/^(\d{1,2})[./-](\d{1,2})[./-](\d{4})$/)
+  const isoCandidate = euMatch
+    ? `${euMatch[3]}-${euMatch[2].padStart(2, "0")}-${euMatch[1].padStart(2, "0")}`
+    : normalized
+
+  const date = new Date(isoCandidate)
+  if (Number.isNaN(date.getTime())) return null
+  date.setHours(0, 0, 0, 0)
+  return date
 }
 
 
@@ -86,6 +123,7 @@ export function HomePage() {
   const [showTour, setShowTour] = useState(false)
   const [onboardingInProgress, setOnboardingInProgress] = useState(false)
   const [showWelcomeInWizard, setShowWelcomeInWizard] = useState(true)
+  const [showExtendDialog, setShowExtendDialog] = useState(false)
 
   // Onboarding state (for tour only now)
   const {
@@ -126,12 +164,29 @@ export function HomePage() {
     [programs]
   )
 
-  // Fetch full program details if we have a running program
-  const { data: runningProgram, isLoading: detailLoading } = useProgram(
-    runningProgramBasic?.id || ""
-  )
+  const latestFinishedProgramBasic = useMemo(() => {
+    const finished = programs.filter((p) => getProgramStatus(p) === "finished")
+    finished.sort((a, b) => b.endDate.localeCompare(a.endDate))
+    return finished[0]
+  }, [programs])
 
-  const isLoading = programsLoading || (runningProgramBasic && detailLoading)
+  const latestAnyProgramBasic = useMemo(() => {
+    if (programs.length === 0) return null
+    const all = [...programs]
+    all.sort((a, b) => {
+      const aKey = `${a.endDate || ""}|${a.startDate || ""}`
+      const bKey = `${b.endDate || ""}|${b.startDate || ""}`
+      return bKey.localeCompare(aKey)
+    })
+    return all[0]
+  }, [programs])
+
+  // Fetch full program details for home context (running program, else latest finished)
+  const homeProgramBasic = runningProgramBasic || latestFinishedProgramBasic || latestAnyProgramBasic || null
+  const { data: homeProgram, isLoading: detailLoading } = useProgram(homeProgramBasic?.id || "")
+  const extendProgramMutation = useExtendProgram(homeProgram?.id || "")
+
+  const isLoading = programsLoading || (homeProgramBasic && detailLoading)
   const hasNoPrograms = !programsLoading && programs.length === 0
 
   // Check if user already has a running program (for one-active-program limit)
@@ -174,23 +229,41 @@ export function HomePage() {
     setShowTour(false)
   }
 
-  const nextDay = runningProgram
-    ? getNextScheduledDay(runningProgram.dayNames)
+  const runningProgram = homeProgram && getProgramStatus(homeProgram) === "running"
+    ? homeProgram
     : null
 
-  // Find the next scheduled session (for programmaplanningId navigation)
-  const nextSession = runningProgram
-    ? getNextScheduledSession(runningProgram.schedule)
+  // Find the next open session (for programmaplanningId navigation)
+  const nextSession = homeProgram
+    ? getNextOpenSession(homeProgram.schedule)
     : null
 
-  // Filter methods to only show today's scheduled methods
+  const nextSessionDay = nextSession
+    ? getSessionDayLabel(nextSession.date)
+    : null
+
+  const todayDate = new Date()
+  todayDate.setHours(0, 0, 0, 0)
+  const programEndDate = homeProgram ? parseDateOnly(homeProgram.endDate) : null
+  const hasEndedByDate = !!programEndDate && programEndDate <= todayDate
+  const hasNoNextOpenSession = !!homeProgram && !nextSession
+  const isProgramCompleted = !!homeProgram
+    && homeProgram.totalSessions > 0
+    && homeProgram.completedSessions >= homeProgram.totalSessions
+  const isProgramIncomplete = !!homeProgram && !isProgramCompleted
+  const showNoNextActivityState = hasNoNextOpenSession
+    && (!!runningProgram || hasEndedByDate || isProgramIncomplete)
+  const showEndedState = showNoNextActivityState && hasEndedByDate
+  const showExtendCta = showNoNextActivityState && isProgramIncomplete
+
+  // Filter methods to only show next open session methods
   const todaysMethods = useMemo(() => {
-    const methodDetails = runningProgram?.methodDetails
+    const methodDetails = homeProgram?.methodDetails
     const nextMethodIds = nextSession?.methodIds
     if (!nextMethodIds || !methodDetails) return []
     const methodIdSet = new Set(nextMethodIds)
     return methodDetails.filter(m => methodIdSet.has(m.id))
-  }, [runningProgram?.methodDetails, nextSession?.methodIds])
+  }, [homeProgram?.methodDetails, nextSession?.methodIds])
 
   // Calculate total time for today's methods
   const todaysSessionTime = useMemo(() => {
@@ -208,6 +281,12 @@ export function HomePage() {
       return completedCount < totalCount
     }).length
   }, [runningProgram])
+
+  const handleConfirmExtendProgram = async (weeks: number) => {
+    if (!homeProgram) return
+    await extendProgramMutation.mutateAsync({ weeks })
+    setShowExtendDialog(false)
+  }
 
   // Show blocking message if user tries to create program while having one running
   if (showOnboarding && userHasRunningProgram && currentRunningProgram) {
@@ -287,10 +366,10 @@ export function HomePage() {
           <div className="flex items-center justify-center h-32">
             <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
           </div>
-        ) : runningProgram ? (
+        ) : homeProgram ? (
           <section className="grid gap-4">
           {/* TODAY'S ACTIVITY - Most Prominent */}
-          {nextDay && (
+          {runningProgram && nextSession && nextSessionDay && (
             <Card data-tour="activity" className="border-primary/30 shadow-md overflow-hidden">
               <CardHeader className="pb-3 pt-4 bg-primary/5">
                 <div className="flex items-center gap-3">
@@ -299,12 +378,12 @@ export function HomePage() {
                   </div>
                   <div>
                     <CardTitle className="text-xl">
-                      {nextDay.isToday
+                      {nextSessionDay.isToday
                         ? "Activiteit van Vandaag"
                         : "Volgende Activiteit"}
                     </CardTitle>
                     <p className="text-sm text-primary font-medium">
-                      {formatNextDay(nextDay)}
+                      {nextSessionDay.label}
                     </p>
                   </div>
                 </div>
@@ -368,6 +447,58 @@ export function HomePage() {
             </Card>
           )}
 
+          {showNoNextActivityState && (
+            <Card data-tour="activity" className="border-primary/30 shadow-md overflow-hidden">
+              <CardHeader className="pb-3 pt-4 bg-primary/5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
+                    <Target className="h-6 w-6 text-primary-foreground" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">
+                      {showEndedState ? "Programma afgelopen" : "Geen volgende activiteit"}
+                    </CardTitle>
+                    <p className="text-sm text-primary font-medium">
+                      {showEndedState
+                        ? "Je hebt momenteel geen volgende activiteit."
+                        : "Je planning bevat geen volgende open sessie."}
+                    </p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-4 pt-4">
+                <p className="text-sm text-muted-foreground">
+                  {showExtendCta
+                    ? `Je voortgang is ${homeProgram.completedSessions}/${homeProgram.totalSessions} sessies.`
+                    : "Je programma is afgerond."}
+                </p>
+                <div className="flex flex-col sm:flex-row gap-2">
+                  {showExtendCta && (
+                    <Button
+                      onClick={() => setShowExtendDialog(true)}
+                      disabled={extendProgramMutation.isPending}
+                    >
+                      {extendProgramMutation.isPending ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Verlengen...
+                        </>
+                      ) : (
+                        "Programma verlengen"
+                      )}
+                    </Button>
+                  )}
+                  <Button
+                    variant="outline"
+                    onClick={() => navigate("/programs")}
+                  >
+                    Maak nieuw programma
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           <div data-tour="scores">
             <ScoreWidgets />
           </div>
@@ -376,18 +507,20 @@ export function HomePage() {
           <Card
             data-tour="progress"
             className="cursor-pointer hover:shadow-md transition-shadow"
-            onClick={() => navigate(`/programs/${runningProgram.id}`)}
+            onClick={() => navigate(`/programs/${homeProgram.id}`)}
           >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-lg">Huidig Programma</CardTitle>
+                <CardTitle className="text-lg">
+                  {runningProgram ? "Huidig Programma" : "Laatste Programma"}
+                </CardTitle>
                 <div className="w-8 h-8 rounded-lg bg-muted/50 flex items-center justify-center">
                   <ChevronRight className="h-5 w-5 text-muted-foreground" />
                 </div>
               </div>
-              {runningProgram.name && (
+              {homeProgram.name && (
                 <p className="text-muted-foreground mt-1">
-                  {runningProgram.name}
+                  {homeProgram.name}
                 </p>
               )}
             </CardHeader>
@@ -396,25 +529,25 @@ export function HomePage() {
                 <div className="flex items-center gap-1">
                   <Calendar className="h-4 w-4 shrink-0" />
                   <span className="whitespace-nowrap">
-                    {formatDate(runningProgram.startDate)} -{" "}
-                    {formatDate(runningProgram.endDate)}
+                    {formatDate(homeProgram.startDate)} -{" "}
+                    {formatDate(homeProgram.endDate)}
                   </span>
                 </div>
                 <div className="flex items-center gap-1">
                   <Target className="h-4 w-4 shrink-0" />
-                  <span className="whitespace-nowrap">{runningProgram.frequency}x per week</span>
+                  <span className="whitespace-nowrap">{homeProgram.frequency}x per week</span>
                 </div>
               </div>
 
               <div className="space-y-2">
                 <div className="flex justify-between text-sm text-muted-foreground">
                   <span>Voortgang</span>
-                  <span className="font-medium">{getSessionProgress(runningProgram)}%</span>
+                  <span className="font-medium">{getSessionProgress(homeProgram)}%</span>
                 </div>
                 <div className="h-3 bg-muted rounded-full overflow-hidden">
                   <div
                     className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${getSessionProgress(runningProgram)}%` }}
+                    style={{ width: `${getSessionProgress(homeProgram)}%` }}
                   />
                 </div>
               </div>
@@ -510,6 +643,13 @@ export function HomePage() {
           onSkip={handleTourSkip}
         />
       )}
+
+      <ProgramExtendDialog
+        open={showExtendDialog}
+        onOpenChange={setShowExtendDialog}
+        onConfirm={handleConfirmExtendProgram}
+        isPending={extendProgramMutation.isPending}
+      />
     </PullToRefreshWrapper>
   )
 }

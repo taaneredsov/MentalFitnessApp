@@ -126,10 +126,14 @@ export const api = {
         role?: string
         languageCode?: string
         lastLogin?: string
-      }
+      },
+      accessToken: string
     ) =>
       request<User>(`/users/${id}`, {
         method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
         body: JSON.stringify(data)
       }),
 
@@ -306,6 +310,24 @@ export const api = {
         regeneratedSessions: number
         deletedSessions: number
       }>(`/programs/${encodeURIComponent(programId)}/regenerate-schedule`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        },
+        body: JSON.stringify(data)
+      }),
+
+    extend: (
+      programId: string,
+      data: { weeks?: number },
+      accessToken: string
+    ) =>
+      request<{
+        program: Program
+        createdSessions: number
+        extensionStart: string
+        newEndDate: string
+      }>(`/programs/${encodeURIComponent(programId)}/extend`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${accessToken}`

@@ -24,9 +24,13 @@ Display and manage user's Mental Fitness Programs (Mentale Fitnessprogramma's) t
 
 3. **See my running program on the Home page** with:
    - Program name and progress
-   - Upcoming activity (next scheduled day)
+   - Upcoming activity (next open scheduled session)
    - Methods for the next session
    - Time estimate
+
+4. **See a clear state when no next open activity exists**:
+   - Do not show "Volgende Activiteit" when there is no real open session today/future
+   - Show clear actions: extend current program or create a new one
 
 ## Acceptance Criteria
 
@@ -46,9 +50,16 @@ Display and manage user's Mental Fitness Programs (Mentale Fitnessprogramma's) t
 
 ### Home Page
 - [ ] Shows running program card (if any)
-- [ ] Shows upcoming activity with next scheduled day
-- [ ] Shows methods for next session
+- [ ] Shows upcoming activity with next **open** scheduled session
+- [ ] Shows methods for next open session
 - [ ] Handles case when no running program exists
+- [ ] Does not show "Volgende Activiteit" when no future/today open session exists
+- [ ] For ended + incomplete programs, shows a dedicated "Programma afgelopen" state with:
+  - [ ] Primary action: "Programma verlengen" (recalculate schedule)
+  - [ ] Secondary action: "Maak nieuw programma"
+- [ ] For no-next-open-session + incomplete programs that are not clearly ended yet, shows "Geen volgende activiteit" with "Programma verlengen"
+- [ ] For ended + completed programs, shows a completion state with "Maak nieuw programma"
+- [ ] "Programma verlengen" opens an extension picker with options: 2, 4, 6 weken
 
 ## Data Model
 
@@ -60,7 +71,27 @@ finished: endDate < today
 ```
 
 ### Upcoming Activity Logic
-Find the next day in the weekly schedule (starting from today).
+Find the next **open** session in Programmaplanning (today first, then future), where:
+
+```
+openSession = completedMethodIds < methodIds
+```
+
+### Ended Program Edge Case Logic
+Use session availability + completion to determine the Home top-card state:
+
+```
+ended = endDate <= today
+completed = completedSessions >= totalSessions
+hasNextOpenSession = exists schedule session with date >= today and not completed
+```
+
+Rules:
+1. If `hasNextOpenSession`, show "Volgende Activiteit".
+2. If `!hasNextOpenSession` and `!completed`, show fallback state with `Programma verlengen` + `Maak nieuw programma`.
+3. Prefer title "Programma afgelopen" when ended by date; otherwise use "Geen volgende activiteit".
+4. If `!hasNextOpenSession` and `completed`, show completion state + `Maak nieuw programma`.
+5. Never show weekday fallback text (e.g. "dinsdag") when no real upcoming session exists.
 
 ## Dependencies
 
@@ -68,6 +99,7 @@ Find the next day in the weekly schedule (starting from today).
 - Existing API client pattern (api-client.ts)
 - Existing field-mappings.js for Airtable field IDs
 - UI components: Card, Button from shadcn/ui
+- Program extend endpoint (`POST /api/programs/[id]/extend`) for extend action
 
 ## Related Tables (Airtable)
 

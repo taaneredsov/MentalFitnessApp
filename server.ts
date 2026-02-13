@@ -59,6 +59,10 @@ async function setupRoutes() {
   app.get("/api/auth/verify", verifyTokenHandler)
   app.post("/api/auth/verify-code", verifyCodeHandler)
 
+  // Public translations route
+  const { default: translationsByLangHandler } = await import("./api/translations/[lang].js")
+  app.get("/api/translations/:lang", translationsByLangHandler)
+
   // Users routes
   const { default: usersHandler } = await import("./api/users/index.js")
   const { default: userByIdHandler } = await import("./api/users/[id].js")
@@ -96,9 +100,11 @@ async function setupRoutes() {
 
   // Program schedule routes
   const { default: regenerateScheduleHandler } = await import("./api/programs/[id]/regenerate-schedule.js")
+  const { default: extendProgramHandler } = await import("./api/programs/[id]/extend.js")
   const { default: schedulePlanningHandler } = await import("./api/programs/[id]/schedule/[planningId].js")
 
   app.post("/api/programs/:id/regenerate-schedule", regenerateScheduleHandler)
+  app.post("/api/programs/:id/extend", extendProgramHandler)
   app.patch("/api/programs/:id/schedule/:planningId", schedulePlanningHandler)
 
   // Methods routes

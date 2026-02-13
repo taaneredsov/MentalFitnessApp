@@ -46,6 +46,7 @@ export const TABLES = {
   media: process.env.AIRTABLE_TABLE_MEDIA || "tblwzDUwtnhFKw4kA",              // Media
   daysOfWeek: process.env.AIRTABLE_TABLE_DAYS_OF_WEEK || "tblS3gleG8cSlWOJ3",  // Dagen van de week
   programPrompts: process.env.AIRTABLE_TABLE_PROGRAM_PROMPTS || "tblHmI6cSujof3KHu", // Programma opbouw prompts
+  translations: process.env.AIRTABLE_TABLE_TRANSLATIONS || "tblTi6uz4PdwOaMe9", // Vertalingen
   programmaplanning: process.env.AIRTABLE_TABLE_PROGRAMMAPLANNING || "tbl2PHUaonvs1MYRx", // Programmaplanning
   experienceLevels: process.env.AIRTABLE_TABLE_EXPERIENCE_LEVELS || "tblt5lzx2Msw1aKxv",  // Ervaringsniveaus
   habitUsage: process.env.AIRTABLE_TABLE_HABIT_USAGE || "tblpWiRiseAZ7jfHm",   // Gewoontegebruik

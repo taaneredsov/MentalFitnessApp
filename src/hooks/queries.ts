@@ -175,6 +175,20 @@ export function useRegenerateSchedule(programId: string) {
   })
 }
 
+export function useExtendProgram(programId: string) {
+  const queryClient = useQueryClient()
+  const { accessToken } = useAuth()
+
+  return useMutation({
+    mutationFn: (data: { weeks?: number }) =>
+      api.programs.extend(programId, data, accessToken!),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
+      queryClient.invalidateQueries({ queryKey: ["programs"] })
+    }
+  })
+}
+
 export function useRecordMethodUsage() {
   const queryClient = useQueryClient()
 

@@ -124,6 +124,31 @@ export async function updateUserLastLogin(id: string, lastLogin: string): Promis
   )
 }
 
+export async function updateUserProfileFields(input: {
+  id: string
+  name?: string
+  role?: string
+  languageCode?: string
+  lastLogin?: string
+}): Promise<void> {
+  await dbQuery(
+    `UPDATE users_pg
+     SET name = COALESCE($2, name),
+         role = COALESCE($3, role),
+         language_code = COALESCE($4, language_code),
+         last_login = COALESCE($5::date, last_login),
+         updated_at = NOW()
+     WHERE id = $1`,
+    [
+      input.id,
+      input.name ?? null,
+      input.role ?? null,
+      input.languageCode ?? null,
+      input.lastLogin ?? null
+    ]
+  )
+}
+
 export async function updateUserStreakFields(input: {
   userId: string
   currentStreak: number

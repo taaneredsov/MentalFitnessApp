@@ -4,6 +4,12 @@
 
 Implement a gamification system with points, levels, streaks, and badges to increase user engagement in the Mental Fitness PWA.
 
+## Current Status (Audit Update)
+
+As of February 13, 2026, implementation is **partially complete** and has functional gaps in badge awarding and backend consistency.
+
+See `specs/reward-system/implementation-review-2026-02-13.md` for verified findings, severity, and remediation steps.
+
 ---
 
 ## Phase 1: Data Infrastructure

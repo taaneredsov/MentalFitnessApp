@@ -18,6 +18,7 @@ interface FullSyncCounts {
   referenceMethods: number
   referenceGoals: number
   referenceDays: number
+  translations: number
   personalGoals: number
   programs: number
   schedules: number
@@ -61,6 +62,49 @@ export async function syncReferenceDataFromAirtable(): Promise<{
   const overtuigingen = await syncReferenceTable(tables.overtuigingen, "reference_overtuigingen_pg")
   const mindsetCategories = await syncReferenceTable(tables.mindsetCategories, "reference_mindset_categories_pg")
   return { methods, goals, days, overtuigingen, mindsetCategories }
+}
+
+export async function syncTranslationsFromAirtable(): Promise<number> {
+  const exists = await dbQuery<{ table_name: string | null }>(
+    `SELECT to_regclass('public.translations_pg') AS table_name`
+  )
+  if (!exists.rows[0]?.table_name) {
+    return 0
+  }
+
+  const records = await base(tables.translations).select({}).all()
+  let count = 0
+
+  for (const record of records) {
+    const fields = (record.fields || {}) as Record<string, unknown>
+    const key = fields.Key ? String(fields.Key).trim() : ""
+    if (!key) continue
+
+    await dbQuery(
+      `INSERT INTO translations_pg (key, nl, fr, en, context, airtable_record_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (key)
+       DO UPDATE SET
+         nl = EXCLUDED.nl,
+         fr = EXCLUDED.fr,
+         en = EXCLUDED.en,
+         context = EXCLUDED.context,
+         airtable_record_id = EXCLUDED.airtable_record_id,
+         updated_at = NOW()`,
+      [
+        key,
+        fields.nl ? String(fields.nl) : "",
+        fields.fr ? String(fields.fr) : null,
+        fields.en ? String(fields.en) : null,
+        fields.Context ? String(fields.Context) : null,
+        record.id
+      ]
+    )
+
+    count += 1
+  }
+
+  return count
 }
 
 export async function syncUsersFromAirtable(): Promise<number> {
@@ -474,6 +518,7 @@ export async function syncOvertuigingUsageFromAirtable(): Promise<number> {
 export async function runFullAirtableToPostgresSync(): Promise<FullSyncCounts> {
   const users = await syncUsersFromAirtable()
   const refs = await syncReferenceDataFromAirtable()
+  const translations = await syncTranslationsFromAirtable()
   const personalGoals = await syncPersonalGoalsFromAirtable()
   const programs = await syncProgramsFromAirtable()
   const schedules = await syncProgramScheduleFromAirtable()
@@ -487,6 +532,7 @@ export async function runFullAirtableToPostgresSync(): Promise<FullSyncCounts> {
     referenceMethods: refs.methods,
     referenceGoals: refs.goals,
     referenceDays: refs.days,
+    translations,
     referenceOvertuigingen: refs.overtuigingen,
     referenceMindsetCategories: refs.mindsetCategories,
     personalGoals,
