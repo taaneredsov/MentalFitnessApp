@@ -105,7 +105,7 @@ export function TourTooltip({
         tabIndex={-1}
         role="dialog"
         aria-label={`Rondleiding stap ${currentStep + 1} van ${totalSteps}`}
-        className={`fixed z-50 bg-background rounded-xl shadow-lg border p-4 outline-none ${
+        className={`fixed z-[60] bg-background rounded-xl shadow-lg border p-4 outline-none ${
           prefersReducedMotion ? '' : 'animate-in fade-in-0 slide-in-from-bottom-2 duration-200'
         }`}
         style={{

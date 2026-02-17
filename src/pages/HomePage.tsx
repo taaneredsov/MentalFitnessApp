@@ -122,6 +122,7 @@ export function HomePage() {
   const [showOnboarding, setShowOnboarding] = useState(false)
   const [showTour, setShowTour] = useState(false)
   const [onboardingInProgress, setOnboardingInProgress] = useState(false)
+  const [wizardJustCompleted, setWizardJustCompleted] = useState(false)
   const [showWelcomeInWizard, setShowWelcomeInWizard] = useState(true)
   const [showExtendDialog, setShowExtendDialog] = useState(false)
 
@@ -134,11 +135,13 @@ export function HomePage() {
 
   const firstName = user?.name?.split(" ")[0] || "there"
 
-  // Check if we should start the tour (coming from first program creation)
+  // Check if we should start the tour (coming from first program creation or ?tour=1)
   useEffect(() => {
     const state = location.state as { startTour?: boolean } | null
-    if (state?.startTour && shouldShowTour) {
-      // Clear the state to prevent re-triggering
+    const params = new URLSearchParams(location.search)
+    const tourFromUrl = params.get("tour") === "1"
+    if ((state?.startTour && shouldShowTour) || tourFromUrl) {
+      // Clear the state/param to prevent re-triggering
       navigate(location.pathname, { replace: true, state: {} })
       // Dismiss install prompt so it doesn't interfere with tour spotlight
       sessionStorage.setItem("installPromptDismissed", "true")
@@ -195,7 +198,8 @@ export function HomePage() {
 
   // Auto-show onboarding for first-time users (only if no running program)
   // Keep showing if onboardingInProgress is true (prevents auto-hide when program is created)
-  const shouldShowOnboardingWizard = onboardingInProgress || (!userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading)))
+  // wizardJustCompleted prevents re-showing wizard while programs query refetches
+  const shouldShowOnboardingWizard = !wizardJustCompleted && (onboardingInProgress || (!userHasRunningProgram && (showOnboarding || (hasNoPrograms && !programsLoading))))
 
   // Check if we should show welcome screen first (always show before wizard)
   const shouldShowWelcomeScreen = shouldShowOnboardingWizard && showWelcomeInWizard
@@ -213,10 +217,13 @@ export function HomePage() {
     setOnboardingInProgress(true)
   }
 
-  const handleOnboardingComplete = (_programId: string) => {
+  const handleOnboardingComplete = async (_programId: string) => {
+    setWizardJustCompleted(true)
     setShowOnboarding(false)
     setOnboardingInProgress(false)
-    // Navigate to homepage with tour trigger (instead of program detail)
+    // Ensure programs data is fresh before rendering homepage
+    await queryClient.invalidateQueries({ queryKey: ["programs"] })
+    // Navigate to homepage with tour trigger
     navigate("/", { replace: true, state: { startTour: true } })
   }
 

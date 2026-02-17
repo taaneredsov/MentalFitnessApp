@@ -87,9 +87,9 @@ const USER_CHILD_TABLES = [
   "personal_goals_pg",
   "personal_goal_usage_pg",
   "overtuiging_usage_pg",
-  "push_subscriptions",
-  "user_notification_preferences",
-  "notification_log"
+  "push_subscriptions_pg",
+  "notification_preferences_pg",
+  "notification_jobs_pg"
 ]
 
 export async function upsertUserFromAirtable(record: {

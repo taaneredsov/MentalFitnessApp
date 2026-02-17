@@ -7,7 +7,7 @@ export interface TourStep {
 export const HOMEPAGE_TOUR_STEPS: TourStep[] = [
   {
     targetSelector: '[data-tour="activity"]',
-    content: 'Dit is je belangrijkste taak voor vandaag. Tik op een oefening om te beginnen.'
+    content: 'Hier verschijnen je geplande activiteiten. Op trainingsdagen kun je op een oefening tikken om te beginnen.'
   },
   {
     targetSelector: '[data-tour="scores"]',

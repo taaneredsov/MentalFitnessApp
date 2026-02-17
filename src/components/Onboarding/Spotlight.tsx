@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useId } from 'react'
 
 interface SpotlightProps {
   targetRect: DOMRect | null
@@ -6,50 +6,58 @@ interface SpotlightProps {
   onBackdropClick?: () => void
 }
 
+/**
+ * Spotlight overlay using an SVG with a mask to cut out the target area.
+ * SVG masks are immune to overflow-x:clip on html/body and work reliably
+ * across all browsers.
+ */
 export function Spotlight({ targetRect, padding = 8, onBackdropClick }: SpotlightProps) {
-  // Check for reduced motion preference
-  const prefersReducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const maskId = useId()
 
-  // Calculate the clip-path polygon that creates a hole for the target
-  const clipPath = useMemo(() => {
-    if (!targetRect) {
-      // Full overlay, no hole
-      return 'none'
-    }
-
-    const x1 = Math.max(0, targetRect.left - padding)
-    const y1 = Math.max(0, targetRect.top - padding)
-    const x2 = Math.min(window.innerWidth, targetRect.right + padding)
-    const y2 = Math.min(window.innerHeight, targetRect.bottom + padding)
-
-    // Create a polygon with a rectangular hole
-    // The path goes around the viewport, then cuts out the target area
-    return `polygon(
-      0% 0%,
-      0% 100%,
-      ${x1}px 100%,
-      ${x1}px ${y1}px,
-      ${x2}px ${y1}px,
-      ${x2}px ${y2}px,
-      ${x1}px ${y2}px,
-      ${x1}px 100%,
-      100% 100%,
-      100% 0%
-    )`
-  }, [targetRect, padding])
+  const x = targetRect ? targetRect.left - padding : 0
+  const y = targetRect ? targetRect.top - padding : 0
+  const w = targetRect ? targetRect.width + padding * 2 : 0
+  const h = targetRect ? targetRect.height + padding * 2 : 0
 
   return (
-    <div
-      className={`fixed inset-0 bg-black/50 z-50 ${
-        prefersReducedMotion ? '' : 'transition-[clip-path] duration-300 ease-out'
-      }`}
+    <svg
       style={{
-        clipPath: clipPath === 'none' ? undefined : clipPath
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 50,
       }}
       onClick={onBackdropClick}
       aria-hidden="true"
-    />
+    >
+      <defs>
+        <mask id={maskId}>
+          {/* White = visible overlay area */}
+          <rect x="0" y="0" width="100%" height="100%" fill="white" />
+          {/* Black = transparent cutout (the spotlight hole) */}
+          {targetRect && (
+            <rect
+              x={x}
+              y={y}
+              width={w}
+              height={h}
+              rx="12"
+              ry="12"
+              fill="black"
+            />
+          )}
+        </mask>
+      </defs>
+      <rect
+        x="0"
+        y="0"
+        width="100%"
+        height="100%"
+        fill="rgba(0,0,0,0.5)"
+        mask={`url(#${CSS.escape(maskId)})`}
+      />
+    </svg>
   )
 }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { Spotlight } from './Spotlight'
 import { TourTooltip } from './TourTooltip'
@@ -11,7 +11,7 @@ interface GuidedTourProps {
 }
 
 /**
- * Scrolls an element into view and returns a promise that resolves when done
+ * Scrolls an element into the center of the viewport and waits for completion.
  */
 function scrollIntoViewAsync(element: Element): Promise<void> {
   return new Promise((resolve) => {
@@ -20,21 +20,24 @@ function scrollIntoViewAsync(element: Element): Promise<void> {
       block: 'center'
     })
 
-    // Wait for scroll to complete (approximate)
-    const checkScroll = () => {
-      // Give it some time to settle
-      setTimeout(resolve, 300)
-    }
-
-    // Use scrollend event if available, otherwise timeout
     if ('onscrollend' in window) {
-      window.addEventListener('scrollend', checkScroll, { once: true })
-      // Fallback timeout in case scrollend doesn't fire
-      setTimeout(resolve, 1000)
+      window.addEventListener('scrollend', () => setTimeout(resolve, 100), { once: true })
+      setTimeout(resolve, 1000) // fallback
     } else {
-      setTimeout(resolve, 500)
+      setTimeout(resolve, 600)
     }
   })
+}
+
+/**
+ * Check if element is fully visible with some margin.
+ */
+function isFullyVisible(rect: DOMRect): boolean {
+  const margin = 20
+  return (
+    rect.top >= margin &&
+    rect.bottom <= window.innerHeight - margin
+  )
 }
 
 export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
@@ -42,19 +45,36 @@ export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
   const [targetRect, setTargetRect] = useState<DOMRect | null>(null)
   const [isScrolling, setIsScrolling] = useState(false)
 
-  // Filter out optional steps that don't have visible elements
-  const activeSteps = useMemo(() => {
-    return steps.filter(step => {
-      const element = document.querySelector(step.targetSelector)
-      if (!element) return !step.optional // Required steps without elements should still show (error case)
-      return true
-    })
+  // Find the current step, skipping optional steps whose elements don't exist.
+  // This is evaluated on every render so it picks up elements that appear after data loads.
+  const findNextValidStep = useCallback((fromIndex: number): { step: TourStep; index: number } | null => {
+    for (let i = fromIndex; i < steps.length; i++) {
+      const el = document.querySelector(steps[i].targetSelector)
+      if (el) return { step: steps[i], index: i }
+      if (!steps[i].optional) return { step: steps[i], index: i } // required but missing — show anyway
+    }
+    return null
   }, [steps])
 
-  const currentStep = activeSteps[currentStepIndex]
-  const isLastStep = currentStepIndex === activeSteps.length - 1
+  const current = findNextValidStep(currentStepIndex)
+  const currentStep = current?.step ?? null
 
-  // Update target rect when step changes
+  // Count total visible steps for progress dots
+  const totalVisibleSteps = steps.filter(s => {
+    const el = document.querySelector(s.targetSelector)
+    return el || !s.optional
+  }).length
+
+  // Which visible step are we on (for progress dots)?
+  let visibleStepNumber = 0
+  for (let i = 0; i <= (current?.index ?? 0) && i < steps.length; i++) {
+    const el = document.querySelector(steps[i].targetSelector)
+    if (el || !steps[i].optional) visibleStepNumber++
+  }
+
+  const isLastStep = !current || !findNextValidStep((current?.index ?? steps.length - 1) + 1)
+
+  // Scroll to target and measure its rect
   const updateTargetRect = useCallback(async () => {
     if (!currentStep) return
 
@@ -64,44 +84,34 @@ export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
       return
     }
 
-    // Check if element is in viewport
     const rect = element.getBoundingClientRect()
-    const isInViewport =
-      rect.top >= 0 &&
-      rect.bottom <= window.innerHeight
-
-    if (!isInViewport) {
+    if (!isFullyVisible(rect)) {
       setIsScrolling(true)
       await scrollIntoViewAsync(element)
       setIsScrolling(false)
     }
 
-    // Get fresh rect after potential scroll
     setTargetRect(element.getBoundingClientRect())
   }, [currentStep])
 
   // Update rect on step change
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- measuring DOM element position on step change
     updateTargetRect()
   }, [updateTargetRect])
 
   // Update rect on resize/scroll
   useEffect(() => {
-    const handleUpdate = () => {
-      if (currentStep) {
-        const element = document.querySelector(currentStep.targetSelector)
-        if (element) {
-          setTargetRect(element.getBoundingClientRect())
-        }
-      }
-    }
-
-    // Debounced update
     let timeoutId: ReturnType<typeof setTimeout>
     const debouncedUpdate = () => {
       clearTimeout(timeoutId)
-      timeoutId = setTimeout(handleUpdate, 100)
+      timeoutId = setTimeout(() => {
+        if (currentStep) {
+          const element = document.querySelector(currentStep.targetSelector)
+          if (element) {
+            setTargetRect(element.getBoundingClientRect())
+          }
+        }
+      }, 100)
     }
 
     window.addEventListener('resize', debouncedUpdate)
@@ -118,28 +128,25 @@ export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
     if (isLastStep) {
       onComplete()
     } else {
-      setCurrentStepIndex(prev => prev + 1)
+      // Advance to the next index (findNextValidStep will skip missing optional steps)
+      setCurrentStepIndex((current?.index ?? currentStepIndex) + 1)
     }
-  }, [isLastStep, onComplete])
+  }, [isLastStep, onComplete, current?.index, currentStepIndex])
 
   const handleSkip = useCallback(() => {
     onSkip(currentStepIndex)
   }, [currentStepIndex, onSkip])
 
   const handleBackdropClick = useCallback(() => {
-    // Don't dismiss on backdrop click - just advance to next step
-    // This prevents accidental dismissal
     handleNext()
   }, [handleNext])
 
-  // Don't render anything if no steps or still scrolling
-  if (activeSteps.length === 0) {
+  if (!current) {
     onComplete()
     return null
   }
 
   if (isScrolling) {
-    // Show just the spotlight during scroll
     return createPortal(
       <Spotlight targetRect={null} />,
       document.body
@@ -155,8 +162,8 @@ export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
       <TourTooltip
         targetRect={targetRect}
         content={currentStep?.content || ''}
-        currentStep={currentStepIndex}
-        totalSteps={activeSteps.length}
+        currentStep={visibleStepNumber - 1}
+        totalSteps={totalVisibleSteps}
         onNext={handleNext}
         onSkip={handleSkip}
         isLastStep={isLastStep}
