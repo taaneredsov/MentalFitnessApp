@@ -7,7 +7,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
 import type { OvertuigingUsageMap } from "@/types/program"
-import { Lightbulb, Plus, Star, Check, ChevronDown } from "lucide-react"
+import { Lightbulb, Plus, Star, Check } from "lucide-react"
 
 interface OvertuigingenSectionProps {
   programId: string
@@ -62,7 +62,6 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
 
   const [recentlyCompleted, setRecentlyCompleted] = useState<string | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
-  const [showCompleted, setShowCompleted] = useState(false)
 
   // System overtuigingen available to add (related to goals, not yet in program)
   const availableToAdd = useMemo(() => {
@@ -87,11 +86,14 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     return usageMap[overtuigingId]?.completed === true
   }, [usageMap])
 
-  // Split into active and completed
-  const { activeOvertuigingen, completedOvertuigingen } = useMemo(() => {
-    const active = programOvertuigingen.filter(o => !isCompleted(o.id))
-    const completed = programOvertuigingen.filter(o => isCompleted(o.id))
-    return { activeOvertuigingen: active, completedOvertuigingen: completed }
+  // Sort: active first, then completed
+  const sortedOvertuigingen = useMemo(() => {
+    return [...programOvertuigingen].sort((a, b) => {
+      const aCompleted = isCompleted(a.id) ? 1 : 0
+      const bCompleted = isCompleted(b.id) ? 1 : 0
+      if (aCompleted !== bCompleted) return aCompleted - bCompleted
+      return a.order - b.order
+    })
   }, [programOvertuigingen, isCompleted])
 
   const handleComplete = async (overtuigingId: string) => {
@@ -201,41 +203,54 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
           <p className="text-muted-foreground">Laden...</p>
         ) : (
           <>
-            {/* Active system overtuigingen */}
-            {activeOvertuigingen.map(overtuiging => (
-              <div
-                key={overtuiging.id}
-                className="w-full p-4 rounded-2xl transition-all duration-200 bg-muted/50"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
-                    <Lightbulb className="h-6 w-6 text-[#00978A]" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-semibold text-base break-words whitespace-normal">{overtuiging.name}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Programmeer de overtuiging met de balansmethode, en zet een vinkje wanneer afgerond.
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {recentlyCompleted === overtuiging.id && (
-                      <span className="flex items-center gap-0.5 text-xs font-medium text-primary animate-in fade-in zoom-in duration-300">
-                        <Star className="h-3 w-3" />
-                        +{POINTS.overtuiging}
-                      </span>
-                    )}
-                    <button
-                      onClick={() => handleComplete(overtuiging.id)}
-                      disabled={completeOvertuigingMutation.isPending}
-                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-gray-200 text-gray-400 hover:bg-gray-300"
-                      aria-label="Overtuiging voltooien"
-                    >
-                      <Check className="h-5 w-5" />
-                    </button>
+            {/* All system overtuigingen — completed ones get a green checkmark */}
+            {sortedOvertuigingen.map(overtuiging => {
+              const completed = isCompleted(overtuiging.id)
+              return (
+                <div
+                  key={overtuiging.id}
+                  className={`w-full p-4 rounded-2xl transition-all duration-200 ${completed ? "bg-muted/30 opacity-70" : "bg-muted/50"}`}
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
+                      <Lightbulb className="h-6 w-6 text-[#00978A]" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-base break-words whitespace-normal">{overtuiging.name}</p>
+                      {completed ? (
+                        <span className="text-xs text-[#007D72] font-medium">Voltooid</span>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          Programmeer de overtuiging met de balansmethode, en zet een vinkje wanneer afgerond.
+                        </p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {recentlyCompleted === overtuiging.id && (
+                        <span className="flex items-center gap-0.5 text-xs font-medium text-primary animate-in fade-in zoom-in duration-300">
+                          <Star className="h-3 w-3" />
+                          +{POINTS.overtuiging}
+                        </span>
+                      )}
+                      {completed ? (
+                        <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-[#00978A] text-white">
+                          <Check className="h-5 w-5" />
+                        </div>
+                      ) : (
+                        <button
+                          onClick={() => handleComplete(overtuiging.id)}
+                          disabled={completeOvertuigingMutation.isPending}
+                          className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-gray-200 text-gray-400 hover:bg-gray-300"
+                          aria-label="Overtuiging voltooien"
+                        >
+                          <Check className="h-5 w-5" />
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {/* Personal overtuigingen */}
             {activePersoonlijke.map(item => (
@@ -270,38 +285,6 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                 </div>
               </div>
             ))}
-
-            {/* Completed section toggle */}
-            {completedOvertuigingen.length > 0 && (
-              <>
-                <button
-                  onClick={() => setShowCompleted(!showCompleted)}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-2"
-                >
-                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showCompleted ? "rotate-180" : ""}`} />
-                  {showCompleted ? "Verberg voltooide" : `Bekijk voltooide (${completedOvertuigingen.length})`}
-                </button>
-                {showCompleted && completedOvertuigingen.map(overtuiging => (
-                  <div
-                    key={overtuiging.id}
-                    className="w-full p-4 rounded-2xl transition-all duration-200 bg-muted/30 opacity-60"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
-                        <Lightbulb className="h-6 w-6 text-[#00978A]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base break-words whitespace-normal">{overtuiging.name}</p>
-                        <span className="text-xs text-[#007D72] font-medium">Voltooid</span>
-                      </div>
-                      <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-[#00978A] text-white">
-                        <Check className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
           </>
         )}
       </CardContent>

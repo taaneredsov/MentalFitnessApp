@@ -199,8 +199,8 @@ i18n.on("languageChanged", (next) => {
 export async function syncLanguageWithUserPreference(languageCode?: string): Promise<void> {
   if (!languageCode) return
   const lang = normalizeLanguage(languageCode)
-  const stored = safeLocalStorageGet("i18nextLng")
-  if (isSupportedLanguage(stored)) return
+  const current = normalizeLanguage(i18n.language)
+  if (current === lang) return
   await i18n.changeLanguage(lang)
 }
 
