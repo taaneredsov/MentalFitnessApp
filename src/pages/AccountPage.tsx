@@ -13,7 +13,8 @@ import { formatPoints } from "@/lib/rewards-utils"
 import { getCurrentPushSubscription, getNotificationPermission, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push"
 import { api } from "@/lib/api-client"
 import type { ReminderMode } from "@/types/notifications"
-import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText } from "lucide-react"
+import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText, Download } from "lucide-react"
+import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 import type { PersonalGoal } from "@/types/program"
 import { useTranslation } from "react-i18next"
 
@@ -28,6 +29,8 @@ export function AccountPage() {
   const { user, logout, accessToken } = useAuth()
   const { t, i18n } = useTranslation()
   const navigate = useNavigate()
+
+  const { canInstall, isStandalone, install: installApp } = useInstallPrompt()
 
   // Use React Query for company names (cached)
   const { data: companyMap, isLoading: isLoadingCompanies } = useCompanies(user?.company)
@@ -650,6 +653,15 @@ export function AccountPage() {
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>
+          {canInstall && (
+            <Button variant="outline" className="w-full" onClick={installApp}>
+              <Download className="h-4 w-4 mr-2" />
+              Installeer app op startscherm
+            </Button>
+          )}
+          {isStandalone && (
+            <p className="text-xs text-green-600">App is geïnstalleerd op je startscherm.</p>
+          )}
           <p className="text-xs text-muted-foreground">Versie {__APP_VERSION__}</p>
         </CardContent>
       </Card>
