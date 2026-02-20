@@ -117,6 +117,7 @@ function parseDateOnly(value: string): Date | null {
   return date
 }
 
+const DUTCH_DAYS = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"]
 
 export function HomePage() {
   const { user } = useAuth()
@@ -295,7 +296,6 @@ export function HomePage() {
   }, [runningProgram])
 
   // Personal goals scheduled for the next activity day
-  const DUTCH_DAYS = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"]
   const { data: allGoals = [] } = usePersonalGoals()
   const today = useMemo(() => getTodayDate(), [])
   const { data: goalCounts = {} } = usePersonalGoalUsage(user?.id, today)
