@@ -232,25 +232,32 @@ If login/user lookup does not find the user in Postgres:
 
 ### Tasks
 
-- [ ] Add per-endpoint data backend flags.
+- [x] Add per-endpoint data backend flags.
 - [ ] Enable shadow reads for parity checks.
-- [ ] Enable Postgres primary for one endpoint at a time.
+- [x] Enable Postgres primary for one endpoint at a time. *(All endpoints switched to `postgres_primary` on 2026-02-20, except `DATA_BACKEND_OVERTUIGINGEN` which remains `airtable_only`)*
 - [ ] Monitor and rollback quickly if divergence appears.
-- [ ] Enable user fast-lane before migrating auth/user endpoints.
+- [x] Enable user fast-lane before migrating auth/user endpoints.
 
 ### Feature Flags
 
-- `DATA_BACKEND_PROGRAMS`
-- `DATA_BACKEND_HABIT_USAGE`
-- `DATA_BACKEND_METHOD_USAGE`
-- `DATA_BACKEND_PERSONAL_GOAL_USAGE`
+Per-endpoint backend flags (values: `airtable_only` | `postgres_shadow_read` | `postgres_primary`):
+
+| Flag | Production Value (as of 2026-02-20) |
+|------|-------------------------------------|
+| `DATA_BACKEND_PROGRAMS` | `postgres_primary` |
+| `DATA_BACKEND_HABIT_USAGE` | `postgres_primary` |
+| `DATA_BACKEND_METHOD_USAGE` | `postgres_primary` |
+| `DATA_BACKEND_PERSONAL_GOAL_USAGE` | `postgres_primary` |
+| `DATA_BACKEND_OVERTUIGING_USAGE` | `postgres_primary` |
+| `DATA_BACKEND_REWARDS` | `postgres_primary` |
+| `DATA_BACKEND_METHODS` | `postgres_primary` |
+| `DATA_BACKEND_PERSONAL_GOALS` | `postgres_primary` |
+| `DATA_BACKEND_OVERTUIGINGEN` | `airtable_only` *(read-only cached, no Postgres handler)* |
+
+Boolean flags:
 - `USER_FAST_LANE_ENABLED`
 - `USER_READTHROUGH_FALLBACK_ENABLED`
-
-Values:
-- `airtable_only`
-- `postgres_shadow_read`
-- `postgres_primary`
+- `FULL_AIRTABLE_POLL_SYNC_ENABLED`
 
 ### Rollback
 

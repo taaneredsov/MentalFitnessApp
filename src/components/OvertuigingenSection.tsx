@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback } from "react"
+import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AddOvertuigingDialog } from "@/components/AddOvertuigingDialog"
@@ -16,6 +17,7 @@ interface OvertuigingenSectionProps {
 
 export function OvertuigingenSection({ programId, showManageLink = true }: OvertuigingenSectionProps) {
   const { user, accessToken } = useAuth()
+  const { t } = useTranslation()
   const today = useMemo(() => getTodayDate(), [])
 
   const { data: program } = useProgram(programId)
@@ -238,6 +240,13 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                 </div>
               </div>
             ))}
+
+            {/* All completed message */}
+            {activeOvertuigingen.length === 0 && activePersoonlijke.length === 0 && completedOvertuigingen.length > 0 && (
+              <p className="text-muted-foreground text-center text-sm py-2">
+                {t("overtuigingen.allCompleted")}
+              </p>
+            )}
 
             {/* Completed overtuigingen — collapsible */}
             {completedOvertuigingen.length > 0 && (

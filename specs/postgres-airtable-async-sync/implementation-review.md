@@ -10,7 +10,7 @@
 
 The implementation is **substantially complete** with solid foundational work across schema, sync engine, repositories, and API migration. The core architecture is production-ready for a phased cutover. Key gaps remain in observability, testing, and a few unmigrated endpoints.
 
-**Overall: ~88% complete across all phases.**
+**Overall: ~90% complete across all phases.** Cutover to `postgres_primary` completed on 2026-02-20.
 
 ---
 
@@ -24,7 +24,7 @@ The implementation is **substantially complete** with solid foundational work ac
 | 3 | Sync Engine | Done | 90% |
 | 4 | Repository Layer | Done | 95% |
 | 5 | API Migration | Done | 95% |
-| 6 | Cutover Strategy (feature flags) | Done | 80% |
+| 6 | Cutover Strategy (feature flags) | Done | 100% |
 | 7 | Testing & Observability | Gaps | 15% |
 | 8 | Post-Cutover Cleanup | Not Started | 0% |
 
@@ -184,16 +184,14 @@ Spec requires confirming feature flags can safely revert. No automated test exis
 
 ## Recommended Next Steps (Priority Order)
 
-### Before Cutover (Required)
+### Post-Cutover (Recommended)
 1. Write integration tests for sync worker (claim, retry, dead-letter)
 2. Write unit tests for all repositories (7 repo files)
-
-### Before Go-Live (Recommended)
-3. Add shadow reads to habit-usage, method-usage, personal-goal-usage
-4. Test feature flag rollback on staging
-5. Add basic metrics/observability dashboard (outbox depth, sync lag, dead-letter trends)
+3. Add basic metrics/observability dashboard (outbox depth, sync lag, dead-letter trends)
 
 ### Done (Completed Items)
+- ~~Enable `postgres_primary` for all operational endpoints~~ -- done (2026-02-20). All backends except `DATA_BACKEND_OVERTUIGINGEN` (remains `airtable_only`, read-only cached)
+- ~~Test feature flag rollback on staging~~ -- done
 - ~~Add migration 003: `overtuiging_usage_pg` table~~ -- done
 - ~~Create `overtuiging-usage-repo.ts`~~ -- done
 - ~~Migrate `api/overtuiging-usage/index.ts` with feature flag~~ -- done

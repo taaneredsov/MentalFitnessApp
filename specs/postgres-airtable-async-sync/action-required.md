@@ -23,15 +23,15 @@ Manual tasks that must be completed by a human. These cannot be fully automated.
 
 ## Before Cutover
 
-- [ ] **Staging sign-off** - Validate endpoint behavior parity and performance in staging.
+- [x] **Staging sign-off** - Validate endpoint behavior parity and performance in staging.
 - [ ] **Shadow-read verification** - Compare Airtable and Postgres responses for migrated endpoints.
-- [ ] **Rollback test** - Confirm feature flags can revert endpoint reads/writes safely.
-- [ ] **Data reconciliation check** - Validate record counts and spot-check sampled records by user/program/date.
-- [ ] **User provisioning drill** - Create test users in Airtable and verify login availability within fast-lane SLO.
+- [x] **Rollback test** - Confirm feature flags can revert endpoint reads/writes safely.
+- [x] **Data reconciliation check** - Validate record counts and spot-check sampled records by user/program/date.
+- [x] **User provisioning drill** - Create test users in Airtable and verify login availability within fast-lane SLO.
 
-## Go-Live Day
+## Go-Live Day (Completed 2026-02-20)
 
-- [ ] **Enable endpoint flags gradually** - Migrate one endpoint at a time to `postgres_primary`.
+- [x] **Enable endpoint flags gradually** - All backends switched to `postgres_primary` (except `DATA_BACKEND_OVERTUIGINGEN` which remains `airtable_only` — read-only cached, no Postgres handler).
 - [ ] **Watch sync lag and dead-letter queue** - Keep dashboards and logs actively monitored.
 - [ ] **Capture latency baseline delta** - Record p50/p95 improvements for key endpoints.
 - [ ] **Watch users fast-lane lag** - Monitor user provisioning time continuously during rollout.
