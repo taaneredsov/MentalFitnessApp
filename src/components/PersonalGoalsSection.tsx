@@ -8,6 +8,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
 import { Target, Plus, Star, Settings, Check, CalendarCheck } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 interface PersonalGoalsSectionProps {
   showManageLink?: boolean
@@ -15,6 +16,7 @@ interface PersonalGoalsSectionProps {
 
 export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSectionProps) {
   const { user, accessToken } = useAuth()
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const today = useMemo(() => getTodayDate(), [])
 
@@ -165,7 +167,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
                     {goal.scheduleDays?.includes(todayDay) && (
                       <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
                         <CalendarCheck className="h-3 w-3" />
-                        Gepland voor vandaag
+                        {t("personalGoals.scheduledToday", { defaultValue: "Gepland voor vandaag" })}
                       </span>
                     )}
                     <p className="text-sm text-muted-foreground mt-0.5">

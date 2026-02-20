@@ -14,6 +14,7 @@ export const queryKeys = {
   // Personal goals - medium cache (5 minutes)
   personalGoals: (userId: string) => ["personalGoals", userId] as const,
   personalGoalUsage: (userId: string, date: string) => ["personalGoalUsage", userId, date] as const,
+  completedPersonalGoals: (userId: string) => ["completedPersonalGoals", userId] as const,
 
   // Overtuigingen - reference data
   overtuigingen: ["overtuigingen"] as const,

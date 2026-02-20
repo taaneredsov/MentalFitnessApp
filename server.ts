@@ -234,6 +234,12 @@ async function setupRoutes() {
     immutable: true
   }))
 
+  // Explicit no-cache for app shell entry points
+  app.get(["/", "/index.html"], (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+    res.sendFile(path.join(distPath, "index.html"))
+  })
+
   app.use(express.static(distPath))
 
   // SPA fallback - serve index.html for all non-API routes

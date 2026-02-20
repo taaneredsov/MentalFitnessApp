@@ -14,6 +14,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useCreatePersonalGoal, useUpdatePersonalGoal } from "@/hooks/queries"
 import type { PersonalGoal } from "@/types/program"
 import { Calendar, Check, ChevronDown, Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 
 const DAY_ORDER = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"]
 
@@ -25,6 +26,7 @@ interface PersonalGoalDialogProps {
 
 export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDialogProps) {
   const { accessToken } = useAuth()
+  const { t } = useTranslation()
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
@@ -159,14 +161,14 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Calendar className="h-4 w-4" />
-              <span>Planning (optioneel)</span>
+              <span>{t("personalGoals.scheduleOptional", { defaultValue: "Planning (optioneel)" })}</span>
               <ChevronDown className={`h-4 w-4 transition-transform ${showSchedule ? "rotate-180" : ""}`} />
             </button>
 
             {showSchedule && (
               <div className="space-y-3 pt-1">
                 <p className="text-sm text-muted-foreground">
-                  Selecteer de dagen waarop je dit doel wilt oefenen.
+                  {t("personalGoals.selectDays", { defaultValue: "Selecteer de dagen waarop je dit doel wilt oefenen." })}
                 </p>
                 <div className="grid grid-cols-2 gap-2">
                   {DAY_ORDER.map(day => {
@@ -199,7 +201,7 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
                 </div>
                 {scheduleDays.length > 0 && (
                   <p className="text-sm text-muted-foreground">
-                    {scheduleDays.length} dag{scheduleDays.length !== 1 ? "en" : ""} per week geselecteerd
+                    {t("personalGoals.daysSelected", { count: scheduleDays.length, defaultValue: `${scheduleDays.length} dag(en) per week geselecteerd` })}
                   </p>
                 )}
               </div>

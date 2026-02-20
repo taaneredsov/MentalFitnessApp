@@ -78,6 +78,16 @@ async function handlePatchAirtable(req: Request, res: Response, goalId: string, 
   if (body.status !== undefined) {
     updateFields[PERSONAL_GOAL_FIELDS.status] = body.status
   }
+  if (body.scheduleDays !== undefined) {
+    // Validate day names
+    const invalid = body.scheduleDays.filter((d) => !VALID_DAYS.includes(d as typeof VALID_DAYS[number]))
+    if (invalid.length > 0) {
+      return sendError(res, `Invalid schedule days: ${invalid.join(", ")}`, 400)
+    }
+    updateFields[PERSONAL_GOAL_FIELDS.scheduleDays] = body.scheduleDays.length > 0
+      ? body.scheduleDays.join(", ")
+      : ""
+  }
 
   if (Object.keys(updateFields).length === 0) {
     return sendError(res, "No fields to update", 400)

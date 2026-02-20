@@ -76,7 +76,7 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
 }
 
 async function handleGetAirtable(req: Request, res: Response, tokenUserId: string) {
-  const { userId } = req.query
+  const { userId, include } = req.query
   const targetUserId = (typeof userId === "string" && userId) ? userId : tokenUserId
 
   if (targetUserId !== tokenUserId) {
@@ -87,9 +87,14 @@ async function handleGetAirtable(req: Request, res: Response, tokenUserId: strin
     return sendError(res, "Invalid user ID format", 400)
   }
 
+  const includeCompleted = include === "voltooid"
+  const statusFormula = includeCompleted
+    ? `OR({${FIELD_NAMES.personalGoal.status}} = "Actief", {${FIELD_NAMES.personalGoal.status}} = "Voltooid")`
+    : `{${FIELD_NAMES.personalGoal.status}} = "Actief"`
+
   const records = await base(tables.personalGoals)
     .select({
-      filterByFormula: `AND({${FIELD_NAMES.personalGoal.status}} = "Actief", RECORD_ID() != "")`,
+      filterByFormula: `AND(${statusFormula}, RECORD_ID() != "")`,
       returnFieldsByFieldId: true
     })
     .all()
@@ -130,11 +135,22 @@ async function handlePostAirtable(req: Request, res: Response, tokenUserId: stri
     return sendError(res, `Maximum ${MAX_GOALS_PER_USER} personal goals allowed`, 400)
   }
 
+  // Validate day names if provided
+  if (body.scheduleDays) {
+    const invalid = body.scheduleDays.filter((d) => !VALID_DAYS.includes(d as typeof VALID_DAYS[number]))
+    if (invalid.length > 0) {
+      return sendError(res, `Invalid schedule days: ${invalid.join(", ")}`, 400)
+    }
+  }
+
   const record = await base(tables.personalGoals).create({
     [PERSONAL_GOAL_FIELDS.name]: body.name,
     [PERSONAL_GOAL_FIELDS.description]: body.description || "",
     [PERSONAL_GOAL_FIELDS.user]: [tokenUserId],
-    [PERSONAL_GOAL_FIELDS.status]: "Actief"
+    [PERSONAL_GOAL_FIELDS.status]: "Actief",
+    ...(body.scheduleDays && body.scheduleDays.length > 0
+      ? { [PERSONAL_GOAL_FIELDS.scheduleDays]: body.scheduleDays.join(", ") }
+      : {})
   }, {
     typecast: true
   })

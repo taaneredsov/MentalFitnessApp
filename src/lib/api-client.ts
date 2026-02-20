@@ -418,8 +418,8 @@ export const api = {
   },
 
   personalGoals: {
-    list: (accessToken: string) =>
-      request<PersonalGoal[]>("/personal-goals", {
+    list: (accessToken: string, opts?: { include?: string }) =>
+      request<PersonalGoal[]>(`/personal-goals${opts?.include ? `?include=${opts.include}` : ''}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }

@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
-import { useCompanies, useUserRewards, usePersonalGoals, useDeletePersonalGoal, useUpdatePersonalGoal, useNotificationPreferences, useUpdateNotificationPreferences } from "@/hooks/queries"
+import { useCompanies, useUserRewards, usePersonalGoals, useCompletedPersonalGoals, useDeletePersonalGoal, useUpdatePersonalGoal, useNotificationPreferences, useUpdateNotificationPreferences } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,7 @@ import { formatPoints } from "@/lib/rewards-utils"
 import { getCurrentPushSubscription, getNotificationPermission, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push"
 import { api } from "@/lib/api-client"
 import type { ReminderMode } from "@/types/notifications"
-import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText, Download, CheckCircle2 } from "lucide-react"
+import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText, Download, CheckCircle2, ChevronDown, RotateCcw } from "lucide-react"
 import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 import type { PersonalGoal } from "@/types/program"
 import { useTranslation } from "react-i18next"
@@ -40,6 +40,7 @@ export function AccountPage() {
 
   // Personal goals
   const { data: personalGoals = [], isLoading: isLoadingGoals } = usePersonalGoals()
+  const { data: completedGoals = [] } = useCompletedPersonalGoals()
   const deleteGoalMutation = useDeletePersonalGoal()
   const updateGoalMutation = useUpdatePersonalGoal()
   const { data: notificationPreferences, isLoading: isLoadingNotificationPreferences } = useNotificationPreferences()
@@ -51,6 +52,8 @@ export function AccountPage() {
   const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null)
   const [completingGoalId, setCompletingGoalId] = useState<string | null>(null)
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null)
+  const [showCompletedGoals, setShowCompletedGoals] = useState(false)
+  const [reactivatingGoalId, setReactivatingGoalId] = useState<string | null>(null)
   const [notificationError, setNotificationError] = useState<string | null>(null)
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(getNotificationPermission())
   const [isTogglingPush, setIsTogglingPush] = useState(false)
@@ -150,6 +153,22 @@ export function AccountPage() {
       console.error("[AccountPage] Failed to complete goal:", error)
     } finally {
       setCompletingGoalId(null)
+    }
+  }
+
+  const handleReactivateGoal = async (goalId: string) => {
+    if (!accessToken) return
+    setReactivatingGoalId(goalId)
+    try {
+      await updateGoalMutation.mutateAsync({
+        id: goalId,
+        data: { status: "Actief" },
+        accessToken
+      })
+    } catch (error) {
+      console.error("[AccountPage] Failed to reactivate goal:", error)
+    } finally {
+      setReactivatingGoalId(null)
     }
   }
 
@@ -606,7 +625,7 @@ export function AccountPage() {
                       className="h-8 w-8 text-green-600 hover:text-green-700"
                       onClick={() => handleCompleteGoal(goal.id)}
                       disabled={completingGoalId === goal.id}
-                      title="Markeer als voltooid"
+                      title={t("personalGoals.markCompleted", { defaultValue: "Markeer als voltooid" })}
                     >
                       {completingGoalId === goal.id ? (
                         <Loader2 className="h-4 w-4 animate-spin" />
@@ -638,6 +657,45 @@ export function AccountPage() {
                   </div>
                 </div>
               ))}
+              {completedGoals.filter(g => g.status === "Voltooid").length > 0 && (
+                <div className="mt-4 pt-3 border-t">
+                  <button
+                    onClick={() => setShowCompletedGoals(!showCompletedGoals)}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                  >
+                    <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showCompletedGoals ? "rotate-180" : ""}`} />
+                    {t("personalGoals.completedGoals", { defaultValue: "Voltooide doelen" })} ({completedGoals.filter(g => g.status === "Voltooid").length})
+                  </button>
+                  {showCompletedGoals && (
+                    <div className="space-y-2 mt-2">
+                      {completedGoals.filter(g => g.status === "Voltooid").map(goal => (
+                        <div
+                          key={goal.id}
+                          className="flex items-center gap-3 p-3 rounded-lg bg-muted/20 opacity-70"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium">{goal.name}</p>
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-primary"
+                            onClick={() => handleReactivateGoal(goal.id)}
+                            disabled={reactivatingGoalId === goal.id}
+                          >
+                            {reactivatingGoalId === goal.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin mr-1" />
+                            ) : (
+                              <RotateCcw className="h-4 w-4 mr-1" />
+                            )}
+                            {t("personalGoals.reactivate", { defaultValue: "Opnieuw activeren" })}
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
               {personalGoals.length >= MAX_GOALS && (
                 <p className="text-sm text-muted-foreground text-center pt-2">
                   Maximum {MAX_GOALS} doelen bereikt

@@ -378,6 +378,17 @@ export function usePersonalGoals() {
   })
 }
 
+export function useCompletedPersonalGoals() {
+  const { user, accessToken } = useAuth()
+
+  return useQuery({
+    queryKey: queryKeys.completedPersonalGoals(user?.id || ""),
+    queryFn: () => api.personalGoals.list(accessToken!, { include: "voltooid" }),
+    enabled: !!user?.id && !!accessToken,
+    staleTime: CACHE_MEDIUM
+  })
+}
+
 export function usePersonalGoalUsage(userId: string | undefined, date: string) {
   const { accessToken } = useAuth()
 
@@ -423,6 +434,7 @@ export function useUpdatePersonalGoal() {
       // Invalidate personal goals list
       if (user?.id) {
         queryClient.invalidateQueries({ queryKey: queryKeys.personalGoals(user.id) })
+        queryClient.invalidateQueries({ queryKey: queryKeys.completedPersonalGoals(user.id) })
       }
     }
   })
@@ -491,6 +503,7 @@ export function useCompletePersonalGoal() {
     onSuccess: () => {
       // Invalidate rewards cache to reflect point changes
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+      queryClient.invalidateQueries({ queryKey: ["completedPersonalGoals"] })
     }
   })
 }
