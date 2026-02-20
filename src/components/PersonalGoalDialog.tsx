@@ -177,14 +177,14 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
                         type="button"
                         onClick={() => toggleDay(day)}
                         disabled={isPending}
-                        className={`p-3 rounded-lg border transition-colors text-center bg-background ${
+                        className={`p-3 rounded-lg border transition-colors bg-background ${
                           isSelected
                             ? "border-primary bg-primary/5 font-medium"
                             : "border-border hover:border-primary/50"
                         }`}
                       >
-                        <div className="flex items-center justify-center gap-2">
-                          <div className={`w-5 h-5 rounded border flex items-center justify-center ${
+                        <div className="flex items-center gap-2">
+                          <div className={`w-5 h-5 shrink-0 rounded border flex items-center justify-center ${
                             isSelected
                               ? "bg-primary border-primary text-primary-foreground"
                               : "border-muted-foreground"

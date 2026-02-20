@@ -496,17 +496,19 @@ export function AccountPage() {
                 </div>
               </div>
 
-              <div className="flex flex-wrap gap-2 pt-1">
+              <div className="flex flex-col gap-2 pt-1">
                 <Button
                   variant="outline"
                   onClick={saveNotificationPreferences}
                   disabled={updateNotificationPreferences.isPending}
+                  className="w-full"
                 >
                   Instellingen opslaan
                 </Button>
                 <Button
                   onClick={handleEnablePush}
                   disabled={isTogglingPush || !notificationPreferences?.webPushConfigured}
+                  className="w-full"
                 >
                   Push activeren
                 </Button>
@@ -514,6 +516,7 @@ export function AccountPage() {
                   variant="outline"
                   onClick={handleDisablePush}
                   disabled={isTogglingPush}
+                  className="w-full"
                 >
                   Push uitschakelen
                 </Button>
@@ -521,6 +524,7 @@ export function AccountPage() {
                   variant="outline"
                   onClick={handleSendTestNotification}
                   disabled={isSendingTest || !notificationPreferences?.webPushConfigured}
+                  className="w-full"
                 >
                   Test notificatie
                 </Button>
