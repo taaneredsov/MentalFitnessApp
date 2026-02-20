@@ -82,25 +82,33 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
     date: body.date
   })
 
-  await awardRewardActivity({
-    userId: body.userId,
-    activityType: "overtuiging",
-    activityDate: body.date,
-    forcePostgres: true
-  })
-
-  await enqueueSyncEvent({
-    eventType: "upsert",
-    entityType: "overtuiging_usage",
-    entityId: created.id,
-    payload: {
+  try {
+    await awardRewardActivity({
       userId: body.userId,
-      overtuigingId: body.overtuigingId,
-      programId: body.programId || null,
-      date: body.date
-    },
-    priority: 40
-  })
+      activityType: "overtuiging",
+      activityDate: body.date,
+      forcePostgres: true
+    })
+  } catch (err) {
+    console.warn("[overtuiging-usage] awardRewardActivity failed (postgres):", err)
+  }
+
+  try {
+    await enqueueSyncEvent({
+      eventType: "upsert",
+      entityType: "overtuiging_usage",
+      entityId: created.id,
+      payload: {
+        userId: body.userId,
+        overtuigingId: body.overtuigingId,
+        programId: body.programId || null,
+        date: body.date
+      },
+      priority: 40
+    })
+  } catch (err) {
+    console.warn("[overtuiging-usage] enqueueSyncEvent failed:", err)
+  }
 
   return sendSuccess(res, { id: created.id, pointsAwarded: 1 }, 201)
 }
