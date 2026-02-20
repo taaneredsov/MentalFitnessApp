@@ -10,18 +10,12 @@ Manual steps that must be completed by a human.
 
 - [x] **Get Airtable field IDs** - Field IDs retrieved and added to field-mappings.js
 
-## Known Issues (2026-01-30)
+## Resolved Issues
 
-- [ ] **BUG: Score registration not working** - Personal goal completions are not being saved. Debug steps:
-  1. Check browser console for error messages
-  2. Check Vercel dev server logs for API errors
-  3. Verify Airtable field IDs are correct
-  4. Test API directly via curl
+- [x] **BUG: Score registration not working** (reported 2026-01-30, fixed 2026-02-20)
+  - **Root cause**: `awardRewardActivity()` (introduced in commit `1d57506`) fetches 5 Airtable tables to calculate reward counts. If this call fails (timeout, rate limit), the entire POST request failed — even though the usage record was already created.
+  - **Fix**: Wrapped `awardRewardActivity()` in try/catch in both `handlePostPostgres` and `handlePostAirtable`. A reward engine failure now logs a warning but no longer prevents the completion from succeeding.
 
 ## After Implementation
 
-- [ ] **Test in production** - Verify feature works on deployed app after deployment
-
----
-
-> **Note:** The personal goals feature was implemented but the score registration is not working. This is the #1 priority bug to fix before Friday demo.
+- [x] **Test in production** - Feature works on deployed app

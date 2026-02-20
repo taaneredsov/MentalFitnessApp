@@ -181,10 +181,19 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
                         completeGoal(goal.id)
                       }}
                       disabled={completeGoalMutation.isPending}
-                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-primary text-primary-foreground shadow-sm hover:bg-primary/90"
+                      className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 relative ${
+                        recentlyCompleted === goal.id
+                          ? "bg-[oklch(60%_.12_185)] text-white shadow-sm"
+                          : "bg-muted text-muted-foreground hover:bg-muted/80"
+                      }`}
                       aria-label="Doel afvinken"
                     >
                       <Check className="h-5 w-5" />
+                      {recentlyCompleted !== goal.id && (
+                        <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                          +
+                        </span>
+                      )}
                     </button>
                   </div>
                 </div>
