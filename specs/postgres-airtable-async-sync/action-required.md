@@ -31,10 +31,16 @@ Manual tasks that must be completed by a human. These cannot be fully automated.
 
 ## Go-Live Day (Completed 2026-02-20)
 
-- [x] **Enable endpoint flags gradually** - All backends switched to `postgres_primary` (except `DATA_BACKEND_OVERTUIGINGEN` which remains `airtable_only` — read-only cached, no Postgres handler).
+- [x] **Enable endpoint flags gradually** - All backends switched to `postgres_primary` (including `DATA_BACKEND_OVERTUIGINGEN` and `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN`, added during audit remediation 2026-02-20).
 - [ ] **Watch sync lag and dead-letter queue** - Keep dashboards and logs actively monitored.
 - [ ] **Capture latency baseline delta** - Record p50/p95 improvements for key endpoints.
 - [ ] **Watch users fast-lane lag** - Monitor user provisioning time continuously during rollout.
+
+## Audit Remediation (Completed 2026-02-20)
+
+- [x] **Methods/overtuigingen Postgres routing** - `api/methods/index.ts`, `api/overtuigingen/index.ts`, `api/programs/[id]/methods`, and `api/persoonlijke-overtuigingen/index.ts` now have Postgres routing via feature flags.
+- [x] **Persoonlijke overtuigingen Postgres support** - Added `persoonlijke_overtuigingen_pg` table, repo, and `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN` feature flag.
+- [x] **Personal goals full-sync dedup fix** - `syncPersonalGoalsFromAirtable` now checks `findPostgresId` before insert to prevent duplicate rows during full sync.
 
 ## After Cutover
 

@@ -244,6 +244,9 @@ New files only. No existing code changes except route registration.
 ### Technical Details
 
 **File: `api/overtuigingen/index.ts`** (pattern: `api/goals/index.ts`)
+
+> **Note (2026-02-20):** As part of audit remediation, Postgres-primary routing was added to this endpoint via `DATA_BACKEND_OVERTUIGINGEN`. When the flag is `postgres_primary`, it reads from the `reference_methods_pg`-style cached query on Postgres instead of Airtable. The Airtable path is preserved as fallback.
+
 ```ts
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { sendSuccess, handleApiError } from "../_lib/api-utils.js"

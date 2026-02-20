@@ -40,7 +40,8 @@ export function loadSecrets() {
     "SMTP_USER",
     "SMTP_PASSWORD",
     "SMTP_FROM",
-    "DATABASE_URL"
+    "DATABASE_URL",
+    "AIRTABLE_USER_SYNC_SECRET"
   ]
 
   for (const name of secretNames) {

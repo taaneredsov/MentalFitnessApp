@@ -9,6 +9,13 @@ import {
 
 // ---------- Methods ----------
 
+export async function listAllMethods(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_methods_pg`
+  )
+  return result.rows.map(row => transformMethod({ id: row.id, fields: row.payload }))
+}
+
 export async function getMethodById(id: string): Promise<Record<string, unknown> | null> {
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
     `SELECT id, payload FROM reference_methods_pg WHERE id = $1 LIMIT 1`,
@@ -66,6 +73,15 @@ export async function getGoalByName(name: string): Promise<{ id: string; name: s
 }
 
 // ---------- Overtuigingen ----------
+
+export async function listAllOvertuigingen(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_overtuigingen_pg`
+  )
+  return result.rows
+    .map(row => transformOvertuiging({ id: row.id, fields: row.payload }))
+    .sort((a, b) => ((a.order as number) || 0) - ((b.order as number) || 0))
+}
 
 export async function getOvertuigingenByGoalIds(goalIds: string[]): Promise<Record<string, unknown>[]> {
   if (goalIds.length === 0) return []

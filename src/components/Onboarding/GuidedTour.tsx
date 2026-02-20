@@ -78,7 +78,19 @@ export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
   const updateTargetRect = useCallback(async () => {
     if (!currentStep) return
 
-    const element = document.querySelector(currentStep.targetSelector)
+    // Poll for element to appear (handles async data loading)
+    let element = document.querySelector(currentStep.targetSelector)
+    if (!element) {
+      const maxWait = 3000
+      const interval = 200
+      let waited = 0
+      while (!element && waited < maxWait) {
+        await new Promise(r => setTimeout(r, interval))
+        element = document.querySelector(currentStep.targetSelector)
+        waited += interval
+      }
+    }
+
     if (!element) {
       setTargetRect(null)
       return

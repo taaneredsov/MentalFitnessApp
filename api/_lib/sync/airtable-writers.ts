@@ -7,6 +7,7 @@ import {
   PERSONAL_GOAL_FIELDS,
   PERSONAL_GOAL_USAGE_FIELDS,
   OVERTUIGING_USAGE_FIELDS,
+  PERSOONLIJKE_OVERTUIGING_FIELDS,
   USER_FIELDS
 } from "../field-mappings.js"
 import { isAirtableRecordId } from "../db/id-utils.js"
@@ -221,6 +222,44 @@ async function upsertPersonalGoal(entityId: string, payload: Record<string, unkn
   await upsertAirtableIdMap("personal_goal", entityId, record.id)
 }
 
+async function upsertPersoonlijkeOvertuiging(entityId: string, payload: Record<string, unknown>): Promise<void> {
+  const existingAirtableId = await findAirtableId("persoonlijke_overtuiging", entityId)
+
+  const fields: Record<string, unknown> = {}
+
+  // Always set user link
+  if (payload.userId) fields[PERSOONLIJKE_OVERTUIGING_FIELDS.user] = [String(payload.userId)]
+
+  // Only set fields that are present in the payload (partial update safe)
+  if (payload.name !== undefined) fields[PERSOONLIJKE_OVERTUIGING_FIELDS.name] = String(payload.name)
+  if (payload.status !== undefined) fields[PERSOONLIJKE_OVERTUIGING_FIELDS.status] = String(payload.status)
+  if (payload.completedDate !== undefined) {
+    fields[PERSOONLIJKE_OVERTUIGING_FIELDS.completedDate] = payload.completedDate || null
+  }
+
+  // Resolve program ID from Postgres UUID to Airtable record ID
+  if (payload.programId) {
+    const programAirtableId = await resolveProgramAirtableId(String(payload.programId))
+    if (programAirtableId) {
+      fields[PERSOONLIJKE_OVERTUIGING_FIELDS.program] = [programAirtableId]
+    }
+  }
+
+  // For creates, ensure required defaults
+  if (!existingAirtableId) {
+    if (!fields[PERSOONLIJKE_OVERTUIGING_FIELDS.name]) fields[PERSOONLIJKE_OVERTUIGING_FIELDS.name] = ""
+    if (!fields[PERSOONLIJKE_OVERTUIGING_FIELDS.status]) fields[PERSOONLIJKE_OVERTUIGING_FIELDS.status] = "Actief"
+  }
+
+  if (existingAirtableId) {
+    await base(tables.persoonlijkeOvertuigingen).update(existingAirtableId, fields, { typecast: true })
+    return
+  }
+
+  const record = await base(tables.persoonlijkeOvertuigingen).create(fields, { typecast: true })
+  await upsertAirtableIdMap("persoonlijke_overtuiging", entityId, record.id)
+}
+
 async function upsertUser(_entityId: string, payload: Record<string, unknown>): Promise<void> {
   const userId = String(payload.userId)
   if (!isAirtableRecordId(userId)) {
@@ -265,6 +304,10 @@ async function deleteByEntity(entityType: string, entityId: string): Promise<voi
     await base(tables.overtuigingenGebruik).destroy(airtableId)
     return
   }
+  if (entityType === "persoonlijke_overtuiging") {
+    await base(tables.persoonlijkeOvertuigingen).destroy(airtableId)
+    return
+  }
   if (entityType === "program") {
     await base(tables.programs).destroy(airtableId)
     return
@@ -306,6 +349,9 @@ export async function writeOutboxEventToAirtable(input: {
       return
     case "overtuiging_usage":
       await upsertOvertuigingUsage(input.entityId, input.payload)
+      return
+    case "persoonlijke_overtuiging":
+      await upsertPersoonlijkeOvertuiging(input.entityId, input.payload)
       return
     case "user":
       await upsertUser(input.entityId, input.payload)

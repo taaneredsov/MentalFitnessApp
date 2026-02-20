@@ -19,6 +19,15 @@ export interface AirtableUserSyncRecord {
   bonusPoints?: number | null
   badges?: string | null
   level?: number | null
+  status?: string | null
+}
+
+/** Map Airtable status values to internal Postgres status */
+function mapAirtableStatus(airtableStatus: string | null | undefined): string {
+  if (!airtableStatus) return "active"
+  if (airtableStatus === "Actief") return "active"
+  if (airtableStatus === "Geen toegang") return "disabled"
+  return "active"
 }
 
 function toSyncRecord(record: AirtableLikeRecord): AirtableUserSyncRecord {
@@ -33,7 +42,8 @@ function toSyncRecord(record: AirtableLikeRecord): AirtableUserSyncRecord {
     lastLogin: fields[USER_FIELDS.lastLogin] ? String(fields[USER_FIELDS.lastLogin]) : null,
     bonusPoints: fields[USER_FIELDS.bonusPoints] ? Number(fields[USER_FIELDS.bonusPoints]) : null,
     badges: fields[USER_FIELDS.badges] ? String(fields[USER_FIELDS.badges]) : null,
-    level: fields[USER_FIELDS.level] ? Number(fields[USER_FIELDS.level]) : null
+    level: fields[USER_FIELDS.level] ? Number(fields[USER_FIELDS.level]) : null,
+    status: mapAirtableStatus(fields[USER_FIELDS.status] ? String(fields[USER_FIELDS.status]) : null)
   }
 }
 

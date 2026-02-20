@@ -8,6 +8,16 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useCreatePersonalGoal, useOvertuigingen } from "@/hooks/queries"
 import type { ProgramResultProps } from "./types"
 
+const DAY_CHIPS = [
+  { key: "Maandag", label: "Ma" },
+  { key: "Dinsdag", label: "Di" },
+  { key: "Woensdag", label: "Wo" },
+  { key: "Donderdag", label: "Do" },
+  { key: "Vrijdag", label: "Vr" },
+  { key: "Zaterdag", label: "Za" },
+  { key: "Zondag", label: "Zo" },
+] as const
+
 export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramResultProps) {
   const queryClient = useQueryClient()
   const { accessToken } = useAuth()
@@ -21,7 +31,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
 
   // Personal goals state
   const [showGoalsSection, setShowGoalsSection] = useState(false)
-  const [personalGoals, setPersonalGoals] = useState<string[]>([])
+  const [personalGoals, setPersonalGoals] = useState<{ name: string; scheduleDays: string[] }[]>([])
   const [newGoalInput, setNewGoalInput] = useState("")
   const [savingGoals, setSavingGoals] = useState(false)
 
@@ -89,14 +99,24 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
 
   const handleAddGoal = () => {
     const trimmed = newGoalInput.trim()
-    if (trimmed && !personalGoals.includes(trimmed)) {
-      setPersonalGoals([...personalGoals, trimmed])
+    if (trimmed && !personalGoals.some(g => g.name === trimmed)) {
+      setPersonalGoals([...personalGoals, { name: trimmed, scheduleDays: [] }])
       setNewGoalInput("")
     }
   }
 
   const handleRemoveGoal = (index: number) => {
     setPersonalGoals(personalGoals.filter((_, i) => i !== index))
+  }
+
+  const handleToggleDay = (goalIndex: number, day: string) => {
+    setPersonalGoals(prev => prev.map((g, i) => {
+      if (i !== goalIndex) return g
+      const days = g.scheduleDays.includes(day)
+        ? g.scheduleDays.filter(d => d !== day)
+        : [...g.scheduleDays, day]
+      return { ...g, scheduleDays: days }
+    }))
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -115,9 +135,12 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
     setSavingGoals(true)
     try {
       // Save all personal goals
-      for (const goalName of personalGoals) {
+      for (const goal of personalGoals) {
         await createGoalMutation.mutateAsync({
-          data: { name: goalName },
+          data: {
+            name: goal.name,
+            scheduleDays: goal.scheduleDays.length > 0 ? goal.scheduleDays : undefined
+          },
           accessToken
         })
       }
@@ -229,18 +252,36 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                     {personalGoals.map((goal, index) => (
                       <div
                         key={index}
-                        className="flex items-center gap-2 bg-white rounded-lg px-3 py-2 border"
+                        className="bg-white rounded-lg px-3 py-2 border space-y-2"
                       >
-                        <Target className="w-4 h-4 text-orange-500 shrink-0" />
-                        <span className="text-sm flex-1">{goal}</span>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0"
-                          onClick={() => handleRemoveGoal(index)}
-                        >
-                          <X className="h-4 w-4" />
-                        </Button>
+                        <div className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-orange-500 shrink-0" />
+                          <span className="text-sm flex-1">{goal.name}</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleRemoveGoal(index)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                        <div className="flex gap-1 pl-6">
+                          {DAY_CHIPS.map(({ key, label }) => (
+                            <button
+                              key={key}
+                              type="button"
+                              onClick={() => handleToggleDay(index, key)}
+                              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                                goal.scheduleDays.includes(key)
+                                  ? "bg-orange-500 text-white border-orange-500"
+                                  : "bg-white text-muted-foreground border-gray-200 hover:border-orange-300"
+                              }`}
+                            >
+                              {label}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     ))}
                   </div>

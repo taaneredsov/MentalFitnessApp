@@ -41,7 +41,7 @@ The implementation is **substantially complete** with solid foundational work ac
 - `tasks/db-migrate.mjs` migration runner with `schema_migrations` tracking
 
 ### Schema - ALL TABLES PRESENT
-**Operational:** `users_pg`, `programs_pg`, `program_schedule_pg`, `method_usage_pg`, `habit_usage_pg`, `personal_goals_pg`, `personal_goal_usage_pg`
+**Operational:** `users_pg`, `programs_pg`, `program_schedule_pg`, `method_usage_pg`, `habit_usage_pg`, `personal_goals_pg`, `personal_goal_usage_pg`, `persoonlijke_overtuigingen_pg`
 **Reference:** `reference_methods_pg`, `reference_goals_pg`, `reference_days_pg`
 **Sync:** `airtable_id_map`, `sync_outbox`, `sync_dead_letter`, `sync_checkpoint`, `sync_inbox_events`
 
@@ -64,7 +64,7 @@ The implementation is **substantially complete** with solid foundational work ac
 
 ### Feature Flags (Phase 6) - WORKING
 - `api/_lib/data-backend.ts` with modes: `airtable_only` | `postgres_shadow_read` | `postgres_primary`
-- Per-endpoint flags: `DATA_BACKEND_PROGRAMS`, `DATA_BACKEND_HABIT_USAGE`, `DATA_BACKEND_METHOD_USAGE`, `DATA_BACKEND_PERSONAL_GOAL_USAGE`, `DATA_BACKEND_OVERTUIGING_USAGE`, `DATA_BACKEND_REWARDS`
+- Per-endpoint flags: `DATA_BACKEND_PROGRAMS`, `DATA_BACKEND_HABIT_USAGE`, `DATA_BACKEND_METHOD_USAGE`, `DATA_BACKEND_PERSONAL_GOAL_USAGE`, `DATA_BACKEND_OVERTUIGING_USAGE`, `DATA_BACKEND_REWARDS`, `DATA_BACKEND_METHODS`, `DATA_BACKEND_PERSONAL_GOALS`, `DATA_BACKEND_OVERTUIGINGEN`, `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN`
 - Boolean flags: `USER_FAST_LANE_ENABLED`, `USER_READTHROUGH_FALLBACK_ENABLED`, `FULL_AIRTABLE_POLL_SYNC_ENABLED`
 
 ---
@@ -162,11 +162,16 @@ Spec requires confirming feature flags can safely revert. No automated test exis
 - `api/auth/login.ts` (user read-through fallback)
 - `api/auth/me.ts`, `api/auth/refresh.ts`, `api/auth/set-password.ts`
 
+### Migrated (Audit Remediation 2026-02-20)
+- `api/methods/index.ts` (GET with Postgres routing via `DATA_BACKEND_METHODS`)
+- `api/overtuigingen/index.ts` (GET with Postgres routing via `DATA_BACKEND_OVERTUIGINGEN`)
+- `api/programs/[id]/methods` (GET with Postgres routing)
+- `api/persoonlijke-overtuigingen/index.ts` (GET, POST, PATCH, DELETE with Postgres routing via `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN`)
+
 ### Not Migrated (Airtable-only)
 - `api/methods/[id].ts`, `api/methods/habits.ts` (reference data)
 - `api/overtuigingen/by-goals.ts` (reference data)
 - `api/companies/lookup.ts`
-- `api/personal-goals/index.ts` (CRUD, not usage)
 
 ---
 
@@ -190,7 +195,7 @@ Spec requires confirming feature flags can safely revert. No automated test exis
 3. Add basic metrics/observability dashboard (outbox depth, sync lag, dead-letter trends)
 
 ### Done (Completed Items)
-- ~~Enable `postgres_primary` for all operational endpoints~~ -- done (2026-02-20). All backends except `DATA_BACKEND_OVERTUIGINGEN` (remains `airtable_only`, read-only cached)
+- ~~Enable `postgres_primary` for all operational endpoints~~ -- done (2026-02-20). All backends including `DATA_BACKEND_OVERTUIGINGEN` and `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN`
 - ~~Test feature flag rollback on staging~~ -- done
 - ~~Add migration 003: `overtuiging_usage_pg` table~~ -- done
 - ~~Create `overtuiging-usage-repo.ts`~~ -- done
@@ -199,6 +204,11 @@ Spec requires confirming feature flags can safely revert. No automated test exis
 - ~~Migrate `api/method-usage/by-program.ts` with Postgres path~~ -- already done (uses `listLatestByProgram` + `getProgramByAnyId`)
 - ~~Add detailed health endpoint with DB/queue checks~~ -- done
 - ~~Create backfill validation script (row counts + sample checks)~~ -- done (`npm run validate:backfill`)
+- ~~`/api/methods` Postgres routing~~ -- done (audit remediation 2026-02-20)
+- ~~`/api/overtuigingen` Postgres routing~~ -- done (audit remediation 2026-02-20)
+- ~~`/api/programs/[id]/methods` Postgres routing~~ -- done (audit remediation 2026-02-20)
+- ~~`/api/persoonlijke-overtuigingen` Postgres routing~~ -- done (audit remediation 2026-02-20, includes `persoonlijke_overtuigingen_pg` table)
+- ~~Personal goals full-sync dedup fix~~ -- done (audit remediation 2026-02-20, `syncPersonalGoalsFromAirtable` checks `findPostgresId` before insert)
 
 ### Post-Cutover
 6. Implement checkpoint-based incremental sync (replace full polls)

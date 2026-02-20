@@ -3,6 +3,7 @@ import {
   HABIT_USAGE_FIELDS,
   METHOD_USAGE_FIELDS,
   OVERTUIGING_USAGE_FIELDS,
+  PERSOONLIJKE_OVERTUIGING_FIELDS,
   parseEuropeanDate,
   PERSONAL_GOAL_FIELDS,
   PERSONAL_GOAL_USAGE_FIELDS,
@@ -11,6 +12,7 @@ import {
   USER_FIELDS
 } from "../field-mappings.js"
 import { dbQuery } from "../db/client.js"
+import { findPostgresId, upsertAirtableIdMap } from "./id-map.js"
 import { upsertUserFromAirtable } from "../repos/user-repo.js"
 
 interface FullSyncCounts {
@@ -20,6 +22,7 @@ interface FullSyncCounts {
   referenceDays: number
   translations: number
   personalGoals: number
+  persoonlijkeOvertuigingen: number
   programs: number
   schedules: number
   methodUsage: number
@@ -148,6 +151,11 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
 
     const status = String(record.fields[PERSONAL_GOAL_FIELDS.status] || "Actief")
 
+    // Check if this Airtable record was originally created from a Postgres goal (UUID-based).
+    // If so, use the original Postgres ID to avoid creating a duplicate row.
+    const existingPostgresId = await findPostgresId("personal_goal", record.id)
+    const insertId = existingPostgresId || record.id
+
     await dbQuery(
       `INSERT INTO personal_goals_pg (id, user_id, name, description, active, schedule_days, status, updated_at)
        VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, NOW())
@@ -161,7 +169,7 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
          status = EXCLUDED.status,
          updated_at = NOW()`,
       [
-        record.id,
+        insertId,
         userId,
         String(record.fields[PERSONAL_GOAL_FIELDS.name] || "Persoonlijk doel"),
         record.fields[PERSONAL_GOAL_FIELDS.description] ? String(record.fields[PERSONAL_GOAL_FIELDS.description]) : null,
@@ -170,6 +178,64 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
         status
       ]
     )
+
+    // Register the mapping so future syncs can resolve this Airtable record to the correct Postgres row
+    await upsertAirtableIdMap("personal_goal", insertId, record.id)
+
+    count += 1
+  }
+  return count
+}
+
+export async function syncPersoonlijkeOvertuigingenFromAirtable(): Promise<number> {
+  const records = await base(tables.persoonlijkeOvertuigingen).select({ returnFieldsByFieldId: true }).all()
+  let count = 0
+  for (const record of records) {
+    const userId = (record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.user] as string[] | undefined)?.[0]
+    if (!userId) continue
+
+    const status = String(record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.status] || "Actief")
+
+    // Resolve program link from Airtable ID to Postgres ID
+    const airtableProgramId = (record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.program] as string[] | undefined)?.[0]
+    let programId: string | null = null
+    if (airtableProgramId) {
+      programId = await findPostgresId("program", airtableProgramId)
+    }
+
+    // Check if this Airtable record was originally created from a Postgres record (UUID-based).
+    // If so, use the original Postgres ID to avoid creating a duplicate row.
+    const existingPostgresId = await findPostgresId("persoonlijke_overtuiging", record.id)
+    const insertId = existingPostgresId || record.id
+
+    const completedDate = record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.completedDate]
+      ? String(record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.completedDate])
+      : null
+
+    await dbQuery(
+      `INSERT INTO persoonlijke_overtuigingen_pg (id, user_id, name, program_id, status, completed_date, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, NOW())
+       ON CONFLICT (id)
+       DO UPDATE SET
+         user_id = EXCLUDED.user_id,
+         name = EXCLUDED.name,
+         program_id = EXCLUDED.program_id,
+         status = EXCLUDED.status,
+         completed_date = EXCLUDED.completed_date,
+         updated_at = NOW()`,
+      [
+        insertId,
+        userId,
+        String(record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.name] || ""),
+        programId,
+        status,
+        completedDate
+      ]
+    )
+
+    // Register the mapping so future syncs can resolve this Airtable record to the correct Postgres row
+    await upsertAirtableIdMap("persoonlijke_overtuiging", insertId, record.id)
+
     count += 1
   }
   return count
@@ -538,6 +604,7 @@ export async function runFullAirtableToPostgresSync(): Promise<FullSyncCounts> {
   const refs = await syncReferenceDataFromAirtable()
   const translations = await syncTranslationsFromAirtable()
   const personalGoals = await syncPersonalGoalsFromAirtable()
+  const persoonlijkeOvertuigingen = await syncPersoonlijkeOvertuigingenFromAirtable()
   const programs = await syncProgramsFromAirtable()
   const schedules = await syncProgramScheduleFromAirtable()
   const methodUsage = await syncMethodUsageFromAirtable()
@@ -554,6 +621,7 @@ export async function runFullAirtableToPostgresSync(): Promise<FullSyncCounts> {
     referenceOvertuigingen: refs.overtuigingen,
     referenceMindsetCategories: refs.mindsetCategories,
     personalGoals,
+    persoonlijkeOvertuigingen,
     programs,
     schedules,
     methodUsage,

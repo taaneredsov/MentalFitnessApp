@@ -8,8 +8,9 @@ interface SpotlightProps {
 
 /**
  * Spotlight overlay using an SVG with a mask to cut out the target area.
- * SVG masks are immune to overflow-x:clip on html/body and work reliably
- * across all browsers.
+ * The SVG is visual-only (pointer-events: none). A separate transparent div
+ * handles backdrop clicks, with a cutout region that blocks click propagation
+ * so tapping the highlighted element still works.
  */
 export function Spotlight({ targetRect, padding = 8, onBackdropClick }: SpotlightProps) {
   const maskId = useId()
@@ -20,44 +21,69 @@ export function Spotlight({ targetRect, padding = 8, onBackdropClick }: Spotligh
   const h = targetRect ? targetRect.height + padding * 2 : 0
 
   return (
-    <svg
-      style={{
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        width: '100vw',
-        height: '100vh',
-        zIndex: 50,
-      }}
-      onClick={onBackdropClick}
-      aria-hidden="true"
-    >
-      <defs>
-        <mask id={maskId}>
-          {/* White = visible overlay area */}
-          <rect x="0" y="0" width="100%" height="100%" fill="white" />
-          {/* Black = transparent cutout (the spotlight hole) */}
+    <>
+      {/* Visual overlay — pointer-events: none so it never captures clicks */}
+      <svg
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100vw',
+          height: '100vh',
+          zIndex: 50,
+          pointerEvents: 'none',
+        }}
+        aria-hidden="true"
+      >
+        <defs>
+          <mask id={maskId}>
+            <rect x="0" y="0" width="100%" height="100%" fill="white" />
+            {targetRect && (
+              <rect
+                x={x}
+                y={y}
+                width={w}
+                height={h}
+                rx="12"
+                ry="12"
+                fill="black"
+              />
+            )}
+          </mask>
+        </defs>
+        <rect
+          x="0"
+          y="0"
+          width="100%"
+          height="100%"
+          fill="rgba(0,0,0,0.5)"
+          mask={`url(#${CSS.escape(maskId)})`}
+        />
+      </svg>
+
+      {/* Click handler — transparent div that captures backdrop clicks */}
+      {onBackdropClick && (
+        <div
+          style={{ position: 'fixed', inset: 0, zIndex: 50 }}
+          onClick={onBackdropClick}
+          aria-hidden="true"
+        >
+          {/* Cutout region blocks click propagation to backdrop handler */}
           {targetRect && (
-            <rect
-              x={x}
-              y={y}
-              width={w}
-              height={h}
-              rx="12"
-              ry="12"
-              fill="black"
+            <div
+              style={{
+                position: 'absolute',
+                left: x,
+                top: y,
+                width: w,
+                height: h,
+                borderRadius: 12,
+              }}
+              onClick={(e) => e.stopPropagation()}
             />
           )}
-        </mask>
-      </defs>
-      <rect
-        x="0"
-        y="0"
-        width="100%"
-        height="100%"
-        fill="rgba(0,0,0,0.5)"
-        mask={`url(#${CSS.escape(maskId)})`}
-      />
-    </svg>
+        </div>
+      )}
+    </>
   )
 }

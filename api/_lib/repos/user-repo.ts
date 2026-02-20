@@ -16,6 +16,7 @@ export interface PgUser {
   level: number
   createdAt: string
   updatedAt: string
+  status: string
 }
 
 export interface UserRewardStats {
@@ -44,7 +45,8 @@ function mapUserRow(row: Record<string, unknown>): PgUser {
     badges: String(row.badges || '[]'),
     level: Number(row.level || 1),
     createdAt: String(row.created_at),
-    updatedAt: String(row.updated_at)
+    updatedAt: String(row.updated_at),
+    status: String(row.status || 'active'),
   }
 }
 
@@ -103,6 +105,7 @@ export async function upsertUserFromAirtable(record: {
   bonusPoints?: number | null
   badges?: string | null
   level?: number | null
+  status?: string | null
 }): Promise<PgUser> {
   const params = [
     record.id,
@@ -114,7 +117,8 @@ export async function upsertUserFromAirtable(record: {
     record.lastLogin || null,
     record.bonusPoints ?? null,
     record.badges || null,
-    record.level ?? null
+    record.level ?? null,
+    record.status || "active"
   ]
 
   // Fast path: try the normal upsert on id (handles the common case).
@@ -122,8 +126,8 @@ export async function upsertUserFromAirtable(record: {
     const result = await dbQuery<Record<string, unknown>>(
       `INSERT INTO users_pg (
         id, name, email, role, language_code, password_hash, last_login,
-        bonus_points, badges, level, updated_at
-      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())
+        bonus_points, badges, level, status, updated_at
+      ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
       ON CONFLICT (id)
       DO UPDATE SET
         name = EXCLUDED.name,
@@ -135,6 +139,7 @@ export async function upsertUserFromAirtable(record: {
         bonus_points = COALESCE(EXCLUDED.bonus_points, users_pg.bonus_points),
         badges = COALESCE(EXCLUDED.badges, users_pg.badges),
         level = COALESCE(EXCLUDED.level, users_pg.level),
+        status = EXCLUDED.status,
         updated_at = NOW()
       RETURNING *`,
       params
@@ -183,6 +188,7 @@ export async function upsertUserFromAirtable(record: {
            bonus_points = COALESCE($8, bonus_points),
            badges = COALESCE($9, badges),
            level = COALESCE($10, level),
+           status = $11,
            updated_at = NOW()
        WHERE id = $1
        RETURNING *`,
@@ -255,6 +261,7 @@ export async function upsertUsersBatch(
     bonusPoints?: number | null
     badges?: string | null
     level?: number | null
+    status?: string | null
   }>
 ): Promise<number> {
   if (records.length === 0) return 0

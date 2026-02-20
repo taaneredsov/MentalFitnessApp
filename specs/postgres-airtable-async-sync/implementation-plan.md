@@ -84,6 +84,7 @@ Airtable Webhook/Poller -> Inbound Sync Handler -> Postgres upsert
 - `habit_usage`
 - `personal_goal_usage`
 - `personal_goals`
+- `persoonlijke_overtuigingen`
 - `reference_methods`
 - `reference_goals`
 - `reference_days`
@@ -201,7 +202,15 @@ If login/user lookup does not find the user in Postgres:
    - Move create and patch operations to Postgres.
 4. `api/personal-goal-usage/index.ts`
    - Move usage writes and reads to Postgres.
-5. `api/auth/login.ts`, `api/auth/me.ts`, and user lookup paths
+5. `api/methods/index.ts`
+   - Postgres routing added during audit remediation (2026-02-20).
+6. `api/overtuigingen/index.ts`
+   - Postgres routing added during audit remediation (2026-02-20).
+7. `api/persoonlijke-overtuigingen/index.ts`
+   - Postgres routing added during audit remediation (2026-02-20).
+8. `api/programs/[id]/methods` (GET)
+   - Postgres routing added during audit remediation (2026-02-20).
+9. `api/auth/login.ts`, `api/auth/me.ts`, and user lookup paths
    - Use Postgres as primary source.
    - Add user read-through fallback to Airtable when missing.
 
@@ -234,7 +243,7 @@ If login/user lookup does not find the user in Postgres:
 
 - [x] Add per-endpoint data backend flags.
 - [ ] Enable shadow reads for parity checks.
-- [x] Enable Postgres primary for one endpoint at a time. *(All endpoints switched to `postgres_primary` on 2026-02-20, except `DATA_BACKEND_OVERTUIGINGEN` which remains `airtable_only`)*
+- [x] Enable Postgres primary for one endpoint at a time. *(All endpoints switched to `postgres_primary` on 2026-02-20, including `DATA_BACKEND_OVERTUIGINGEN` and `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN` added during audit remediation)*
 - [ ] Monitor and rollback quickly if divergence appears.
 - [x] Enable user fast-lane before migrating auth/user endpoints.
 
@@ -252,7 +261,8 @@ Per-endpoint backend flags (values: `airtable_only` | `postgres_shadow_read` | `
 | `DATA_BACKEND_REWARDS` | `postgres_primary` |
 | `DATA_BACKEND_METHODS` | `postgres_primary` |
 | `DATA_BACKEND_PERSONAL_GOALS` | `postgres_primary` |
-| `DATA_BACKEND_OVERTUIGINGEN` | `airtable_only` *(read-only cached, no Postgres handler)* |
+| `DATA_BACKEND_OVERTUIGINGEN` | `postgres_primary` *(switched from `airtable_only` during audit remediation 2026-02-20)* |
+| `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN` | `postgres_primary` *(added during audit remediation 2026-02-20)* |
 
 Boolean flags:
 - `USER_FAST_LANE_ENABLED`

@@ -33,6 +33,13 @@ export default async function handler(req: Request, res: Response) {
       const pgUser = await getUserByIdWithReadThrough(String(payload.userId))
         ?? await getUserByEmailWithReadThrough(String(payload.email))
       if (pgUser) {
+        if (pgUser.status !== 'active') {
+          // Clear the refresh cookie so the browser stops retrying
+          res.setHeader("Set-Cookie", [
+            "refreshToken=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0"
+          ])
+          return sendError(res, "Account is disabled", 403)
+        }
         userPayload = toApiUserPayload(pgUser)
       }
     }

@@ -7,6 +7,10 @@ import { PERSOONLIJKE_OVERTUIGING_FIELDS, FIELD_NAMES, transformPersoonlijkeOver
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { isEntityId } from "../_lib/db/id-utils.js"
 import { getProgramByAnyId } from "../_lib/repos/program-repo.js"
+import { getDataBackendMode } from "../_lib/data-backend.js"
+import { listByUser, create as createPO } from "../_lib/repos/persoonlijke-overtuigingen-repo.js"
+
+const PERSOONLIJKE_OVERTUIGINGEN_BACKEND_ENV = "DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN"
 
 const createSchema = z.object({
   name: z.string().min(1, "Name is required").max(200, "Name too long"),
@@ -34,11 +38,30 @@ async function resolveProgramAirtableId(programId: string, tokenUserId: string):
   return null
 }
 
-/**
- * GET /api/persoonlijke-overtuigingen
- * Returns active persoonlijke overtuigingen for the authenticated user
- */
-async function handleGet(req: Request, res: Response, tokenUserId: string) {
+// ---------- Postgres handlers ----------
+
+async function handleGetPostgres(_req: Request, res: Response, tokenUserId: string) {
+  const records = await listByUser(tokenUserId)
+  return sendSuccess(res, records)
+}
+
+async function handlePostPostgres(req: Request, res: Response, tokenUserId: string) {
+  const rawBody = parseBody(req)
+  const body = createSchema.parse(rawBody)
+
+  const record = await createPO({
+    userId: tokenUserId,
+    name: body.name,
+    programId: body.programId
+  })
+
+  console.log("[persoonlijke-overtuigingen] Created (postgres):", record.id, "for user:", tokenUserId, "name:", body.name)
+  return sendSuccess(res, record, 201)
+}
+
+// ---------- Airtable handlers ----------
+
+async function handleGetAirtable(_req: Request, res: Response, tokenUserId: string) {
   if (!isValidRecordId(tokenUserId)) {
     return sendError(res, "Invalid user ID format", 400)
   }
@@ -63,11 +86,7 @@ async function handleGet(req: Request, res: Response, tokenUserId: string) {
   return sendSuccess(res, userRecords)
 }
 
-/**
- * POST /api/persoonlijke-overtuigingen
- * Creates a new persoonlijke overtuiging for the authenticated user
- */
-async function handlePost(req: Request, res: Response, tokenUserId: string) {
+async function handlePostAirtable(req: Request, res: Response, tokenUserId: string) {
   const rawBody = parseBody(req)
   const body = createSchema.parse(rawBody)
 
@@ -103,6 +122,8 @@ async function handlePost(req: Request, res: Response, tokenUserId: string) {
   return sendSuccess(res, result, 201)
 }
 
+// ---------- Router ----------
+
 /**
  * /api/persoonlijke-overtuigingen
  * GET: Returns all active persoonlijke overtuigingen for the user
@@ -111,12 +132,24 @@ async function handlePost(req: Request, res: Response, tokenUserId: string) {
 export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
+    const mode = getDataBackendMode(PERSOONLIJKE_OVERTUIGINGEN_BACKEND_ENV)
+    const usePostgres = mode === "postgres_primary" && isPostgresConfigured()
 
     switch (req.method) {
       case "GET":
-        return handleGet(req, res, auth.userId)
+        if (usePostgres) {
+          return handleGetPostgres(req, res, auth.userId)
+        }
+        if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
+          void handleGetPostgres(req, res, auth.userId)
+            .then(() => undefined)
+            .catch((error) => console.warn("[persoonlijke-overtuigingen] shadow read failed:", error))
+        }
+        return handleGetAirtable(req, res, auth.userId)
       case "POST":
-        return handlePost(req, res, auth.userId)
+        return usePostgres
+          ? handlePostPostgres(req, res, auth.userId)
+          : handlePostAirtable(req, res, auth.userId)
       default:
         return sendError(res, "Method not allowed", 405)
     }

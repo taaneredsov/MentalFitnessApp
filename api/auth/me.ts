@@ -28,6 +28,9 @@ export default async function handler(req: Request, res: Response) {
     if (isPostgresConfigured()) {
       const user = await getUserByIdWithReadThrough(String(payload.userId))
       if (user) {
+        if (user.status !== 'active') {
+          return sendError(res, "Account is disabled", 403)
+        }
         return sendSuccess(res, toApiUserPayload(user))
       }
     }

@@ -26,7 +26,11 @@ function resolveDistPath() {
 }
 
 // Middleware
-app.use(express.json())
+app.use(express.json({
+  verify: (req, _res, buf) => {
+    (req as unknown as Record<string, unknown>).rawBody = buf.toString("utf-8")
+  }
+}))
 app.use(cookieParser())
 
 // Security headers
@@ -191,8 +195,10 @@ async function setupRoutes() {
   // Sync routes
   const { default: syncInboundHandler } = await import("./api/sync/inbound.js")
   const { default: replayDeadLetterHandler } = await import("./api/sync/replay-dead-letter.js")
+  const { default: syncUsersInboundHandler } = await import("./api/sync/users/inbound.js")
   app.post("/api/sync/inbound", syncInboundHandler)
   app.post("/api/sync/replay-dead-letter", replayDeadLetterHandler)
+  app.post("/api/sync/users/inbound", syncUsersInboundHandler)
 
   // Notifications routes
   const { default: notificationSubscribeHandler } = await import("./api/notifications/subscribe.js")
@@ -268,13 +274,17 @@ async function setupRoutes() {
   })
 }
 
-// Start server
-setupRoutes().then(() => {
-  app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`)
-    console.log(`Environment: ${process.env.NODE_ENV || "development"}`)
+export { app, setupRoutes }
+
+// Start server (disabled during tests so routes can be bootstrapped explicitly)
+if (process.env.NODE_ENV !== "test") {
+  setupRoutes().then(() => {
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`)
+      console.log(`Environment: ${process.env.NODE_ENV || "development"}`)
+    })
+  }).catch((error) => {
+    console.error("Failed to setup routes:", error)
+    process.exit(1)
   })
-}).catch((error) => {
-  console.error("Failed to setup routes:", error)
-  process.exit(1)
-})
+}

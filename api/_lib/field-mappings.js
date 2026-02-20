@@ -86,7 +86,8 @@ export const USER_FIELDS = {
   // Magic link fields
   magicLinkToken: "fldjMwmUXqn0AmmXB",   // Magic Link Token (Single line text)
   magicLinkCode: "fldQxk69kS7coP4Ih",    // Magic Link Code (Single line text)
-  magicLinkExpiry: "fld44oMkQTlsuLxVq"   // Magic Link Expiry (Single line text - ISO timestamp)
+  magicLinkExpiry: "fld44oMkQTlsuLxVq",  // Magic Link Expiry (Single line text - ISO timestamp)
+  status: "fld6B6DCJblZpC5wq"            // Status (Actief / Geen toegang)
 }
 
 // Company table field IDs (Bedrijven) - use for reading/writing
@@ -276,6 +277,7 @@ export const FIELD_NAMES = {
     role: "Rol",
     languageCode: "Taalcode",
     profilePhoto: "Profielfoto",
+    status: "Status",
     // Reward fields
     totalPoints: "Totaal Punten",
     currentStreak: "Huidige Streak",

@@ -30,10 +30,14 @@ services:
       - DATA_BACKEND_OVERTUIGING_USAGE=postgres_primary
       - DATA_BACKEND_REWARDS=postgres_primary
       - DATA_BACKEND_METHODS=postgres_primary
-      - DATA_BACKEND_OVERTUIGINGEN=airtable_only
+      - DATA_BACKEND_OVERTUIGINGEN=postgres_primary
       - DATA_BACKEND_PERSONAL_GOALS=postgres_primary
+      - DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN=postgres_primary
       - USER_FAST_LANE_ENABLED=true
       - USER_READTHROUGH_FALLBACK_ENABLED=true
+      # User webhook sync
+      - USER_WEBHOOK_SYNC_ENABLED=true
+      - AIRTABLE_USER_SYNC_SECRET_FILE=/run/secrets/airtable_user_sync_secret
       # Push notifications
       - PUSH_NOTIFICATIONS_ENABLED=true
       - PUSH_NOTIFICATIONS_TEST_MODE=false
@@ -75,6 +79,7 @@ services:
       - smtp_password
       - smtp_from
       - database_url
+      - airtable_user_sync_secret
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
@@ -220,6 +225,9 @@ secrets:
   postgres_password:
     external: true
     name: mfa_postgres_password
+  airtable_user_sync_secret:
+    external: true
+    name: mfa_airtable_user_sync_secret
 
 volumes:
   redis_data:

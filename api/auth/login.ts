@@ -38,6 +38,10 @@ async function loginViaPostgres(req: Request, res: Response, email: string, pass
     return sendError(res, "Invalid email or password", 401)
   }
 
+  if (user.status !== 'active') {
+    return sendError(res, "Account is disabled", 403)
+  }
+
   if (!user.passwordHash) {
     if (!isAirtableRecordId(user.id)) {
       return sendError(res, "Password setup requires Airtable-managed users", 400)

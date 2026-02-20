@@ -254,6 +254,10 @@ Final improvements and verification.
 - [x] Implement optimistic updates for completions
 - [x] Test full flow end-to-end
 
+### Full-Sync Dedup Fix (added 2026-02-20)
+
+During audit remediation, a dedup fix was added to `syncPersonalGoalsFromAirtable` in the full sync worker. The function now calls `findPostgresId` before inserting a row, preventing duplicate `personal_goals_pg` records when the same Airtable record is synced multiple times. This was causing constraint violations on repeat full-sync runs.
+
 ### Backend Resilience (added 2026-02-20)
 
 The `awardRewardActivity()` call in the POST handler is wrapped in try/catch. If the reward engine fails (Airtable timeout, rate limit), the usage record creation and count still succeed — only a warning is logged. This applies to both `handlePostPostgres` and `handlePostAirtable`.

@@ -1,7 +1,7 @@
 {
   "name": "mental-fitness-app",
   "private": true,
-  "version": "1.2.3",
+  "version": "1.2.5",
   "description": "Corporate Mental Fitness PWA with Airtable backend",
   "type": "module",
   "scripts": {
