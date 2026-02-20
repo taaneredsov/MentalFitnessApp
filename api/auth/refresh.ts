@@ -3,9 +3,9 @@ import { parse } from "cookie"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
 import { verifyRefreshToken, signAccessToken, signRefreshToken } from "../_lib/jwt.js"
-import { transformUser } from "../_lib/field-mappings.js"
+import { transformUser, escapeFormulaValue, USER_FIELDS } from "../_lib/field-mappings.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
-import { getUserByIdWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
+import { getUserByIdWithReadThrough, getUserByEmailWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
 import type { AirtableRecord } from "../_lib/types.js"
 
 export default async function handler(req: Request, res: Response) {
@@ -28,21 +28,34 @@ export default async function handler(req: Request, res: Response) {
 
     let userPayload: Record<string, unknown> | null = null
 
+    // Try by ID first, then fall back to email (handles re-created Airtable users)
     if (isPostgresConfigured()) {
       const pgUser = await getUserByIdWithReadThrough(String(payload.userId))
+        ?? await getUserByEmailWithReadThrough(String(payload.email))
       if (pgUser) {
         userPayload = toApiUserPayload(pgUser)
       }
     }
 
     if (!userPayload) {
-      const records = await base(tables.users)
+      let records = await base(tables.users)
         .select({
           filterByFormula: `RECORD_ID() = "${payload.userId}"`,
           maxRecords: 1,
           returnFieldsByFieldId: true
         })
         .firstPage()
+
+      // If record ID no longer exists, try by email (user was re-created in Airtable)
+      if (records.length === 0 && payload.email) {
+        records = await base(tables.users)
+          .select({
+            filterByFormula: `{${USER_FIELDS.email}} = "${escapeFormulaValue(String(payload.email))}"`,
+            maxRecords: 1,
+            returnFieldsByFieldId: true
+          })
+          .firstPage()
+      }
 
       if (records.length === 0) {
         return sendError(res, "User not found", 404)
@@ -51,14 +64,19 @@ export default async function handler(req: Request, res: Response) {
       userPayload = transformUser(records[0] as AirtableRecord)
     }
 
+    // Use the current user ID from the database/Airtable lookup, not the stale JWT payload.
+    // This handles cases where a user was deleted and re-created in Airtable with a new record ID.
+    const currentUserId = (userPayload as Record<string, unknown>).id as string
+    const currentEmail = (userPayload as Record<string, unknown>).email as string
+
     const newAccessToken = await signAccessToken({
-      userId: payload.userId,
-      email: payload.email
+      userId: currentUserId,
+      email: currentEmail
     })
 
     const newRefreshToken = await signRefreshToken({
-      userId: payload.userId,
-      email: payload.email
+      userId: currentUserId,
+      email: currentEmail
     })
 
     res.setHeader("Set-Cookie", [
