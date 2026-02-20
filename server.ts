@@ -221,6 +221,19 @@ async function setupRoutes() {
     res.sendFile(path.join(distPath, "sw.js"))
   })
 
+  // SW registration script must not be cached either
+  app.get("/registerSW.js", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+    res.setHeader("Content-Type", "application/javascript")
+    res.sendFile(path.join(distPath, "registerSW.js"))
+  })
+
+  // Hashed assets are immutable — cache forever
+  app.use("/assets", express.static(path.join(distPath, "assets"), {
+    maxAge: "1y",
+    immutable: true
+  }))
+
   app.use(express.static(distPath))
 
   // SPA fallback - serve index.html for all non-API routes
@@ -236,6 +249,7 @@ async function setupRoutes() {
       next()
       return
     }
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate")
     res.sendFile(path.join(distPath, "index.html"))
   })
 
