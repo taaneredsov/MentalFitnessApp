@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { useNavigate } from "react-router-dom"
 import { useAuth } from "@/contexts/AuthContext"
-import { useCompanies, useUserRewards, usePersonalGoals, useDeletePersonalGoal, useNotificationPreferences, useUpdateNotificationPreferences } from "@/hooks/queries"
+import { useCompanies, useUserRewards, usePersonalGoals, useDeletePersonalGoal, useUpdatePersonalGoal, useNotificationPreferences, useUpdateNotificationPreferences } from "@/hooks/queries"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -13,7 +13,7 @@ import { formatPoints } from "@/lib/rewards-utils"
 import { getCurrentPushSubscription, getNotificationPermission, isPushSupported, subscribeToPush, unsubscribeFromPush } from "@/lib/push"
 import { api } from "@/lib/api-client"
 import type { ReminderMode } from "@/types/notifications"
-import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText, Download } from "lucide-react"
+import { LogOut, User, Mail, Building2, KeyRound, Trophy, Star, Target, Plus, Pencil, Trash2, Loader2, Bell, Info, ExternalLink, Shield, FileText, Download, CheckCircle2 } from "lucide-react"
 import { useInstallPrompt } from "@/hooks/useInstallPrompt"
 import type { PersonalGoal } from "@/types/program"
 import { useTranslation } from "react-i18next"
@@ -41,6 +41,7 @@ export function AccountPage() {
   // Personal goals
   const { data: personalGoals = [], isLoading: isLoadingGoals } = usePersonalGoals()
   const deleteGoalMutation = useDeletePersonalGoal()
+  const updateGoalMutation = useUpdatePersonalGoal()
   const { data: notificationPreferences, isLoading: isLoadingNotificationPreferences } = useNotificationPreferences()
   const updateNotificationPreferences = useUpdateNotificationPreferences()
 
@@ -48,6 +49,7 @@ export function AccountPage() {
   const [goalDialogOpen, setGoalDialogOpen] = useState(false)
   const [editingGoal, setEditingGoal] = useState<PersonalGoal | null>(null)
   const [deletingGoalId, setDeletingGoalId] = useState<string | null>(null)
+  const [completingGoalId, setCompletingGoalId] = useState<string | null>(null)
   const [notificationMessage, setNotificationMessage] = useState<string | null>(null)
   const [notificationError, setNotificationError] = useState<string | null>(null)
   const [permission, setPermission] = useState<NotificationPermission | "unsupported">(getNotificationPermission())
@@ -132,6 +134,22 @@ export function AccountPage() {
       console.error("[AccountPage] Failed to delete goal:", error)
     } finally {
       setDeletingGoalId(null)
+    }
+  }
+
+  const handleCompleteGoal = async (goalId: string) => {
+    if (!accessToken) return
+    setCompletingGoalId(goalId)
+    try {
+      await updateGoalMutation.mutateAsync({
+        id: goalId,
+        data: { status: "Voltooid" },
+        accessToken
+      })
+    } catch (error) {
+      console.error("[AccountPage] Failed to complete goal:", error)
+    } finally {
+      setCompletingGoalId(null)
     }
   }
 
@@ -566,6 +584,11 @@ export function AccountPage() {
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-medium">{goal.name}</p>
+                    {goal.scheduleDays && goal.scheduleDays.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        Planning: {goal.scheduleDays.map(d => d.substring(0, 2)).join(", ")}
+                      </p>
+                    )}
                     {goal.description && (
                       <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
                         {goal.description}
@@ -573,6 +596,20 @@ export function AccountPage() {
                     )}
                   </div>
                   <div className="flex items-center gap-1">
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-green-600 hover:text-green-700"
+                      onClick={() => handleCompleteGoal(goal.id)}
+                      disabled={completingGoalId === goal.id}
+                      title="Markeer als voltooid"
+                    >
+                      {completingGoalId === goal.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <CheckCircle2 className="h-4 w-4" />
+                      )}
+                    </Button>
                     <Button
                       variant="ghost"
                       size="icon"

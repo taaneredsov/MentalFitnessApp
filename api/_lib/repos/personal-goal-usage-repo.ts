@@ -49,18 +49,30 @@ export async function upsertPersonalGoal(input: {
   name: string
   description?: string | null
   active?: boolean
+  scheduleDays?: string[] | null
+  status?: string
 }): Promise<void> {
   await dbQuery(
-    `INSERT INTO personal_goals_pg (id, user_id, name, description, active, updated_at)
-     VALUES ($1, $2, $3, $4, $5, NOW())
+    `INSERT INTO personal_goals_pg (id, user_id, name, description, active, schedule_days, status, updated_at)
+     VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, NOW())
      ON CONFLICT (id)
      DO UPDATE SET
        user_id = EXCLUDED.user_id,
        name = EXCLUDED.name,
        description = EXCLUDED.description,
        active = EXCLUDED.active,
+       schedule_days = EXCLUDED.schedule_days,
+       status = EXCLUDED.status,
        updated_at = NOW()`,
-    [input.id, input.userId, input.name, input.description || null, input.active ?? true]
+    [
+      input.id,
+      input.userId,
+      input.name,
+      input.description || null,
+      input.active ?? true,
+      input.scheduleDays !== undefined ? JSON.stringify(input.scheduleDays) : null,
+      input.status || "Actief"
+    ]
   )
 }
 

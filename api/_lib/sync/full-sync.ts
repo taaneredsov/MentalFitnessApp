@@ -134,22 +134,40 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
   for (const record of records) {
     const userId = (record.fields[PERSONAL_GOAL_FIELDS.user] as string[] | undefined)?.[0]
     if (!userId) continue
+
+    // Parse schedule days from Airtable (comma-separated string or array)
+    let scheduleDays: string[] | null = null
+    const rawSchedule = record.fields[PERSONAL_GOAL_FIELDS.scheduleDays]
+    if (rawSchedule) {
+      if (Array.isArray(rawSchedule)) {
+        scheduleDays = rawSchedule as string[]
+      } else if (typeof rawSchedule === 'string') {
+        scheduleDays = (rawSchedule as string).split(',').map((s: string) => s.trim()).filter(Boolean)
+      }
+    }
+
+    const status = String(record.fields[PERSONAL_GOAL_FIELDS.status] || "Actief")
+
     await dbQuery(
-      `INSERT INTO personal_goals_pg (id, user_id, name, description, active, updated_at)
-       VALUES ($1, $2, $3, $4, $5, NOW())
+      `INSERT INTO personal_goals_pg (id, user_id, name, description, active, schedule_days, status, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, NOW())
        ON CONFLICT (id)
        DO UPDATE SET
          user_id = EXCLUDED.user_id,
          name = EXCLUDED.name,
          description = EXCLUDED.description,
          active = EXCLUDED.active,
+         schedule_days = EXCLUDED.schedule_days,
+         status = EXCLUDED.status,
          updated_at = NOW()`,
       [
         record.id,
         userId,
         String(record.fields[PERSONAL_GOAL_FIELDS.name] || "Persoonlijk doel"),
         record.fields[PERSONAL_GOAL_FIELDS.description] ? String(record.fields[PERSONAL_GOAL_FIELDS.description]) : null,
-        String(record.fields[PERSONAL_GOAL_FIELDS.status] || "Actief") !== "Gearchiveerd"
+        status !== "Gearchiveerd" && status !== "Verwijderd",
+        scheduleDays ? JSON.stringify(scheduleDays) : null,
+        status
       ]
     )
     count += 1

@@ -11,6 +11,7 @@ import {
   getUserLanguageCode,
   listUsersForNotificationPlanning
 } from "../repos/notification-preference-repo.js"
+import { listScheduledPersonalGoalsForUser } from "../repos/reference-repo.js"
 import { addMinutes, formatDateInTimeZone, formatTimeInTimeZone, isTimeInsideQuietHours, zonedDateTimeToUtc } from "./time.js"
 import type { NotificationJobPayload } from "./types.js"
 
@@ -150,12 +151,71 @@ async function listSchedulableSessionsForUser(userId: string): Promise<SessionRo
   return result.rows
 }
 
+function getUpcomingDatesForSchedule(scheduleDays: string[], today: string, lookAheadDays: number): string[] {
+  const DUTCH_DAYS = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"]
+  const dates: string[] = []
+  const start = new Date(today + "T00:00:00")
+
+  for (let i = 0; i < lookAheadDays; i++) {
+    const d = new Date(start)
+    d.setDate(d.getDate() + i)
+    const dayName = DUTCH_DAYS[d.getDay()]
+    if (scheduleDays.includes(dayName)) {
+      const yyyy = d.getFullYear()
+      const mm = String(d.getMonth() + 1).padStart(2, "0")
+      const dd = String(d.getDate()).padStart(2, "0")
+      dates.push(`${yyyy}-${mm}-${dd}`)
+    }
+  }
+  return dates
+}
+
+function buildPersonalGoalPayload(input: {
+  language: "nl" | "en" | "fr"
+  goalName: string
+  reminderDate: string
+  personalGoalId: string
+}): NotificationJobPayload {
+  if (input.language === "en") {
+    return {
+      title: "Personal goal reminder",
+      body: `Today is a planned day for: ${input.goalName}`,
+      targetUrl: "/",
+      mode: "personal_goal",
+      reminderDate: input.reminderDate,
+      personalGoalId: input.personalGoalId,
+      personalGoalName: input.goalName
+    }
+  }
+  if (input.language === "fr") {
+    return {
+      title: "Rappel objectif personnel",
+      body: `Aujourd'hui est un jour prevu pour : ${input.goalName}`,
+      targetUrl: "/",
+      mode: "personal_goal",
+      reminderDate: input.reminderDate,
+      personalGoalId: input.personalGoalId,
+      personalGoalName: input.goalName
+    }
+  }
+  return {
+    title: "Herinnering persoonlijk doel",
+    body: `Vandaag is een geplande dag voor: ${input.goalName}`,
+    targetUrl: "/",
+    mode: "personal_goal",
+    reminderDate: input.reminderDate,
+    personalGoalId: input.personalGoalId,
+    personalGoalName: input.goalName
+  }
+}
+
 function buildJobCandidate(input: {
   userId: string
-  mode: "session" | "daily_summary"
+  mode: "session" | "daily_summary" | "personal_goal"
   reminderDate: string
   programId?: string
   programScheduleId?: string
+  personalGoalId?: string
   leadMinutes: number
   preferredTimeLocal: string
   timezone: string
@@ -173,6 +233,7 @@ function buildJobCandidate(input: {
     userId: input.userId,
     programId: input.programId,
     programScheduleId: input.programScheduleId,
+    personalGoalId: input.personalGoalId,
     reminderDate: input.reminderDate,
     mode: input.mode,
     fireAt,
@@ -261,6 +322,34 @@ export async function syncNotificationJobsForUser(userId: string): Promise<Plann
           quietHoursEnd: preferences.quietHoursEnd,
           payload,
           dedupeKey: `daily:user:${userId}:date:${reminderDate}:lead:${preferences.leadMinutes}`
+        })
+      )
+    }
+  }
+
+  // Personal goal reminders
+  const scheduledGoals = await listScheduledPersonalGoalsForUser(userId)
+  for (const goal of scheduledGoals) {
+    const upcomingDates = getUpcomingDatesForSchedule(goal.scheduleDays, today, 14)
+    for (const reminderDate of upcomingDates) {
+      const payload = buildPersonalGoalPayload({
+        language,
+        goalName: goal.name,
+        reminderDate,
+        personalGoalId: goal.id
+      })
+      jobs.push(
+        buildJobCandidate({
+          userId,
+          mode: "personal_goal",
+          reminderDate,
+          leadMinutes: preferences.leadMinutes,
+          preferredTimeLocal: preferences.preferredTimeLocal,
+          timezone,
+          quietHoursStart: preferences.quietHoursStart,
+          quietHoursEnd: preferences.quietHoursEnd,
+          payload,
+          dedupeKey: `pgoal:${goal.id}:user:${userId}:date:${reminderDate}:lead:${preferences.leadMinutes}`
         })
       )
     }

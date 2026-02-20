@@ -15,9 +15,11 @@ export interface NotificationJobPayload {
   title: string
   body: string
   targetUrl: string
-  mode: "session" | "daily_summary"
+  mode: "session" | "daily_summary" | "personal_goal"
   reminderDate: string
   programId?: string
   programScheduleId?: string
   sessionCount?: number
+  personalGoalId?: string
+  personalGoalName?: string
 }

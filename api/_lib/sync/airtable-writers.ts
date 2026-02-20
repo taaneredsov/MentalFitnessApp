@@ -187,14 +187,29 @@ async function upsertOvertuigingUsage(entityId: string, payload: Record<string, 
 async function upsertPersonalGoal(entityId: string, payload: Record<string, unknown>): Promise<void> {
   const existingAirtableId = await findAirtableId("personal_goal", entityId)
 
-  const fields: Record<string, unknown> = {
-    [PERSONAL_GOAL_FIELDS.name]: String(payload.name || "Persoonlijk doel"),
-    [PERSONAL_GOAL_FIELDS.user]: [String(payload.userId)],
-    [PERSONAL_GOAL_FIELDS.status]: "Actief"
+  const fields: Record<string, unknown> = {}
+
+  // Always set user link
+  if (payload.userId) fields[PERSONAL_GOAL_FIELDS.user] = [String(payload.userId)]
+
+  // Only set fields that are present in the payload (partial update safe)
+  if (payload.name !== undefined) fields[PERSONAL_GOAL_FIELDS.name] = String(payload.name)
+  if (payload.status !== undefined) fields[PERSONAL_GOAL_FIELDS.status] = String(payload.status)
+  if (payload.description !== undefined) fields[PERSONAL_GOAL_FIELDS.description] = String(payload.description)
+
+  if (payload.scheduleDays !== undefined) {
+    if (Array.isArray(payload.scheduleDays) && payload.scheduleDays.length > 0) {
+      fields[PERSONAL_GOAL_FIELDS.scheduleDays] = (payload.scheduleDays as string[]).join(", ")
+    } else {
+      // Clear the field when scheduleDays is null or empty array
+      fields[PERSONAL_GOAL_FIELDS.scheduleDays] = ""
+    }
   }
 
-  if (payload.description) {
-    fields[PERSONAL_GOAL_FIELDS.description] = String(payload.description)
+  // For creates, ensure required defaults
+  if (!existingAirtableId) {
+    if (!fields[PERSONAL_GOAL_FIELDS.name]) fields[PERSONAL_GOAL_FIELDS.name] = "Persoonlijk doel"
+    if (!fields[PERSONAL_GOAL_FIELDS.status]) fields[PERSONAL_GOAL_FIELDS.status] = "Actief"
   }
 
   if (existingAirtableId) {

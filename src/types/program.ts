@@ -114,19 +114,22 @@ export interface PersonalGoal {
   name: string
   description?: string
   userId: string
-  status: "Actief" | "Gearchiveerd"
+  status: "Actief" | "Voltooid" | "Verwijderd"
+  scheduleDays?: string[]  // ["Maandag", "Dinsdag"]
   createdAt?: string
 }
 
 export interface CreatePersonalGoalData {
   name: string
   description?: string
+  scheduleDays?: string[]
 }
 
 export interface UpdatePersonalGoalData {
   name?: string
   description?: string
-  status?: "Actief" | "Gearchiveerd"
+  status?: "Actief" | "Voltooid" | "Verwijderd"
+  scheduleDays?: string[]
 }
 
 // Overtuigingen Types

@@ -13,7 +13,9 @@ import { Label } from "@/components/ui/label"
 import { useAuth } from "@/contexts/AuthContext"
 import { useCreatePersonalGoal, useUpdatePersonalGoal } from "@/hooks/queries"
 import type { PersonalGoal } from "@/types/program"
-import { Loader2 } from "lucide-react"
+import { Calendar, Check, ChevronDown, Loader2 } from "lucide-react"
+
+const DAY_ORDER = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"]
 
 interface PersonalGoalDialogProps {
   open: boolean
@@ -26,6 +28,8 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
 
   const [name, setName] = useState("")
   const [description, setDescription] = useState("")
+  const [scheduleDays, setScheduleDays] = useState<string[]>([])
+  const [showSchedule, setShowSchedule] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const createMutation = useCreatePersonalGoal()
@@ -34,6 +38,12 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
   const isEditing = !!goal
   const isPending = createMutation.isPending || updateMutation.isPending
 
+  const toggleDay = (day: string) => {
+    setScheduleDays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
+  }
+
   // Reset form when dialog opens/closes or goal changes
   useEffect(() => {
     if (open) {
@@ -41,9 +51,13 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
         // eslint-disable-next-line react-hooks/set-state-in-effect -- syncing form state with prop
         setName(goal.name)
         setDescription(goal.description || "")
+        setScheduleDays(goal.scheduleDays || [])
+        setShowSchedule((goal.scheduleDays || []).length > 0)
       } else {
         setName("")
         setDescription("")
+        setScheduleDays([])
+        setShowSchedule(false)
       }
       setError(null)
     }
@@ -79,7 +93,8 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
           id: goal.id,
           data: {
             name: name.trim(),
-            description: description.trim() || undefined
+            description: description.trim() || undefined,
+            scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined
           },
           accessToken
         })
@@ -87,7 +102,8 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
         await createMutation.mutateAsync({
           data: {
             name: name.trim(),
-            description: description.trim() || undefined
+            description: description.trim() || undefined,
+            scheduleDays: scheduleDays.length > 0 ? scheduleDays : undefined
           },
           accessToken
         })
@@ -133,6 +149,61 @@ export function PersonalGoalDialog({ open, onOpenChange, goal }: PersonalGoalDia
               disabled={isPending}
               rows={3}
             />
+          </div>
+
+          {/* Planning section */}
+          <div className="space-y-2">
+            <button
+              type="button"
+              onClick={() => setShowSchedule(!showSchedule)}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Calendar className="h-4 w-4" />
+              <span>Planning (optioneel)</span>
+              <ChevronDown className={`h-4 w-4 transition-transform ${showSchedule ? "rotate-180" : ""}`} />
+            </button>
+
+            {showSchedule && (
+              <div className="space-y-3 pt-1">
+                <p className="text-sm text-muted-foreground">
+                  Selecteer de dagen waarop je dit doel wilt oefenen.
+                </p>
+                <div className="grid grid-cols-2 gap-2">
+                  {DAY_ORDER.map(day => {
+                    const isSelected = scheduleDays.includes(day)
+                    return (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        disabled={isPending}
+                        className={`p-3 rounded-lg border transition-colors text-center bg-background ${
+                          isSelected
+                            ? "border-primary bg-primary/5 font-medium"
+                            : "border-border hover:border-primary/50"
+                        }`}
+                      >
+                        <div className="flex items-center justify-center gap-2">
+                          <div className={`w-5 h-5 rounded border flex items-center justify-center ${
+                            isSelected
+                              ? "bg-primary border-primary text-primary-foreground"
+                              : "border-muted-foreground"
+                          }`}>
+                            {isSelected && <Check className="h-3 w-3" />}
+                          </div>
+                          <span>{day}</span>
+                        </div>
+                      </button>
+                    )
+                  })}
+                </div>
+                {scheduleDays.length > 0 && (
+                  <p className="text-sm text-muted-foreground">
+                    {scheduleDays.length} dag{scheduleDays.length !== 1 ? "en" : ""} per week geselecteerd
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {error && (

@@ -7,7 +7,7 @@ import { usePersonalGoals, usePersonalGoalUsage, useCompletePersonalGoal } from 
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
-import { Target, Plus, Star, Settings, Check } from "lucide-react"
+import { Target, Plus, Star, Settings, Check, CalendarCheck } from "lucide-react"
 
 interface PersonalGoalsSectionProps {
   showManageLink?: boolean
@@ -26,6 +26,15 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null)
   const [recentlyCompleted, setRecentlyCompleted] = useState<string | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
+
+  const DUTCH_DAYS = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"]
+  const todayDay = DUTCH_DAYS[new Date().getDay()]
+
+  const sortedGoals = useMemo(() => {
+    const scheduledToday = goals.filter(g => g.scheduleDays?.includes(todayDay))
+    const others = goals.filter(g => !g.scheduleDays?.includes(todayDay))
+    return [...scheduledToday, ...others]
+  }, [goals, todayDay])
 
   const isLoading = isLoadingGoals || isLoadingUsage
 
@@ -128,7 +137,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
         {isLoading ? (
           <p className="text-muted-foreground">Laden...</p>
         ) : (
-          goals.map(goal => {
+          sortedGoals.map(goal => {
             const counts = goalCounts[goal.id] || { today: 0, total: 0 }
             const isExpanded = expandedGoal === goal.id
             return (
@@ -153,6 +162,12 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
                     <p className="font-semibold text-base">
                       {goal.name}
                     </p>
+                    {goal.scheduleDays?.includes(todayDay) && (
+                      <span className="inline-flex items-center gap-1 text-xs text-primary font-medium">
+                        <CalendarCheck className="h-3 w-3" />
+                        Gepland voor vandaag
+                      </span>
+                    )}
                     <p className="text-sm text-muted-foreground mt-0.5">
                       {counts.today > 0 ? (
                         <span className="text-primary font-medium">
@@ -199,11 +214,18 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
                 </div>
 
                 {/* Expanded description */}
-                {isExpanded && goal.description && (
+                {isExpanded && (
                   <div className="mt-3 pl-16 pr-14">
-                    <p className="text-sm text-muted-foreground">
-                      {goal.description}
-                    </p>
+                    {goal.description && (
+                      <p className="text-sm text-muted-foreground">
+                        {goal.description}
+                      </p>
+                    )}
+                    {goal.scheduleDays && goal.scheduleDays.length > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Planning: {goal.scheduleDays.map(d => d.substring(0, 2)).join(", ")}
+                      </p>
+                    )}
                   </div>
                 )}
               </div>

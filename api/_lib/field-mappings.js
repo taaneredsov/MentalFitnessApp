@@ -215,7 +215,8 @@ export const PERSONAL_GOAL_FIELDS = {
   description: "fldIa30JSumth6urq", // Beschrijving (multiline text)
   user: "fld430TQiorQDQqfT",        // Gebruikers (link to Users)
   status: "fldppY7CetkUqYeTU",      // Status (single select: Actief/Gearchiveerd)
-  createdAt: "fldVYfcER59IGdFg8"    // Aangemaakt op (created time - computed)
+  createdAt: "fldVYfcER59IGdFg8",   // Aangemaakt op (created time - computed)
+  scheduleDays: "fldCKc9Y7SZtbusdK"       // Planningdagen
 }
 
 // Personal Goal Usage table field IDs (Persoonlijk Doelgebruik - tbl8eJeQtMnIF5EJo)
@@ -341,7 +342,8 @@ export const FIELD_NAMES = {
     description: "Beschrijving",
     user: "Gebruikers",
     status: "Status",
-    createdAt: "Aangemaakt op"
+    createdAt: "Aangemaakt op",
+    scheduleDays: "Planningdagen"
   },
   personalGoalUsage: {
     user: "Gebruikers",
@@ -631,12 +633,23 @@ export function transformHabitUsage(record) {
  */
 export function transformPersonalGoal(record) {
   const fields = record.fields
+  // Parse scheduleDays from comma-separated string or array
+  let scheduleDays = undefined
+  const rawSchedule = fields[PERSONAL_GOAL_FIELDS.scheduleDays]
+  if (rawSchedule) {
+    if (Array.isArray(rawSchedule)) {
+      scheduleDays = rawSchedule
+    } else if (typeof rawSchedule === 'string') {
+      scheduleDays = rawSchedule.split(',').map(s => s.trim()).filter(Boolean)
+    }
+  }
   return {
     id: record.id,
     name: fields[PERSONAL_GOAL_FIELDS.name],
     description: fields[PERSONAL_GOAL_FIELDS.description],
     userId: fields[PERSONAL_GOAL_FIELDS.user]?.[0],
     status: fields[PERSONAL_GOAL_FIELDS.status] || "Actief",
+    scheduleDays,
     createdAt: fields[PERSONAL_GOAL_FIELDS.createdAt]
   }
 }

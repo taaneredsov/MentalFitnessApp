@@ -7,7 +7,16 @@ export const fallbackTranslations: Record<string, Record<string, string>> = {
     "account.language.saving": "Taal opslaan...",
     "account.language.saveError": "Kon taalvoorkeur niet opslaan.",
     "common.loading": "Laden...",
-    "overtuigingen.allCompleted": "Alle overtuigingen voltooid. Klik op + om nieuwe toe te voegen."
+    "overtuigingen.allCompleted": "Alle overtuigingen voltooid. Klik op + om nieuwe toe te voegen.",
+    "personalGoals.scheduledToday": "Gepland voor vandaag",
+    "personalGoals.scheduleOptional": "Planning (optioneel)",
+    "personalGoals.selectDays": "Selecteer de dagen waarop je dit doel wilt oefenen.",
+    "personalGoals.daysSelected": "{{count}} dag(en) per week geselecteerd",
+    "personalGoals.markCompleted": "Markeer als voltooid",
+    "personalGoals.confirmCompleted": "Wil je dit doel markeren als voltooid?",
+    "personalGoals.confirmDelete": "Dit doel wordt permanent verwijderd.",
+    "personalGoals.completedGoals": "Voltooide doelen",
+    "personalGoals.reactivate": "Opnieuw activeren"
   },
   fr: {
     "account.language.label": "Langue",
@@ -17,7 +26,16 @@ export const fallbackTranslations: Record<string, Record<string, string>> = {
     "account.language.saving": "Enregistrement de la langue...",
     "account.language.saveError": "Impossible d'enregistrer la préférence de langue.",
     "common.loading": "Chargement...",
-    "overtuigingen.allCompleted": "Toutes les convictions sont accomplies. Cliquez sur + pour en ajouter."
+    "overtuigingen.allCompleted": "Toutes les convictions sont accomplies. Cliquez sur + pour en ajouter.",
+    "personalGoals.scheduledToday": "Prévu pour aujourd'hui",
+    "personalGoals.scheduleOptional": "Planification (optionnel)",
+    "personalGoals.selectDays": "Sélectionnez les jours où vous souhaitez pratiquer cet objectif.",
+    "personalGoals.daysSelected": "{{count}} jour(s) par semaine sélectionné(s)",
+    "personalGoals.markCompleted": "Marquer comme accompli",
+    "personalGoals.confirmCompleted": "Voulez-vous marquer cet objectif comme accompli ?",
+    "personalGoals.confirmDelete": "Cet objectif sera définitivement supprimé.",
+    "personalGoals.completedGoals": "Objectifs accomplis",
+    "personalGoals.reactivate": "Réactiver"
   },
   en: {
     "account.language.label": "Language",
@@ -27,6 +45,15 @@ export const fallbackTranslations: Record<string, Record<string, string>> = {
     "account.language.saving": "Saving language...",
     "account.language.saveError": "Could not save language preference.",
     "common.loading": "Loading...",
-    "overtuigingen.allCompleted": "All beliefs completed. Click + to add new ones."
+    "overtuigingen.allCompleted": "All beliefs completed. Click + to add new ones.",
+    "personalGoals.scheduledToday": "Scheduled for today",
+    "personalGoals.scheduleOptional": "Schedule (optional)",
+    "personalGoals.selectDays": "Select the days you want to practice this goal.",
+    "personalGoals.daysSelected": "{{count}} day(s) per week selected",
+    "personalGoals.markCompleted": "Mark as completed",
+    "personalGoals.confirmCompleted": "Do you want to mark this goal as completed?",
+    "personalGoals.confirmDelete": "This goal will be permanently removed.",
+    "personalGoals.completedGoals": "Completed goals",
+    "personalGoals.reactivate": "Reactivate"
   }
 }

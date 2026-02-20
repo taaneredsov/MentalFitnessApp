@@ -15,7 +15,8 @@ export interface NotificationJobRow {
   programId: string | null
   programScheduleId: string | null
   reminderDate: string
-  mode: "session" | "daily_summary"
+  mode: "session" | "daily_summary" | "personal_goal"
+  personalGoalId: string | null
   fireAt: string
   payload: NotificationJobPayload
   dedupeKey: string
@@ -28,7 +29,8 @@ export interface NotificationJobCandidate {
   programId?: string | null
   programScheduleId?: string | null
   reminderDate: string
-  mode: "session" | "daily_summary"
+  mode: "session" | "daily_summary" | "personal_goal"
+  personalGoalId?: string | null
   fireAt: Date
   payload: NotificationJobPayload
   dedupeKey: string
@@ -41,8 +43,9 @@ function mapRow(row: Record<string, unknown>): NotificationJobRow {
     userId: String(row.user_id),
     programId: row.program_id ? String(row.program_id) : null,
     programScheduleId: row.program_schedule_id ? String(row.program_schedule_id) : null,
+    personalGoalId: row.personal_goal_id ? String(row.personal_goal_id) : null,
     reminderDate: String(row.reminder_date),
-    mode: String(row.mode) as "session" | "daily_summary",
+    mode: String(row.mode) as "session" | "daily_summary" | "personal_goal",
     fireAt: String(row.fire_at),
     payload: (row.payload as NotificationJobPayload) || {
       title: "",
@@ -65,6 +68,7 @@ export async function upsertNotificationJobs(jobs: NotificationJobCandidate[]): 
         user_id,
         program_id,
         program_schedule_id,
+        personal_goal_id,
         reminder_date,
         mode,
         fire_at,
@@ -75,13 +79,14 @@ export async function upsertNotificationJobs(jobs: NotificationJobCandidate[]): 
         processed_at,
         updated_at
       ) VALUES (
-        $1, $2, $3, $4, $5, $6, $7::jsonb, $8, $9, $10, $11, NOW()
+        $1, $2, $3, $4, $5, $6, $7, $8::jsonb, $9, $10, $11, $12, NOW()
       )
       ON CONFLICT (dedupe_key)
       DO UPDATE SET
         user_id = EXCLUDED.user_id,
         program_id = EXCLUDED.program_id,
         program_schedule_id = EXCLUDED.program_schedule_id,
+        personal_goal_id = EXCLUDED.personal_goal_id,
         reminder_date = EXCLUDED.reminder_date,
         mode = EXCLUDED.mode,
         fire_at = EXCLUDED.fire_at,
@@ -108,6 +113,7 @@ export async function upsertNotificationJobs(jobs: NotificationJobCandidate[]): 
         job.userId,
         job.programId || null,
         job.programScheduleId || null,
+        job.personalGoalId || null,
         job.reminderDate,
         job.mode,
         job.fireAt.toISOString(),

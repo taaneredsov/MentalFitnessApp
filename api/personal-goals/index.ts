@@ -12,26 +12,38 @@ import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 const PERSONAL_GOALS_BACKEND_ENV = "DATA_BACKEND_PERSONAL_GOALS"
 const MAX_GOALS_PER_USER = 10
 
+const VALID_DAYS = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"] as const
+
 const createGoalSchema = z.object({
   name: z.string().min(1, "Goal name is required").max(200, "Goal name too long"),
-  description: z.string().max(1000, "Description too long").optional()
+  description: z.string().max(1000, "Description too long").optional(),
+  scheduleDays: z.array(z.string()).max(7).optional()
 })
 
 async function handleGetPostgres(req: Request, res: Response, tokenUserId: string) {
-  const { userId } = req.query
+  const { userId, include } = req.query
   const targetUserId = (typeof userId === "string" && userId) ? userId : tokenUserId
 
   if (targetUserId !== tokenUserId) {
     return sendError(res, "Cannot view another user's personal goals", 403)
   }
 
-  const goals = await listPersonalGoalsByUser(targetUserId)
+  const includeCompleted = include === "voltooid"
+  const goals = await listPersonalGoalsByUser(targetUserId, { includeCompleted })
   return sendSuccess(res, goals)
 }
 
 async function handlePostPostgres(req: Request, res: Response, tokenUserId: string) {
   const rawBody = parseBody(req)
   const body = createGoalSchema.parse(rawBody)
+
+  // Validate day names if provided
+  if (body.scheduleDays) {
+    const invalid = body.scheduleDays.filter((d) => !VALID_DAYS.includes(d as typeof VALID_DAYS[number]))
+    if (invalid.length > 0) {
+      return sendError(res, `Invalid schedule days: ${invalid.join(", ")}`, 400)
+    }
+  }
 
   // Check existing goal count
   const existing = await listPersonalGoalsByUser(tokenUserId)
@@ -42,7 +54,8 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
   const goal = await createPersonalGoalInPostgres({
     userId: tokenUserId,
     name: body.name,
-    description: body.description
+    description: body.description,
+    scheduleDays: body.scheduleDays
   })
 
   await enqueueSyncEvent({
@@ -52,7 +65,8 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
     payload: {
       userId: tokenUserId,
       name: body.name,
-      description: body.description || ""
+      description: body.description || "",
+      scheduleDays: body.scheduleDays || null
     },
     priority: 40
   })

@@ -2,10 +2,10 @@ import { useState, useMemo, useCallback, useEffect } from "react"
 import { useNavigate, useLocation } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
 import { useAuth } from "@/contexts/AuthContext"
-import { usePrograms, useProgram, useExtendProgram } from "@/hooks/queries"
+import { usePrograms, useProgram, useExtendProgram, usePersonalGoals, usePersonalGoalUsage, useCompletePersonalGoal } from "@/hooks/queries"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import type { Programmaplanning } from "@/types/program"
+import type { Programmaplanning, PersonalGoal } from "@/types/program"
 import {
   getProgramStatus,
   getSessionProgress,
@@ -19,8 +19,12 @@ import {
   Loader2,
   ChevronRight,
   Sparkles,
-  CheckCircle
+  CheckCircle,
+  Check,
+  Star
 } from "lucide-react"
+import { getTodayDate } from "@/lib/rewards-utils"
+import { POINTS } from "@/types/rewards"
 import { InstallPrompt } from "@/components/InstallPrompt"
 import { AIProgramWizard } from "@/components/AIProgramWizard"
 import { PullToRefreshWrapper } from "@/components/PullToRefresh"
@@ -290,6 +294,34 @@ export function HomePage() {
     }).length
   }, [runningProgram])
 
+  // Personal goals scheduled for the next activity day
+  const DUTCH_DAYS = ["Zondag", "Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag"]
+  const { data: allGoals = [] } = usePersonalGoals()
+  const today = useMemo(() => getTodayDate(), [])
+  const { data: goalCounts = {} } = usePersonalGoalUsage(user?.id, today)
+  const completeGoalMutation = useCompletePersonalGoal()
+  const { accessToken } = useAuth()
+  const [recentlyCompletedGoal, setRecentlyCompletedGoal] = useState<string | null>(null)
+
+  const activityDayGoals = useMemo(() => {
+    if (!nextSession) return []
+    const sessionDate = new Date(nextSession.date)
+    const dayName = DUTCH_DAYS[sessionDate.getDay()]
+    return allGoals.filter((g: PersonalGoal) => g.scheduleDays?.includes(dayName))
+  }, [allGoals, nextSession])
+
+  const completeGoalInActivity = (goalId: string) => {
+    if (!user?.id || !accessToken) return
+    setRecentlyCompletedGoal(goalId)
+    setTimeout(() => setRecentlyCompletedGoal(null), 2000)
+    completeGoalMutation.mutate({
+      data: { userId: user.id, personalGoalId: goalId, date: today },
+      accessToken
+    }, {
+      onError: () => setRecentlyCompletedGoal(null)
+    })
+  }
+
   const handleConfirmExtendProgram = async (weeks: number) => {
     if (!homeProgram) return
     await extendProgramMutation.mutateAsync({ weeks })
@@ -439,6 +471,67 @@ export function HomePage() {
                               <ChevronRight className="h-5 w-5 text-primary-foreground" />
                             </div>
                           )}
+                        </div>
+                      )
+                    })}
+                  </div>
+                )}
+
+                {activityDayGoals.length > 0 && (
+                  <div className="space-y-3">
+                    {activityDayGoals.map((goal: PersonalGoal) => {
+                      const counts = goalCounts[goal.id] || { today: 0, total: 0 }
+                      const isGoalDoneToday = counts.today > 0
+                      return (
+                        <div
+                          key={goal.id}
+                          className={`flex items-center gap-4 p-3 rounded-2xl transition-all duration-200 ${
+                            isGoalDoneToday
+                              ? "bg-primary/10 ring-2 ring-primary/30"
+                              : "bg-muted/50"
+                          }`}
+                        >
+                          <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center">
+                            <Target className="h-6 w-6 text-primary" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className={`font-semibold truncate ${isGoalDoneToday ? "text-primary" : ""}`}>
+                              {goal.name}
+                            </p>
+                            <p className="text-sm text-muted-foreground">
+                              Persoonlijk doel
+                            </p>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            {recentlyCompletedGoal === goal.id && (
+                              <span className="flex items-center gap-0.5 text-xs font-medium text-primary animate-in fade-in zoom-in duration-300">
+                                <Star className="h-3 w-3" />
+                                +{POINTS.personalGoal}
+                              </span>
+                            )}
+                            {isGoalDoneToday ? (
+                              <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
+                                <CheckCircle className="h-5 w-5 text-primary-foreground" />
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => completeGoalInActivity(goal.id)}
+                                disabled={completeGoalMutation.isPending}
+                                className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 relative ${
+                                  recentlyCompletedGoal === goal.id
+                                    ? "bg-[oklch(60%_.12_185)] text-white shadow-sm"
+                                    : "bg-muted text-muted-foreground hover:bg-muted/80"
+                                }`}
+                              >
+                                <Check className="h-5 w-5" />
+                                {recentlyCompletedGoal !== goal.id && (
+                                  <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-primary text-primary-foreground text-[10px] font-bold flex items-center justify-center">
+                                    +
+                                  </span>
+                                )}
+                              </button>
+                            )}
+                          </div>
                         </div>
                       )
                     })}
