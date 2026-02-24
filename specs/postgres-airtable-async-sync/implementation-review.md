@@ -8,9 +8,9 @@
 
 ## Executive Summary
 
-The implementation is **substantially complete** with solid foundational work across schema, sync engine, repositories, and API migration. The core architecture is production-ready for a phased cutover. Key gaps remain in observability, testing, and a few unmigrated endpoints.
+The implementation is **substantially complete** with solid foundational work across schema, sync engine, repositories, and API migration. The core architecture is production-ready and all endpoints have Postgres paths. Remaining gaps are in observability and testing.
 
-**Overall: ~90% complete across all phases.** Cutover to `postgres_primary` completed on 2026-02-20.
+**Overall: ~95% complete across all phases.** Cutover to `postgres_primary` completed on 2026-02-20. Airtable resilience hardening completed on 2026-02-24.
 
 ---
 
@@ -21,9 +21,9 @@ The implementation is **substantially complete** with solid foundational work ac
 | 0 | Design Lock | Done | 100% |
 | 1 | Foundation (deps, docker, env) | Done | 100% |
 | 2 | Schema & Migrations | Done | 100% |
-| 3 | Sync Engine | Done | 90% |
-| 4 | Repository Layer | Done | 95% |
-| 5 | API Migration | Done | 95% |
+| 3 | Sync Engine | Done | 95% |
+| 4 | Repository Layer | Done | 100% |
+| 5 | API Migration | Done | 100% |
 | 6 | Cutover Strategy (feature flags) | Done | 100% |
 | 7 | Testing & Observability | Gaps | 15% |
 | 8 | Post-Cutover Cleanup | Not Started | 0% |
@@ -36,13 +36,14 @@ The implementation is **substantially complete** with solid foundational work ac
 - `pg` v8.18.0 with direct parameterized queries (no ORM overhead)
 - `docker-compose.yml` (production) and `docker-compose.local.yml` with Postgres 16, Redis 7, worker service
 - `.env.example` with all required vars: `DATABASE_URL`, pool config, feature flags, sync config
-- 2 migration files covering all 15 tables + proper indexes
+- Migrations covering all tables + proper indexes (baseline through 013)
 - `api/_lib/db/client.ts` with pool management, `withDbTransaction()`, SSL support
 - `tasks/db-migrate.mjs` migration runner with `schema_migrations` tracking
 
 ### Schema - ALL TABLES PRESENT
 **Operational:** `users_pg`, `programs_pg`, `program_schedule_pg`, `method_usage_pg`, `habit_usage_pg`, `personal_goals_pg`, `personal_goal_usage_pg`, `persoonlijke_overtuigingen_pg`
-**Reference:** `reference_methods_pg`, `reference_goals_pg`, `reference_days_pg`
+**Reference:** `reference_methods_pg`, `reference_goals_pg`, `reference_days_pg`, `reference_companies_pg`, `reference_program_prompts_pg`, `reference_experience_levels_pg`
+**Auth:** `magic_link_codes`
 **Sync:** `airtable_id_map`, `sync_outbox`, `sync_dead_letter`, `sync_checkpoint`, `sync_inbox_events`
 
 ### Sync Engine (Phase 3) - SOLID
@@ -50,21 +51,28 @@ The implementation is **substantially complete** with solid foundational work ac
 - **Worker:** Poll-based with `FOR UPDATE SKIP LOCKED`, exponential backoff (`delay = base * attempt^2`), dead-letter after max retries
 - **Airtable Writers:** Entity-specific upserts for all 6 types with `RetryableSyncError` classification
 - **Inbound - User Fast-Lane:** Webhook handler at `/api/sync/inbound.ts`, dedup via `sync_inbox_events`, read-through fallback for auth
-- **Inbound - Full Sync:** Complete Airtable-to-Postgres backfill for all tables, periodic poll (120s default)
+- **Inbound - Full Sync:** Complete Airtable-to-Postgres backfill for all tables (including companies, program prompts, experience levels), periodic poll (120s default)
 - **ID Mapping:** Bidirectional `airtable_id_map` with helpers
+- **Dead-Letter Auto-Replay:** Worker automatically replays dead-letter events when Airtable recovers, throttled by `DEAD_LETTER_REPLAY_SECONDS` (default 300s)
+- **Safe Outbox Enqueue:** `enqueueSyncEventSafe()` fire-and-forget wrapper — outbox failures don't break user-facing writes
 
-### Repositories (Phase 4) - 7 FILES
+### Repositories (Phase 4) - 9 FILES
 - `api/_lib/repos/program-repo.ts` (comprehensive: CRUD, progress computation, date overlap validation)
 - `api/_lib/repos/user-repo.ts` (extended with bonusPoints/badges/level, incrementUserBonusPoints, getUserRewardsData)
 - `api/_lib/repos/habit-usage-repo.ts`
 - `api/_lib/repos/method-usage-repo.ts`
 - `api/_lib/repos/personal-goal-usage-repo.ts`
 - `api/_lib/repos/overtuiging-usage-repo.ts` (createOvertuigingUsage with ON CONFLICT, find, list by user, list by user+program)
+- `api/_lib/repos/reference-repo.ts` (listAllGoals, listAllDays, listAllMindsetCategories, lookupCompanyNames, lookupGoalsByIds, lookupMethodsByIds, lookupDayNamesByIds, lookupOvertuigingenByIds, listAllProgramPrompts, listAllExperienceLevels)
+- `api/_lib/repos/magic-link-repo.ts` (Postgres-based magic link code storage for auth without Airtable)
 - `api/_lib/repos/streak-utils.ts`
+
+### Shared Helpers
+- `api/_lib/program-generation-data.ts` — `loadProgramGenerationData()` shared by `generate.ts` and `preview.ts`, loads all AI program generation reference data from Postgres
 
 ### Feature Flags (Phase 6) - WORKING
 - `api/_lib/data-backend.ts` with modes: `airtable_only` | `postgres_shadow_read` | `postgres_primary`
-- Per-endpoint flags: `DATA_BACKEND_PROGRAMS`, `DATA_BACKEND_HABIT_USAGE`, `DATA_BACKEND_METHOD_USAGE`, `DATA_BACKEND_PERSONAL_GOAL_USAGE`, `DATA_BACKEND_OVERTUIGING_USAGE`, `DATA_BACKEND_REWARDS`, `DATA_BACKEND_METHODS`, `DATA_BACKEND_PERSONAL_GOALS`, `DATA_BACKEND_OVERTUIGINGEN`, `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN`
+- Per-endpoint flags: `DATA_BACKEND_PROGRAMS`, `DATA_BACKEND_HABIT_USAGE`, `DATA_BACKEND_METHOD_USAGE`, `DATA_BACKEND_PERSONAL_GOAL_USAGE`, `DATA_BACKEND_OVERTUIGING_USAGE`, `DATA_BACKEND_REWARDS`, `DATA_BACKEND_METHODS`, `DATA_BACKEND_PERSONAL_GOALS`, `DATA_BACKEND_OVERTUIGINGEN`, `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN`, `DATA_BACKEND_GOALS`, `DATA_BACKEND_DAYS`, `DATA_BACKEND_MINDSET_CATEGORIES`, `DATA_BACKEND_COMPANIES`
 - Boolean flags: `USER_FAST_LANE_ENABLED`, `USER_READTHROUGH_FALLBACK_ENABLED`, `FULL_AIRTABLE_POLL_SYNC_ENABLED`
 
 ---
@@ -138,9 +146,10 @@ Console.log/console.error only. No JSON structured logging, no correlation IDs, 
 #### 12. Missing Runbooks
 No documented procedures for: sync worker failure, outbox backup, dead-letter replay, SLO violations, emergency rollback.
 
-#### 13. Missing Repositories (Non-Critical)
+#### ~~13. Missing Repositories (Non-Critical)~~ -- RESOLVED
 - No dedicated `personal-goals-repo.ts` (works via full-sync currently)
-- No dedicated `reference-repo.ts` (read-only data, works via full-sync)
+- ~~No dedicated `reference-repo.ts`~~ -- RESOLVED: `reference-repo.ts` created with comprehensive lookup functions for goals, days, mindset categories, companies, methods, overtuigingen, program prompts, and experience levels
+- `magic-link-repo.ts` added for Postgres-based auth magic link codes
 
 #### 14. No Rollback Verification
 Spec requires confirming feature flags can safely revert. No automated test exists for flag toggling.
@@ -168,10 +177,23 @@ Spec requires confirming feature flags can safely revert. No automated test exis
 - `api/programs/[id]/methods` (GET with Postgres routing)
 - `api/persoonlijke-overtuigingen/index.ts` (GET, POST, PATCH, DELETE with Postgres routing via `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN`)
 
+### Migrated (Airtable Resilience Hardening 2026-02-24)
+- `api/goals/index.ts` (GET with Postgres routing via `DATA_BACKEND_GOALS`)
+- `api/days/index.ts` (GET with Postgres routing via `DATA_BACKEND_DAYS`)
+- `api/mindset-categories/index.ts` (GET with Postgres routing via `DATA_BACKEND_MINDSET_CATEGORIES`)
+- `api/companies/lookup.ts` (GET with Postgres routing via `DATA_BACKEND_COMPANIES`)
+- `api/programs/[id].ts` (Postgres detail expansion — resolves linked record names from reference tables)
+- `api/programs/generate.ts` (Postgres reference data via shared `loadProgramGenerationData()`)
+- `api/programs/preview.ts` (Postgres reference data via shared `loadProgramGenerationData()`)
+- `api/programs/confirm.ts` (`handleConfirmPostgres()` Postgres primary path)
+- `api/auth/magic-link.ts` (Postgres magic link codes via `magic_link_codes` table)
+- `api/auth/verify-code.ts` (Postgres code verification)
+- `api/auth/set-password.ts` (Postgres password updates)
+- `api/translations/[lang].ts` (Airtable fallback wrapped in try/catch)
+
 ### Not Migrated (Airtable-only)
-- `api/methods/[id].ts`, `api/methods/habits.ts` (reference data)
-- `api/overtuigingen/by-goals.ts` (reference data)
-- `api/companies/lookup.ts`
+- `api/methods/[id].ts`, `api/methods/habits.ts` (reference data, low-traffic)
+- `api/overtuigingen/by-goals.ts` (reference data, low-traffic)
 
 ---
 
@@ -191,7 +213,7 @@ Spec requires confirming feature flags can safely revert. No automated test exis
 
 ### Post-Cutover (Recommended)
 1. Write integration tests for sync worker (claim, retry, dead-letter)
-2. Write unit tests for all repositories (7 repo files)
+2. Write unit tests for all repositories (9 repo files)
 3. Add basic metrics/observability dashboard (outbox depth, sync lag, dead-letter trends)
 
 ### Done (Completed Items)
@@ -209,6 +231,16 @@ Spec requires confirming feature flags can safely revert. No automated test exis
 - ~~`/api/programs/[id]/methods` Postgres routing~~ -- done (audit remediation 2026-02-20)
 - ~~`/api/persoonlijke-overtuigingen` Postgres routing~~ -- done (audit remediation 2026-02-20, includes `persoonlijke_overtuigingen_pg` table)
 - ~~Personal goals full-sync dedup fix~~ -- done (audit remediation 2026-02-20, `syncPersonalGoalsFromAirtable` checks `findPostgresId` before insert)
+- ~~Reference data endpoints Postgres paths~~ -- done (resilience hardening 2026-02-24: goals, days, mindset categories, companies)
+- ~~Program detail Postgres expansion~~ -- done (resilience hardening 2026-02-24: `programs/[id].ts` resolves all linked names from Postgres)
+- ~~Auth Postgres independence~~ -- done (resilience hardening 2026-02-24: magic link codes in Postgres, auth works without Airtable for existing users)
+- ~~AI program generation Postgres reference data~~ -- done (resilience hardening 2026-02-24: shared `loadProgramGenerationData()` helper, generate + preview + confirm all use Postgres)
+- ~~Dead-letter auto-replay~~ -- done (resilience hardening 2026-02-24: worker replays dead-letter events when Airtable recovers, throttled by `DEAD_LETTER_REPLAY_SECONDS`)
+- ~~`enqueueSyncEventSafe()` fire-and-forget wrapper~~ -- done (resilience hardening 2026-02-24)
+- ~~`reference-repo.ts` with comprehensive lookup functions~~ -- done (resilience hardening 2026-02-24)
+- ~~`magic-link-repo.ts` for auth codes~~ -- done (resilience hardening 2026-02-24)
+- ~~User webhook simplified to shared-secret auth~~ -- done (resilience hardening 2026-02-24: `x-sync-secret` header, endpoint fetches user data server-side)
+- ~~Migrations 011-013~~ -- done (resilience hardening 2026-02-24: companies reference, magic link codes, program prompts + experience levels)
 
 ### Post-Cutover
 6. Implement checkpoint-based incremental sync (replace full polls)

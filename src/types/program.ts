@@ -212,6 +212,7 @@ export interface AIGenerateResponse {
   weeklySessionTime: number
   recommendations: string[]
   programSummary?: string
+  programName?: string
 }
 
 // AI Program Preview (no saving to Airtable)
@@ -228,6 +229,7 @@ export interface AIPreviewResponse {
   weeklySessionTime: number
   recommendations: string[]
   programSummary?: string
+  programName?: string
   availableMethods: Method[]
   selectedGoals: Goal[]
   suggestedOvertuigingen?: Overtuiging[]
@@ -242,6 +244,7 @@ export interface AIConfirmRequest {
   daysOfWeek: string[]
   editedSchedule: AIScheduleDay[]
   programSummary?: string
+  programName?: string
   overtuigingen?: string[]
 }
 

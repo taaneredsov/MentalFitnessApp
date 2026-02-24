@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { X, Plus, Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { StepProps } from "./types"
 
 export function MethodsStep({
@@ -11,6 +12,7 @@ export function MethodsStep({
   onBack,
   isLoading
 }: StepProps) {
+  const { t } = useTranslation()
   const [showAllMethods, setShowAllMethods] = useState(false)
 
   const selectedMethods = methodsData.filter((m) => state.methods.includes(m.id))
@@ -31,8 +33,8 @@ export function MethodsStep({
         <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
         <p className="text-sm text-muted-foreground">
           {state.isPolling
-            ? "Methodes worden gesuggereerd..."
-            : "Laden..."}
+            ? t("wizard.methods.suggestingMethods")
+            : t("common.loading")}
         </p>
       </div>
     )
@@ -43,14 +45,14 @@ export function MethodsStep({
       <div className="flex-1">
         <p className="text-sm text-muted-foreground mb-4">
           {state.methods.length > 0
-            ? "Deze methodes zijn gesuggereerd op basis van je doelen. Je kunt ze aanpassen."
-            : "Selecteer de methodes die je wilt gebruiken."}
+            ? t("wizard.methods.suggestedPrompt")
+            : t("wizard.methods.selectPrompt")}
         </p>
 
         {/* Selected methods */}
         {selectedMethods.length > 0 && (
           <div className="space-y-2 mb-4">
-            <p className="text-sm font-medium">Geselecteerde methodes</p>
+            <p className="text-sm font-medium">{t("wizard.methods.selectedMethods")}</p>
             {selectedMethods.map((method) => (
               <div
                 key={method.id}
@@ -90,20 +92,20 @@ export function MethodsStep({
             className="w-full"
           >
             <Plus className="h-4 w-4 mr-2" />
-            Methode toevoegen
+            {t("schedule.addMethod")}
           </Button>
         ) : (
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <p className="text-sm font-medium">Beschikbare methodes</p>
+              <p className="text-sm font-medium">{t("wizard.methods.availableMethods")}</p>
               <Button variant="ghost" size="sm" onClick={() => setShowAllMethods(false)}>
-                Sluiten
+                {t("wizard.methods.close")}
               </Button>
             </div>
             <div className="max-h-64 overflow-y-auto space-y-2">
               {availableMethods.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
-                  Alle methodes zijn al geselecteerd.
+                  {t("wizard.methods.allSelected")}
                 </p>
               ) : (
                 availableMethods.map((method) => (
@@ -140,10 +142,10 @@ export function MethodsStep({
       <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4 mt-6">
         <div className="flex justify-between border-t pt-4">
           <Button variant="outline" onClick={onBack}>
-            Terug
+            {t("common.back")}
           </Button>
           <Button onClick={onNext}>
-            Volgende
+            {t("common.next")}
           </Button>
         </div>
       </div>

@@ -88,6 +88,10 @@ Airtable Webhook/Poller -> Inbound Sync Handler -> Postgres upsert
 - `reference_methods`
 - `reference_goals`
 - `reference_days`
+- `reference_companies_pg`
+- `reference_program_prompts_pg`
+- `reference_experience_levels_pg`
+- `magic_link_codes`
 
 ### Sync Control Tables
 
@@ -213,6 +217,30 @@ If login/user lookup does not find the user in Postgres:
 9. `api/auth/login.ts`, `api/auth/me.ts`, and user lookup paths
    - Use Postgres as primary source.
    - Add user read-through fallback to Airtable when missing.
+10. `api/goals/index.ts`
+   - Postgres routing added during resilience hardening (2026-02-24).
+11. `api/days/index.ts`
+   - Postgres routing added during resilience hardening (2026-02-24).
+12. `api/mindset-categories/index.ts`
+   - Postgres routing added during resilience hardening (2026-02-24).
+13. `api/companies/lookup.ts`
+   - Postgres routing added during resilience hardening (2026-02-24).
+14. `api/programs/[id].ts`
+   - Postgres detail expansion — resolves linked record names from Postgres reference tables (2026-02-24).
+15. `api/programs/generate.ts`
+   - Postgres reference data via shared `loadProgramGenerationData()` helper (2026-02-24).
+16. `api/programs/preview.ts`
+   - Postgres reference data via shared `loadProgramGenerationData()` helper (2026-02-24).
+17. `api/programs/confirm.ts`
+   - `handleConfirmPostgres()` Postgres primary path (2026-02-24).
+18. `api/auth/magic-link.ts`
+   - Postgres magic link codes via `magic_link_codes` table (2026-02-24).
+19. `api/auth/verify-code.ts`
+   - Postgres code verification (2026-02-24).
+20. `api/auth/set-password.ts`
+   - Postgres password updates (2026-02-24).
+21. `api/translations/[lang].ts`
+   - Already had Postgres-first pattern; Airtable fallback wrapped in try/catch (2026-02-24).
 
 ## Phase 5: Data Migration and Backfill
 
@@ -251,7 +279,7 @@ If login/user lookup does not find the user in Postgres:
 
 Per-endpoint backend flags (values: `airtable_only` | `postgres_shadow_read` | `postgres_primary`):
 
-| Flag | Production Value (as of 2026-02-20) |
+| Flag | Production Value (as of 2026-02-24) |
 |------|-------------------------------------|
 | `DATA_BACKEND_PROGRAMS` | `postgres_primary` |
 | `DATA_BACKEND_HABIT_USAGE` | `postgres_primary` |
@@ -263,6 +291,10 @@ Per-endpoint backend flags (values: `airtable_only` | `postgres_shadow_read` | `
 | `DATA_BACKEND_PERSONAL_GOALS` | `postgres_primary` |
 | `DATA_BACKEND_OVERTUIGINGEN` | `postgres_primary` *(switched from `airtable_only` during audit remediation 2026-02-20)* |
 | `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN` | `postgres_primary` *(added during audit remediation 2026-02-20)* |
+| `DATA_BACKEND_GOALS` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
+| `DATA_BACKEND_DAYS` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
+| `DATA_BACKEND_MINDSET_CATEGORIES` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
+| `DATA_BACKEND_COMPANIES` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
 
 Boolean flags:
 - `USER_FAST_LANE_ENABLED`

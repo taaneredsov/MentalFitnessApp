@@ -3,14 +3,7 @@ import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import {
-  transformGoal,
-  transformMethod,
-  transformDay,
   transformProgram,
-  transformProgramPrompt,
-  transformExperienceLevel,
-  transformOvertuiging,
-  transformMindsetCategory,
   PROGRAM_FIELDS,
   PROGRAMMAPLANNING_FIELDS
 } from "../_lib/field-mappings.js"
@@ -19,11 +12,10 @@ import {
   buildSystemPrompt,
   AI_PROGRAM_SCHEMA,
   type AIProgramResponse,
-  type TrainingDate,
-  type AIMethod,
-  type AIOvertuiging
+  type TrainingDate
 } from "../_lib/openai.js"
 import type { AirtableRecord } from "../_lib/types.js"
+import { loadProgramGenerationData } from "../_lib/program-generation-data.js"
 
 // Day name to JS weekday mapping (0 = Sunday, 1 = Monday, etc.)
 const DAY_NAME_TO_WEEKDAY: Record<string, number> = {
@@ -164,145 +156,28 @@ export default async function handler(req: Request, res: Response) {
       return sendError(res, "daysOfWeek array is required", 400)
     }
 
-    // Fetch goal details
-    const goalRecords = await base(tables.goals)
-      .select({
-        filterByFormula: `OR(${body.goals.map((id: string) => `RECORD_ID() = "${id}"`).join(",")})`,
-        returnFieldsByFieldId: true
-      })
-      .all()
-
-    const goals = goalRecords.map(record => transformGoal(record as AirtableRecord))
-
-    // Fetch all program prompts (both Systeem and Programmaopbouw types)
-    const promptRecords = await base(tables.programPrompts)
-      .select({
-        returnFieldsByFieldId: true
-      })
-      .all()
-
-    // Transform and separate prompts by type
-    const allPrompts = promptRecords.map(record => transformProgramPrompt(record as AirtableRecord))
-
-    // Extract system prompts (Type: Systeem) into a Map keyed by name
-    const systemPromptRecords = allPrompts.filter(p => p.promptType === "Systeem")
-    const systemPrompts = new Map<string, string>()
-    for (const sp of systemPromptRecords) {
-      if (sp.name && sp.prompt) {
-        systemPrompts.set(sp.name, sp.prompt)
-      }
-    }
-
-    // Filter goal-specific prompts (Type: Programmaopbouw or no type for backward compatibility)
-    const programPrompts = allPrompts
-      .filter(p => p.promptType === "Programmaopbouw" || !p.promptType)
-      .filter(prompt => prompt.goals.some((goalId: string) => body.goals.includes(goalId)))
-      .map(prompt => ({
-        goalIds: prompt.goals.filter((goalId: string) => body.goals.includes(goalId)),
-        prompt: prompt.prompt
-      }))
-
-    // Fetch experience levels to map IDs to names
-    const experienceLevelRecords = await base(tables.experienceLevels)
-      .select({
-        returnFieldsByFieldId: true
-      })
-      .all()
-
-    const experienceLevels = experienceLevelRecords.map(record => transformExperienceLevel(record as AirtableRecord))
-    const experienceLevelMap = new Map(experienceLevels.map(el => [el.id, el.name]))
-
-    // Fetch all methods (including optimalFrequency, linkedGoals, experienceLevel)
-    const methodRecords = await base(tables.methods)
-      .select({
-        returnFieldsByFieldId: true
-      })
-      .all()
-
-    const rawMethods = methodRecords.map(record => transformMethod(record as AirtableRecord))
-
-    // Transform methods to AIMethod format with frequency, experience level, and goal relevance
-    const methods: AIMethod[] = rawMethods.map(m => {
-      // Get experience level name from the first linked record (if any)
-      const expLevelId = m.experienceLevelIds?.[0]
-      const experienceLevel = expLevelId ? experienceLevelMap.get(expLevelId) : undefined
-
-      // Check if this method is linked to any of the selected goals
-      const isRecommendedForGoals = m.linkedGoalIds?.some((goalId: string) => body.goals.includes(goalId)) || false
-
-      return {
-        id: m.id,
-        name: m.name,
-        duration: m.duration,
-        description: m.description,
-        optimalFrequency: m.optimalFrequency || [],
-        experienceLevel,
-        isRecommendedForGoals
-      }
+    // Load all reference data (Postgres with Airtable fallback)
+    const data = await loadProgramGenerationData({
+      goalIds: body.goals,
+      dayIds: body.daysOfWeek
     })
 
-    // Fetch selected days
-    const dayRecords = await base(tables.daysOfWeek)
-      .select({
-        filterByFormula: `OR(${body.daysOfWeek.map((id: string) => `RECORD_ID() = "${id}"`).join(",")})`,
-        returnFieldsByFieldId: true
-      })
-      .all()
-
-    const days = dayRecords.map(record => transformDay(record as AirtableRecord))
-
     // Calculate all training dates for the program duration
-    const trainingDates = calculateTrainingDates(body.startDate, body.duration, days)
+    const trainingDates = calculateTrainingDates(body.startDate, body.duration, data.days)
 
     if (trainingDates.length === 0) {
       return sendError(res, "No training dates could be calculated. Check start date and selected days.", 400)
     }
 
-    // Fetch overtuigingen linked to goals (via mindset categories) BEFORE AI call
-    const categoryRecords = await base(tables.mindsetCategories)
-      .select({ returnFieldsByFieldId: true })
-      .all()
-    const categories = categoryRecords.map(r => transformMindsetCategory(r as AirtableRecord))
-
-    const matchingCategories = categories.filter(cat =>
-      cat.goalIds.some((gid: string) => body.goals.includes(gid))
-    )
-
-    const categoryNameMap = new Map(categories.map(c => [c.id, c.name]))
-
-    const overtuigingIds = [...new Set(
-      matchingCategories.flatMap(cat => cat.overtuigingIds as string[])
-    )]
-
-    let allOvertuigingen: Array<{ id: string; name: string; categoryIds: string[]; order: number; levels: string[] }> = []
-    if (overtuigingIds.length > 0) {
-      const formula = `OR(${overtuigingIds.map(id => `RECORD_ID() = "${id}"`).join(",")})`
-      const overtuigingRecords = await base(tables.overtuigingen)
-        .select({ filterByFormula: formula, returnFieldsByFieldId: true })
-        .all()
-
-      allOvertuigingen = overtuigingRecords
-        .map(r => transformOvertuiging(r as AirtableRecord))
-        .filter(o => o.levels.includes("Niveau 1"))
-        .sort((a, b) => (a.order || 0) - (b.order || 0))
-    }
-
-    // Transform to AIOvertuiging format for the prompt
-    const aiOvertuigingen: AIOvertuiging[] = allOvertuigingen.map(o => ({
-      id: o.id,
-      name: o.name,
-      categoryName: (o.categoryIds?.[0] ? categoryNameMap.get(o.categoryIds[0]) : undefined) as string | undefined
-    }))
-
     // Build system prompt with training dates and overtuigingen
     const systemPrompt = buildSystemPrompt({
-      goals,
-      programPrompts,
-      systemPrompts,
-      methods,
+      goals: data.goals,
+      programPrompts: data.programPrompts,
+      systemPrompts: data.systemPrompts,
+      methods: data.methods,
       trainingDates,
       duration: body.duration,
-      overtuigingen: aiOvertuigingen
+      overtuigingen: data.aiOvertuigingen
     })
 
     // Call OpenAI GPT-4o with Structured Outputs
@@ -337,7 +212,7 @@ export default async function handler(req: Request, res: Response) {
     }
 
     // Validate schedule method IDs against actual methods to prevent AI mixing up IDs
-    const validMethodIds = new Set(rawMethods.map(m => m.id))
+    const validMethodIds = new Set(data.rawMethods.map(m => m.id as string))
     for (const day of aiResponse.schedule) {
       day.methods = day.methods.filter(m => {
         if (!validMethodIds.has(m.methodId)) {
@@ -357,7 +232,7 @@ export default async function handler(req: Request, res: Response) {
     }
 
     // Map AI-selected overtuiging IDs for saving
-    const overtuigingMap = new Map(allOvertuigingen.map(o => [o.id, o]))
+    const overtuigingMap = new Map(data.allOvertuigingen.map(o => [o.id, o]))
     const selectedOvertuigingIds = (aiResponse.selectedOvertuigingen || [])
       .filter(sel => overtuigingMap.has(sel.overtuigingId))
       .map(sel => sel.overtuigingId)
@@ -377,7 +252,10 @@ export default async function handler(req: Request, res: Response) {
       programFields[PROGRAM_FIELDS.overtuigingen] = selectedOvertuigingIds
     }
 
-    // Add AI program summary as notes
+    // Store AI name in dedicated field, summary in notes
+    if (aiResponse.programName) {
+      programFields[PROGRAM_FIELDS.name] = aiResponse.programName
+    }
     if (aiResponse.programSummary) {
       programFields[PROGRAM_FIELDS.notes] = aiResponse.programSummary
     }
@@ -397,7 +275,8 @@ export default async function handler(req: Request, res: Response) {
       aiSchedule: aiResponse.schedule,
       weeklySessionTime: aiResponse.weeklySessionTime,
       recommendations: aiResponse.recommendations || [],
-      programSummary: aiResponse.programSummary
+      programSummary: aiResponse.programSummary,
+      programName: aiResponse.programName
     }, 201)
   } catch (error) {
     if (error instanceof AuthError) {

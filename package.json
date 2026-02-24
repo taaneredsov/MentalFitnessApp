@@ -1,7 +1,7 @@
 {
   "name": "mental-fitness-app",
   "private": true,
-  "version": "1.2.5",
+  "version": "1.2.6",
   "description": "Corporate Mental Fitness PWA with Airtable backend",
   "type": "module",
   "scripts": {
@@ -55,6 +55,7 @@
     "react-i18next": "^16.5.4",
     "react-markdown": "^10.1.0",
     "react-router-dom": "^7.12.0",
+    "sonner": "^2.0.7",
     "tailwind-merge": "^3.4.0",
     "web-push": "^3.6.7",
     "zod": "^3.25.76"

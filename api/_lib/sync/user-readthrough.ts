@@ -13,7 +13,12 @@ export async function getUserByEmailWithReadThrough(email: string): Promise<PgUs
 
   if (!FALLBACK_ENABLED()) return null
 
-  return readThroughSyncUserByEmail(email)
+  try {
+    return await readThroughSyncUserByEmail(email)
+  } catch (error) {
+    console.warn("[user-readthrough] Airtable fallback failed for email lookup:", error instanceof Error ? error.message : error)
+    return null
+  }
 }
 
 export async function getUserByIdWithReadThrough(userId: string): Promise<PgUser | null> {
@@ -24,7 +29,12 @@ export async function getUserByIdWithReadThrough(userId: string): Promise<PgUser
 
   if (!FALLBACK_ENABLED()) return null
 
-  return readThroughSyncUserById(userId)
+  try {
+    return await readThroughSyncUserById(userId)
+  } catch (error) {
+    console.warn("[user-readthrough] Airtable fallback failed for ID lookup:", error instanceof Error ? error.message : error)
+    return null
+  }
 }
 
 export function toApiUserPayload(user: PgUser): Record<string, unknown> {

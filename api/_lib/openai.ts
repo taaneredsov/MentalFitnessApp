@@ -56,6 +56,7 @@ export interface AISelectedOvertuiging {
  * Complete response from AI program generation
  */
 export interface AIProgramResponse {
+  programName: string
   schedule: AIScheduleDay[]
   weeklySessionTime: number
   recommendations: string[]
@@ -119,6 +120,7 @@ export const AI_PROGRAM_SCHEMA = {
     schema: {
       type: "object",
       properties: {
+        programName: { type: "string", description: "Creative, inspiring Dutch program name based on the user's goals (max 40 characters)" },
         schedule: {
           type: "array",
           items: {
@@ -167,7 +169,7 @@ export const AI_PROGRAM_SCHEMA = {
           description: "Up to 3 selected overtuigingen matching the user's goals"
         }
       },
-      required: ["schedule", "weeklySessionTime", "recommendations", "programSummary", "selectedOvertuigingen"],
+      required: ["programName", "schedule", "weeklySessionTime", "recommendations", "programSummary", "selectedOvertuigingen"],
       additionalProperties: false
     }
   }
@@ -202,6 +204,7 @@ Houd rekening met de "Frequentie" van elke methode:
   output_formaat: `## Output Formaat:
 Retourneer een JSON object met exact deze structuur:
 {
+  "programName": "Inspirerende Programma Naam",
   "schedule": [
     {
       "date": "2026-01-20",
@@ -220,6 +223,7 @@ Retourneer een JSON object met exact deze structuur:
   ]
 }
 
+- programName: een creatieve, inspirerende naam voor het programma in het Nederlands (maximaal 40 tekens), gebaseerd op de doelstellingen van de gebruiker
 - schedule: MOET een entry hebben voor ELKE trainingsdatum
 - weeklySessionTime: gemiddelde totale tijd per week in minuten
 - recommendations: 3-5 gepersonaliseerde tips in het Nederlands
@@ -325,6 +329,9 @@ Er zijn geen overtuigingen beschikbaar voor de geselecteerde doelstellingen. Gee
 
   return `${introPrompt}
 ${editContextSection}
+## Programma Naam:
+Bedenk een creatieve, inspirerende naam voor dit programma in het Nederlands (maximaal 40 tekens). De naam moet de doelstellingen van de gebruiker weerspiegelen en motiverend zijn. Voorbeelden: "Innerlijke Kracht", "Focus & Balans", "Mentale Veerkracht".
+
 ## Gebruiker's Doelstellingen:
 ${goalDescriptions}
 

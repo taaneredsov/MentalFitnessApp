@@ -2,8 +2,10 @@ import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
+import { findMagicLinkByEmail, markMagicLinkUsed } from "../_lib/repos/magic-link-repo.js"
 import {
   hashCode,
   constantTimeCompare,
@@ -12,6 +14,7 @@ import {
   clearRateLimit,
   randomDelay
 } from "../_lib/security.js"
+import { getUserByIdWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
 
 const schema = z.object({
   email: z.string().email(),
@@ -57,6 +60,71 @@ export default async function handler(req: Request, res: Response) {
       )
     }
 
+    // Postgres-primary path
+    if (isPostgresConfigured()) {
+      const hashedInputCode = hashCode(code)
+
+      const magicLink = await findMagicLinkByEmail(normalizedEmail)
+
+      if (!magicLink) {
+        console.log(`[verify-code] No magic link found for: ${normalizedEmail}`)
+        recordFailedAttempt(normalizedEmail)
+        await randomDelay(200, 400)
+        return sendError(res, "Ongeldige code", 401)
+      }
+
+      // Check expiry
+      if (new Date(magicLink.expiresAt) < new Date()) {
+        console.log(`[verify-code] Code expired for ${normalizedEmail}`)
+        await markMagicLinkUsed(magicLink.id) // Mark expired code as used
+        recordFailedAttempt(normalizedEmail)
+        await randomDelay(200, 400)
+        return sendError(res, "Code is verlopen. Vraag een nieuwe aan.", 401)
+      }
+
+      // Constant-time comparison
+      const codeMatches = magicLink.hashedCode
+        ? constantTimeCompare(hashedInputCode, magicLink.hashedCode)
+        : false
+
+      if (!codeMatches) {
+        console.log(`[verify-code] Invalid code for ${normalizedEmail}`)
+        recordFailedAttempt(normalizedEmail)
+        await randomDelay(200, 400)
+        return sendError(res, "Ongeldige code", 401)
+      }
+
+      // Success
+      clearRateLimit(normalizedEmail)
+      await markMagicLinkUsed(magicLink.id)
+
+      // Get user from Postgres
+      const user = await getUserByIdWithReadThrough(magicLink.userId)
+      if (!user) {
+        return sendError(res, "User not found", 404)
+      }
+
+      const accessToken = await signAccessToken({
+        userId: user.id,
+        email: user.email
+      })
+      const refreshToken = await signRefreshToken({
+        userId: user.id,
+        email: user.email
+      })
+
+      res.setHeader("Set-Cookie", [
+        `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}`
+      ])
+
+      console.log(`[verify-code] User logged in via code: ${normalizedEmail}`)
+      return sendSuccess(res, {
+        user: toApiUserPayload(user),
+        accessToken
+      })
+    }
+
+    // Airtable fallback path
     // Find user by email
     const records = await base(tables.users)
       .select({

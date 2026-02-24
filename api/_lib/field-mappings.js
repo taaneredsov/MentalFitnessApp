@@ -104,6 +104,7 @@ export const COMPANY_FIELDS = {
 export const PROGRAM_FIELDS = {
   id: "fldzeEtEfVRM3qXzp",              // ID (AutoNumber)
   programId: "fldKHAHbREuKbbi1N",       // Programma ID (Formula - display name)
+  name: "fld7SqVd72a02Ss7y",            // Programma naam
   user: "fldDc1mJUjBl2y7Hy",            // Gebruiker (Link)
   startDate: "fldY5UGS0XSd1eUxu",       // Startdatum
   duration: "fld3mrRTtqPX2a1fX",        // Duur van programma
@@ -446,7 +447,7 @@ export function transformProgram(record) {
 
   return {
     id: record.id,
-    name: fields[PROGRAM_FIELDS.programId],  // Programma ID formula field as display name
+    name: fields[PROGRAM_FIELDS.name] || fields[PROGRAM_FIELDS.programId],
     startDate: fields[PROGRAM_FIELDS.startDate],
     endDate: parseEuropeanDate(fields[PROGRAM_FIELDS.endDate]),
     duration: fields[PROGRAM_FIELDS.duration],
@@ -454,7 +455,7 @@ export function transformProgram(record) {
     frequency: fields[PROGRAM_FIELDS.frequency] || 0,
     goals: fields[PROGRAM_FIELDS.goals] || [],
     methods: fields[PROGRAM_FIELDS.methods] || [],
-    notes: fields[PROGRAM_FIELDS.notes],
+    notes: fields[PROGRAM_FIELDS.notes] || "",
     methodUsageCount: (fields[PROGRAM_FIELDS.methodUsage] || []).length,
     milestonesAwarded,
     status: fields[PROGRAM_FIELDS.status] || null,  // Actief/Gepland/Afgewerkt

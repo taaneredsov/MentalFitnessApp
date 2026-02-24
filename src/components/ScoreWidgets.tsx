@@ -1,6 +1,8 @@
+import { useEffect, useRef } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { useUserRewards } from "@/hooks/queries"
-import { Brain, Target, Heart, Loader2 } from "lucide-react"
+import { Brain, Target, Heart, Loader2, AlertTriangle, RotateCcw } from "lucide-react"
+import { toast } from "sonner"
 
 interface ScoreCardProps {
   title: string
@@ -29,6 +31,17 @@ function ScoreCard({ title, score, icon, color }: ScoreCardProps) {
 
 export function ScoreWidgets() {
   const { data: rewards, isLoading } = useUserRewards()
+  const resetToastShown = useRef(false)
+
+  // Show a one-time toast when scores were just reset
+  useEffect(() => {
+    if (rewards?.scoreReset && !resetToastShown.current) {
+      resetToastShown.current = true
+      toast.info("Je scores zijn gereset na 3 maanden inactiviteit. Begin opnieuw!", {
+        duration: 8000
+      })
+    }
+  }, [rewards?.scoreReset])
 
   if (isLoading) {
     return (
@@ -47,25 +60,61 @@ export function ScoreWidgets() {
   if (!rewards) return null
 
   return (
-    <div className="grid grid-cols-3 gap-3">
-      <ScoreCard
-        title="Mental Fitness"
-        score={rewards.mentalFitnessScore}
-        icon={<Brain className="h-5 w-5 text-primary-foreground" />}
-        color="bg-primary"
-      />
-      <ScoreCard
-        title="Pers. Doelen"
-        score={rewards.personalGoalsScore}
-        icon={<Target className="h-5 w-5 text-orange-50" />}
-        color="bg-orange-500"
-      />
-      <ScoreCard
-        title="Gewoontes"
-        score={rewards.goodHabitsScore}
-        icon={<Heart className="h-5 w-5 text-pink-50" />}
-        color="bg-pink-500"
-      />
+    <div className="space-y-3">
+      {/* Inactivity warning banner */}
+      {rewards.inactivityWarning && (
+        <Card className="border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700">
+          <CardContent className="p-3 flex items-start gap-3">
+            <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-800 dark:text-amber-300">
+                Je bent al {rewards.inactivityWarning.daysInactive} dagen inactief
+              </p>
+              <p className="text-amber-700 dark:text-amber-400 mt-0.5">
+                Na {rewards.inactivityWarning.daysUntilReset} dagen worden je scores gereset. Begin vandaag weer!
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Score reset banner */}
+      {rewards.scoreReset && (
+        <Card className="border-blue-300 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-700">
+          <CardContent className="p-3 flex items-start gap-3">
+            <RotateCcw className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-blue-800 dark:text-blue-300">
+                Je scores zijn gereset
+              </p>
+              <p className="text-blue-700 dark:text-blue-400 mt-0.5">
+                Na 3 maanden inactiviteit beginnen je punten opnieuw. Je account blijft actief.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      <div className="grid grid-cols-3 gap-3">
+        <ScoreCard
+          title="Mental Fitness"
+          score={rewards.mentalFitnessScore}
+          icon={<Brain className="h-5 w-5 text-primary-foreground" />}
+          color="bg-primary"
+        />
+        <ScoreCard
+          title="Pers. Doelen"
+          score={rewards.personalGoalsScore}
+          icon={<Target className="h-5 w-5 text-orange-50" />}
+          color="bg-orange-500"
+        />
+        <ScoreCard
+          title="Gewoontes"
+          score={rewards.goodHabitsScore}
+          icon={<Heart className="h-5 w-5 text-pink-50" />}
+          color="bg-pink-500"
+        />
+      </div>
     </div>
   )
 }

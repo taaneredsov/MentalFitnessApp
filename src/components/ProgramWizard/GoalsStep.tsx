@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button"
 import { Check, Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { StepProps } from "./types"
 
 export function GoalsStep({ state, updateState, goalsData, onNext, onBack, isLoading }: StepProps) {
+  const { t } = useTranslation()
+
   const toggleGoal = (goalId: string) => {
     const newGoals = state.goals.includes(goalId)
       ? state.goals.filter((id) => id !== goalId)
@@ -22,12 +25,12 @@ export function GoalsStep({ state, updateState, goalsData, onNext, onBack, isLoa
     <div className="flex flex-col h-full">
       <div className="flex-1">
         <p className="text-sm text-muted-foreground mb-4">
-          Selecteer de doelen die je wilt bereiken met dit programma. (Optioneel)
+          {t("wizard.goals.selectPrompt")}
         </p>
 
         {goalsData.length === 0 ? (
           <p className="text-sm text-muted-foreground italic">
-            Geen doelen beschikbaar.
+            {t("wizard.noGoals")}
           </p>
         ) : (
           <div className="space-y-2">
@@ -73,16 +76,16 @@ export function GoalsStep({ state, updateState, goalsData, onNext, onBack, isLoa
       <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4 mt-6">
         <div className="flex justify-between border-t pt-4">
           <Button variant="outline" onClick={onBack} disabled={state.isSaving}>
-            Terug
+            {t("common.back")}
           </Button>
           <Button onClick={onNext} disabled={state.isSaving}>
             {state.isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Bezig...
+                {t("common.loading")}
               </>
             ) : (
-              "Volgende"
+              t("common.next")
             )}
           </Button>
         </div>

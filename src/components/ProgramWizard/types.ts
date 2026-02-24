@@ -26,19 +26,19 @@ export interface StepProps {
 }
 
 export const DURATION_OPTIONS = [
-  { value: "1 week", label: "1 week" },
-  { value: "2 weken", label: "2 weken" },
-  { value: "3 weken", label: "3 weken" },
-  { value: "4 weken", label: "4 weken" },
-  { value: "6 weken", label: "6 weken" },
-  { value: "8 weken", label: "8 weken" }
+  { value: "1 week", labelKey: "duration.1week" },
+  { value: "2 weken", labelKey: "duration.2weeks" },
+  { value: "3 weken", labelKey: "duration.3weeks" },
+  { value: "4 weken", labelKey: "duration.4weeks" },
+  { value: "6 weken", labelKey: "duration.6weeks" },
+  { value: "8 weken", labelKey: "duration.8weeks" }
 ]
 
 export const STEPS = [
-  { title: "Basis", description: "Startdatum en duur" },
-  { title: "Doelen", description: "Wat wil je bereiken?" },
-  { title: "Mindset", description: "Kies overtuigingen" },
-  { title: "Schema", description: "Wanneer train je?" },
-  { title: "Methodes", description: "Jouw oefeningen" },
-  { title: "Bevestig", description: "Overzicht" }
+  { titleKey: "wizard.step.basis.title", descriptionKey: "wizard.step.basis.description" },
+  { titleKey: "wizard.step.doelen.title", descriptionKey: "wizard.step.doelen.description" },
+  { titleKey: "wizard.step.mindset.title", descriptionKey: "wizard.step.mindset.description" },
+  { titleKey: "wizard.step.schema.title", descriptionKey: "wizard.step.schema.description" },
+  { titleKey: "wizard.step.methodes.title", descriptionKey: "wizard.step.methodes.description" },
+  { titleKey: "wizard.step.confirm.title", descriptionKey: "wizard.step.confirm.description" }
 ]

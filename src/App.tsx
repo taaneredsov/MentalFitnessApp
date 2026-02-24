@@ -1,4 +1,5 @@
 import { Routes, Route, useSearchParams } from "react-router-dom"
+import { Toaster } from "sonner"
 import { ProtectedRoute } from "@/components/ProtectedRoute"
 import { AppLayout } from "@/components/AppLayout"
 import { DebugPanel } from "@/components/DebugPanel"
@@ -29,6 +30,7 @@ function App() {
 
   return (
     <>
+      <Toaster position="bottom-center" richColors />
       <PWAUpdatePrompt />
       {isDebugMode && <DebugPanel />}
       <Routes>

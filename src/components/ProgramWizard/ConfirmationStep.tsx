@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Calendar, Clock, Target, Lightbulb, CheckCircle2, Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useOvertuigingen } from "@/hooks/queries"
 import type { StepProps } from "./types"
 
@@ -27,6 +28,7 @@ export function ConfirmationStep({
   onBack,
   onSave
 }: ConfirmationStepProps) {
+  const { t } = useTranslation()
   const selectedGoals = goalsData.filter((g) => state.goals.includes(g.id))
   const selectedDays = daysData.filter((d) => state.daysOfWeek.includes(d.id))
   const selectedMethods = methodsData.filter((m) => state.methods.includes(m.id))
@@ -43,7 +45,7 @@ export function ConfirmationStep({
     <div className="flex flex-col h-full">
       <div className="flex-1">
         <p className="text-sm text-muted-foreground mb-4">
-          Controleer je programma voordat je het opslaat.
+          {t("wizard.confirm.reviewPrompt")}
         </p>
 
         {/* Basic Info */}
@@ -51,14 +53,14 @@ export function ConfirmationStep({
           <div className="flex items-center gap-3">
             <Calendar className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm text-muted-foreground">Start</p>
+              <p className="text-sm text-muted-foreground">{t("wizard.confirm.start")}</p>
               <p className="font-medium">{formatDate(state.startDate)}</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <Clock className="h-5 w-5 text-muted-foreground" />
             <div>
-              <p className="text-sm text-muted-foreground">Duur</p>
+              <p className="text-sm text-muted-foreground">{t("wizard.confirm.duration")}</p>
               <p className="font-medium">{state.duration}</p>
             </div>
           </div>
@@ -69,7 +71,7 @@ export function ConfirmationStep({
           <div className="space-y-2 mb-4">
             <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-muted-foreground" />
-              <p className="text-sm font-medium">Doelen</p>
+              <p className="text-sm font-medium">{t("wizard.confirm.goals")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {selectedGoals.map((goal) => (
@@ -89,7 +91,7 @@ export function ConfirmationStep({
           <div className="space-y-2 mb-4">
             <div className="flex items-center gap-2">
               <Lightbulb className="h-4 w-4 text-amber-500" />
-              <p className="text-sm font-medium">Overtuigingen</p>
+              <p className="text-sm font-medium">{t("overtuigingen.title")}</p>
             </div>
             <div className="flex flex-wrap gap-2">
               {selectedOvertuigingen.map((o) => (
@@ -106,7 +108,7 @@ export function ConfirmationStep({
 
         {/* Schedule */}
         <div className="space-y-2 mb-4">
-          <p className="text-sm font-medium">Schema</p>
+          <p className="text-sm font-medium">{t("wizard.confirm.schedule")}</p>
           <div className="flex flex-wrap gap-2">
             {sortedDays.map((day) => (
               <span
@@ -122,7 +124,7 @@ export function ConfirmationStep({
         {/* Methods */}
         {selectedMethods.length > 0 && (
           <div className="space-y-2 mb-4">
-            <p className="text-sm font-medium">Methodes ({selectedMethods.length})</p>
+            <p className="text-sm font-medium">{t("wizard.confirm.methods", { count: selectedMethods.length })}</p>
             <ul className="space-y-1">
               {selectedMethods.map((method) => (
                 <li key={method.id} className="flex items-center gap-2 text-sm">
@@ -136,12 +138,12 @@ export function ConfirmationStep({
 
         {/* Notes */}
         <div className="space-y-2">
-          <Label htmlFor="notes">Notities (optioneel)</Label>
+          <Label htmlFor="notes">{t("wizard.confirm.notes")}</Label>
           <Textarea
             id="notes"
             value={state.notes}
             onChange={(e) => updateState({ notes: e.target.value })}
-            placeholder="Voeg eventuele notities toe..."
+            placeholder={t("wizard.confirm.notesPlaceholder")}
             rows={3}
             className="bg-background"
           />
@@ -152,16 +154,16 @@ export function ConfirmationStep({
       <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4 mt-6">
         <div className="flex justify-between border-t pt-4">
           <Button variant="outline" onClick={onBack} disabled={state.isSaving}>
-            Terug
+            {t("common.back")}
           </Button>
           <Button onClick={onSave} disabled={state.isSaving}>
             {state.isSaving ? (
               <>
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                Opslaan...
+                {t("wizard.result.saving")}
               </>
             ) : (
-              "Programma Aanmaken"
+              t("wizard.confirm.createProgram")
             )}
           </Button>
         </div>

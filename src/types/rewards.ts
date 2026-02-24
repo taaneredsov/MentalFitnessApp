@@ -12,6 +12,10 @@ export interface UserRewards {
   mentalFitnessScore: number
   personalGoalsScore: number
   goodHabitsScore: number
+  // Inactivity detection (75-89 days inactive)
+  inactivityWarning?: { daysInactive: number; daysUntilReset: number }
+  // Score was reset due to 90+ days inactivity
+  scoreReset?: boolean
 }
 
 /**

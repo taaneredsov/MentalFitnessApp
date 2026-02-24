@@ -2,8 +2,10 @@ import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
 import { sendMagicLinkEmail } from "../_lib/email.js"
 import { USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
+import { storeMagicLinkCode, getMagicLinkExpiry } from "../_lib/repos/magic-link-repo.js"
 import {
   generateSecureToken,
   generateSecureCode,
@@ -11,6 +13,7 @@ import {
   hashCode,
   randomDelay
 } from "../_lib/security.js"
+import { getUserByEmailWithReadThrough } from "../_lib/sync/user-readthrough.js"
 
 const schema = z.object({
   email: z.string().email()
@@ -28,6 +31,66 @@ export default async function handler(req: Request, res: Response) {
   try {
     const { email } = schema.parse(parseBody(req))
 
+    // Postgres-primary path: store codes in Postgres, not Airtable
+    if (isPostgresConfigured()) {
+      const user = await getUserByEmailWithReadThrough(email)
+
+      if (!user) {
+        console.log(`[magic-link] Email not found: ${email}`)
+        await randomDelay(200, 500)
+        return sendSuccess(res, {
+          message: "Als dit email adres bij ons bekend is, ontvang je een login link"
+        })
+      }
+
+      // Rate limiting: check recent code
+      const existingExpiry = await getMagicLinkExpiry(email)
+      if (existingExpiry) {
+        const expiryDate = new Date(existingExpiry)
+        const now = new Date()
+        const tokenAge = now.getTime() - (expiryDate.getTime() - 15 * 60 * 1000)
+        if (tokenAge < 2 * 60 * 1000) {
+          console.log(`[magic-link] Rate limited: ${email}`)
+          return sendSuccess(res, {
+            message: "Als dit email adres bij ons bekend is, ontvang je een login link"
+          })
+        }
+      }
+
+      const token = generateSecureToken(32)
+      const code = generateSecureCode()
+      const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString()
+      const hashedToken = hashToken(token)
+      const hashedCode = hashCode(code)
+
+      await storeMagicLinkCode({
+        userId: user.id,
+        email,
+        hashedToken,
+        hashedCode,
+        expiresAt: expiry
+      })
+
+      const baseUrl = process.env.APP_URL || (process.env.NODE_ENV === "production" ? undefined : `http://localhost:${process.env.PORT || 3000}`)
+      if (!baseUrl) {
+        console.error("APP_URL environment variable is required in production")
+        return sendError(res, "Server configuration error", 500)
+      }
+      const magicLink = `${baseUrl}/auth/verify?token=${token}`
+
+      const emailResult = await sendMagicLinkEmail(email, magicLink, code)
+      if (!emailResult.success) {
+        console.error(`[magic-link] Failed to send email to ${email}:`, emailResult.error)
+      } else {
+        console.log(`[magic-link] Email sent to ${email}`)
+      }
+
+      return sendSuccess(res, {
+        message: "Als dit email adres bij ons bekend is, ontvang je een login link"
+      })
+    }
+
+    // Airtable fallback path
     // Find user by email
     const records = await base(tables.users)
       .select({

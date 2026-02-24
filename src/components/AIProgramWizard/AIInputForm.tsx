@@ -3,6 +3,7 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Check, Loader2, Sparkles, AlertTriangle } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { DURATION_OPTIONS, DAY_ORDER, AI_WIZARD_STEPS, type AIInputFormProps } from "./types"
 
 /**
@@ -34,6 +35,7 @@ export function AIInputForm({
   onGenerate,
   onCancel
 }: AIInputFormProps) {
+  const { t } = useTranslation()
   const today = new Date().toISOString().split("T")[0]
 
   const toggleGoal = (goalId: string) => {
@@ -90,7 +92,7 @@ export function AIInputForm({
         if (dateRangesOverlap(state.startDate, newEndDate, program.startDate, program.endDate)) {
           return {
             hasOverlap: true,
-            programName: program.name || "Naamloos programma",
+            programName: program.name || t("wizard.unnamed"),
             programStartDate: program.startDate,
             programEndDate: program.endDate,
             programStatus: program.status
@@ -100,7 +102,7 @@ export function AIInputForm({
     }
 
     return { hasOverlap: false, programName: null, programStartDate: null, programEndDate: null, programStatus: null }
-  }, [state.startDate, state.duration, existingPrograms])
+  }, [state.startDate, state.duration, existingPrograms, t])
 
   // Validation per step
   const canProceedStep0 = state.goals.length > 0
@@ -150,9 +152,9 @@ export function AIInputForm({
 
         {/* Step title */}
         <div className="text-center">
-          <h3 className="text-lg font-semibold">{AI_WIZARD_STEPS[state.step].title}</h3>
+          <h3 className="text-lg font-semibold">{t(AI_WIZARD_STEPS[state.step].titleKey)}</h3>
           <p className="text-sm text-muted-foreground">
-            {AI_WIZARD_STEPS[state.step].description}
+            {t(AI_WIZARD_STEPS[state.step].descriptionKey)}
           </p>
         </div>
       </div>
@@ -164,7 +166,7 @@ export function AIInputForm({
           <div className="space-y-2 pb-2">
             {goalsData.length === 0 ? (
               <p className="text-sm text-muted-foreground italic">
-                Geen doelen beschikbaar.
+                {t("wizard.noGoals")}
               </p>
             ) : (
               <>
@@ -213,7 +215,7 @@ export function AIInputForm({
         {state.step === 1 && (
           <div className="space-y-6 pb-2">
             <div className="space-y-2">
-              <Label htmlFor="startDate">Startdatum</Label>
+              <Label htmlFor="startDate">{t("schedule.startDate")}</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -224,17 +226,17 @@ export function AIInputForm({
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="duration">Duur van programma</Label>
+              <Label htmlFor="duration">{t("schedule.programDuration")}</Label>
               <select
                 id="duration"
                 value={state.duration}
                 onChange={(e) => updateState({ duration: e.target.value })}
                 className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-base shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
               >
-                <option value="">Selecteer duur...</option>
+                <option value="">{t("schedule.selectDuration")}</option>
                 {DURATION_OPTIONS.map((opt) => (
                   <option key={opt.value} value={opt.value}>
-                    {opt.label}
+                    {t(opt.labelKey)}
                   </option>
                 ))}
               </select>
@@ -247,15 +249,22 @@ export function AIInputForm({
                   <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5 shrink-0" />
                   <div className="text-sm text-red-800 dark:text-red-200 space-y-1">
                     <p className="font-medium">
-                      Conflicterend programma gevonden
+                      {t("wizard.overlapWarning.title")}
                     </p>
-                    <p>
-                      Je hebt al een {overlapCheck.programStatus?.toLowerCase()} programma "<strong>{overlapCheck.programName}</strong>" van{" "}
-                      <strong>{formatDate(overlapCheck.programStartDate!)}</strong> t/m{" "}
-                      <strong>{formatDate(overlapCheck.programEndDate!)}</strong>.
-                    </p>
+                    <p
+                      dangerouslySetInnerHTML={{
+                        __html: t("wizard.overlapWarning.existing", {
+                          status: overlapCheck.programStatus?.toLowerCase(),
+                          name: overlapCheck.programName,
+                          startDate: formatDate(overlapCheck.programStartDate!),
+                          endDate: formatDate(overlapCheck.programEndDate!)
+                        })
+                      }}
+                    />
                     <p className="text-red-600 dark:text-red-400">
-                      Kies een startdatum na {formatDate(overlapCheck.programEndDate!)} of verkort de duur.
+                      {t("wizard.overlapWarning.suggestion", {
+                        endDate: formatDate(overlapCheck.programEndDate!)
+                      })}
                     </p>
                   </div>
                 </div>
@@ -290,8 +299,8 @@ export function AIInputForm({
 
             <p className="text-sm text-muted-foreground text-center">
               {state.daysOfWeek.length === 0
-                ? "Selecteer minimaal 1 dag"
-                : `${state.daysOfWeek.length} dag${state.daysOfWeek.length !== 1 ? "en" : ""} per week geselecteerd`}
+                ? t("schedule.selectMinDays")
+                : t("schedule.daysSelected", { count: state.daysOfWeek.length })}
             </p>
           </div>
         )}
@@ -305,31 +314,31 @@ export function AIInputForm({
         {state.step === 0 && (
           <div className="flex gap-3">
             <Button variant="outline" onClick={goBack} className="flex-1">
-              Annuleren
+              {t("common.cancel")}
             </Button>
             <Button onClick={goNext} disabled={!canProceedStep0} className="flex-1">
-              Volgende
+              {t("common.next")}
             </Button>
           </div>
         )}
         {state.step === 1 && (
           <div className="flex gap-3">
             <Button variant="outline" onClick={goBack} className="flex-1">
-              Terug
+              {t("common.back")}
             </Button>
             <Button onClick={goNext} disabled={!canProceedStep1} className="flex-1">
-              Volgende
+              {t("common.next")}
             </Button>
           </div>
         )}
         {state.step === 2 && (
           <div className="flex gap-3">
             <Button variant="outline" onClick={goBack}>
-              Terug
+              {t("common.back")}
             </Button>
             <Button onClick={onGenerate} disabled={!canProceedStep2} className="flex-1">
               <Sparkles className="mr-2 h-4 w-4" />
-              Maak mijn programmavoorstel
+              {t("wizard.generateProgram")}
             </Button>
           </div>
         )}

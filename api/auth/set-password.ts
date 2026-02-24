@@ -2,10 +2,11 @@ import type { Request, Response } from "express"
 import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
+import { dbQuery, isPostgresConfigured } from "../_lib/db/client.js"
 import { hashPassword } from "../_lib/password.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
-import { isPostgresConfigured } from "../_lib/db/client.js"
+import { findMagicLinkByEmail, markMagicLinkUsed } from "../_lib/repos/magic-link-repo.js"
 import { upsertUserFromAirtable } from "../_lib/repos/user-repo.js"
 import {
   hashCode,
@@ -14,6 +15,8 @@ import {
   recordFailedAttempt,
   clearRateLimit
 } from "../_lib/security.js"
+import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
+import { getUserByIdWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
 import type { AirtableRecord } from "../_lib/types.js"
 
 const setPasswordSchema = z.object({
@@ -41,6 +44,83 @@ export default async function handler(req: Request, res: Response) {
       return sendError(res, "Te veel pogingen. Probeer het later opnieuw.", 429)
     }
 
+    // Postgres-primary path
+    if (isPostgresConfigured()) {
+      const magicLink = await findMagicLinkByEmail(email)
+
+      if (!magicLink) {
+        recordFailedAttempt(email)
+        return sendError(res, "Ongeldige code", 401)
+      }
+
+      // Check expiry
+      if (new Date(magicLink.expiresAt) < new Date()) {
+        recordFailedAttempt(email)
+        return sendError(res, "Code is verlopen. Probeer opnieuw in te loggen.", 401)
+      }
+
+      const hashedInputCode = hashCode(code)
+      const codeMatches = magicLink.hashedCode
+        ? constantTimeCompare(hashedInputCode, magicLink.hashedCode)
+        : false
+
+      if (!codeMatches) {
+        recordFailedAttempt(email)
+        return sendError(res, "Ongeldige code", 401)
+      }
+
+      clearRateLimit(email)
+
+      // Get user from Postgres
+      const user = await getUserByIdWithReadThrough(magicLink.userId)
+      if (!user) {
+        return sendError(res, "User not found", 404)
+      }
+
+      // Check if password already set
+      if (user.passwordHash) {
+        return sendError(res, "Password already set. Use change password instead.", 400)
+      }
+
+      // Hash and store password in Postgres
+      const passwordHash = await hashPassword(password)
+      await dbQuery(
+        `UPDATE users_pg SET password_hash = $1, last_login = $2, updated_at = NOW() WHERE id = $3`,
+        [passwordHash, new Date().toISOString().split("T")[0], user.id]
+      )
+
+      await markMagicLinkUsed(magicLink.id)
+
+      // Also sync to Airtable via outbox (fire-and-forget)
+      try {
+        await enqueueSyncEvent({
+          eventType: "upsert",
+          entityType: "user",
+          entityId: user.id,
+          payload: {
+            passwordHash,
+            lastLogin: new Date().toISOString().split("T")[0]
+          },
+          priority: 10
+        })
+      } catch (e) {
+        console.warn("[set-password] Failed to enqueue Airtable sync:", e)
+      }
+
+      const accessToken = await signAccessToken({ userId: user.id, email })
+      const refreshToken = await signRefreshToken({ userId: user.id, email })
+
+      res.setHeader("Set-Cookie", [
+        `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}`
+      ])
+
+      return sendSuccess(res, {
+        user: toApiUserPayload(user),
+        accessToken
+      })
+    }
+
+    // Airtable fallback path
     // Find user by email
     const records = await base(tables.users)
       .select({

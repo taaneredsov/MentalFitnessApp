@@ -2,9 +2,11 @@ import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { DURATION_OPTIONS, type StepProps } from "./types"
 
 export function BasicInfoStep({ state, updateState, onNext }: StepProps) {
+  const { t } = useTranslation()
   const today = new Date().toISOString().split("T")[0]
   const canProceed = state.startDate && state.duration && !state.isSaving
 
@@ -12,7 +14,7 @@ export function BasicInfoStep({ state, updateState, onNext }: StepProps) {
     <div className="flex flex-col h-full">
       <div className="flex-1 space-y-6">
         <div className="space-y-2">
-          <Label htmlFor="startDate">Startdatum</Label>
+          <Label htmlFor="startDate">{t("schedule.startDate")}</Label>
           <Input
             id="startDate"
             type="date"
@@ -25,7 +27,7 @@ export function BasicInfoStep({ state, updateState, onNext }: StepProps) {
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="duration">Duur van programma</Label>
+          <Label htmlFor="duration">{t("schedule.programDuration")}</Label>
           <select
             id="duration"
             value={state.duration}
@@ -33,10 +35,10 @@ export function BasicInfoStep({ state, updateState, onNext }: StepProps) {
             disabled={state.isSaving}
             className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-base shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50"
           >
-            <option value="">Selecteer duur...</option>
+            <option value="">{t("schedule.selectDuration")}</option>
             {DURATION_OPTIONS.map((opt) => (
               <option key={opt.value} value={opt.value}>
-                {opt.label}
+                {t(opt.labelKey)}
               </option>
             ))}
           </select>
@@ -50,10 +52,10 @@ export function BasicInfoStep({ state, updateState, onNext }: StepProps) {
             {state.isSaving ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Bezig...
+                {t("common.loading")}
               </>
             ) : (
-              "Volgende"
+              t("common.next")
             )}
           </Button>
         </div>

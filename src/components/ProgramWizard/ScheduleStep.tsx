@@ -1,11 +1,14 @@
 import { Button } from "@/components/ui/button"
 import { Check, Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { StepProps } from "./types"
 
 // Order days correctly (Monday first)
 const DAY_ORDER = ["Maandag", "Dinsdag", "Woensdag", "Donderdag", "Vrijdag", "Zaterdag", "Zondag"]
 
 export function ScheduleStep({ state, updateState, daysData, onNext, onBack, isLoading }: StepProps) {
+  const { t } = useTranslation()
+
   const toggleDay = (dayId: string) => {
     const newDays = state.daysOfWeek.includes(dayId)
       ? state.daysOfWeek.filter((id) => id !== dayId)
@@ -32,7 +35,7 @@ export function ScheduleStep({ state, updateState, daysData, onNext, onBack, isL
     <div className="flex flex-col h-full">
       <div className="flex-1">
         <p className="text-sm text-muted-foreground mb-4">
-          Selecteer de dagen waarop je wilt trainen.
+          {t("schedule.selectDays")}
         </p>
 
         <div className="grid grid-cols-2 gap-2">
@@ -67,7 +70,7 @@ export function ScheduleStep({ state, updateState, daysData, onNext, onBack, isL
 
         {state.daysOfWeek.length > 0 && (
           <p className="text-sm text-muted-foreground mt-4">
-            {state.daysOfWeek.length} dag{state.daysOfWeek.length !== 1 ? "en" : ""} per week geselecteerd
+            {t("schedule.daysSelected", { count: state.daysOfWeek.length })}
           </p>
         )}
       </div>
@@ -76,10 +79,10 @@ export function ScheduleStep({ state, updateState, daysData, onNext, onBack, isL
       <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4 mt-6">
         <div className="flex justify-between border-t pt-4">
           <Button variant="outline" onClick={onBack}>
-            Terug
+            {t("common.back")}
           </Button>
           <Button onClick={onNext} disabled={!canProceed}>
-            Volgende
+            {t("common.next")}
           </Button>
         </div>
       </div>

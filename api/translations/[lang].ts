@@ -108,7 +108,11 @@ export default async function handler(req: Request, res: Response) {
     }
 
     if (rows.length === 0) {
-      rows = await loadTranslationsFromAirtable(lang)
+      try {
+        rows = await loadTranslationsFromAirtable(lang)
+      } catch (error) {
+        console.warn("[translations] Airtable read also failed:", error instanceof Error ? error.message : error)
+      }
     }
 
     const payload = mapRows(rows)

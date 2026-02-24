@@ -20,6 +20,7 @@ interface FullSyncCounts {
   referenceMethods: number
   referenceGoals: number
   referenceDays: number
+  referenceCompanies: number
   translations: number
   personalGoals: number
   persoonlijkeOvertuigingen: number
@@ -31,11 +32,13 @@ interface FullSyncCounts {
   overtuigingUsage: number
   referenceOvertuigingen: number
   referenceMindsetCategories: number
+  referenceProgramPrompts: number
+  referenceExperienceLevels: number
 }
 
 async function syncReferenceTable(
   tableId: string,
-  targetTable: "reference_methods_pg" | "reference_goals_pg" | "reference_days_pg" | "reference_overtuigingen_pg" | "reference_mindset_categories_pg"
+  targetTable: "reference_methods_pg" | "reference_goals_pg" | "reference_days_pg" | "reference_overtuigingen_pg" | "reference_mindset_categories_pg" | "reference_companies_pg" | "reference_program_prompts_pg" | "reference_experience_levels_pg"
 ): Promise<number> {
   const records = await base(tableId).select({ returnFieldsByFieldId: true }).all()
   let count = 0
@@ -56,15 +59,21 @@ export async function syncReferenceDataFromAirtable(): Promise<{
   methods: number
   goals: number
   days: number
+  companies: number
   overtuigingen: number
   mindsetCategories: number
+  programPrompts: number
+  experienceLevels: number
 }> {
   const methods = await syncReferenceTable(tables.methods, "reference_methods_pg")
   const goals = await syncReferenceTable(tables.goals, "reference_goals_pg")
   const days = await syncReferenceTable(tables.daysOfWeek, "reference_days_pg")
+  const companies = await syncReferenceTable(tables.companies, "reference_companies_pg")
   const overtuigingen = await syncReferenceTable(tables.overtuigingen, "reference_overtuigingen_pg")
   const mindsetCategories = await syncReferenceTable(tables.mindsetCategories, "reference_mindset_categories_pg")
-  return { methods, goals, days, overtuigingen, mindsetCategories }
+  const programPrompts = await syncReferenceTable(tables.programPrompts, "reference_program_prompts_pg")
+  const experienceLevels = await syncReferenceTable(tables.experienceLevels, "reference_experience_levels_pg")
+  return { methods, goals, days, companies, overtuigingen, mindsetCategories, programPrompts, experienceLevels }
 }
 
 export async function syncTranslationsFromAirtable(): Promise<number> {
@@ -151,14 +160,23 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
 
     const status = String(record.fields[PERSONAL_GOAL_FIELDS.status] || "Actief")
 
-    // Check if this Airtable record was originally created from a Postgres goal (UUID-based).
-    // If so, use the original Postgres ID to avoid creating a duplicate row.
-    const existingPostgresId = await findPostgresId("personal_goal", record.id)
+    // Direct lookup via airtable_record_id column (preferred, avoids airtable_id_map indirection)
+    const directLookup = await dbQuery<{ id: string }>(
+      `SELECT id FROM personal_goals_pg WHERE airtable_record_id = $1 LIMIT 1`,
+      [record.id]
+    )
+    let existingPostgresId = directLookup.rows[0]?.id || null
+
+    // Fallback to airtable_id_map if the direct column hasn't been backfilled yet
+    if (!existingPostgresId) {
+      existingPostgresId = await findPostgresId("personal_goal", record.id)
+    }
+
     const insertId = existingPostgresId || record.id
 
     await dbQuery(
-      `INSERT INTO personal_goals_pg (id, user_id, name, description, active, schedule_days, status, updated_at)
-       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, NOW())
+      `INSERT INTO personal_goals_pg (id, user_id, name, description, active, schedule_days, status, airtable_record_id, updated_at)
+       VALUES ($1, $2, $3, $4, $5, $6::jsonb, $7, $8, NOW())
        ON CONFLICT (id)
        DO UPDATE SET
          user_id = EXCLUDED.user_id,
@@ -167,6 +185,7 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
          active = EXCLUDED.active,
          schedule_days = EXCLUDED.schedule_days,
          status = EXCLUDED.status,
+         airtable_record_id = EXCLUDED.airtable_record_id,
          updated_at = NOW()`,
       [
         insertId,
@@ -175,7 +194,8 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
         record.fields[PERSONAL_GOAL_FIELDS.description] ? String(record.fields[PERSONAL_GOAL_FIELDS.description]) : null,
         status !== "Gearchiveerd" && status !== "Verwijderd",
         scheduleDays ? JSON.stringify(scheduleDays) : null,
-        status
+        status,
+        record.id
       ]
     )
 
@@ -286,7 +306,7 @@ export async function syncProgramsFromAirtable(): Promise<number> {
       [
         userId,
         record.id,
-        String(record.fields[PROGRAM_FIELDS.programId] || ""),
+        String(record.fields[PROGRAM_FIELDS.name] || record.fields[PROGRAM_FIELDS.programId] || ""),
         record.fields[PROGRAM_FIELDS.startDate]
           ? parseEuropeanDate(String(record.fields[PROGRAM_FIELDS.startDate]))
           : null,
@@ -617,9 +637,12 @@ export async function runFullAirtableToPostgresSync(): Promise<FullSyncCounts> {
     referenceMethods: refs.methods,
     referenceGoals: refs.goals,
     referenceDays: refs.days,
+    referenceCompanies: refs.companies,
     translations,
     referenceOvertuigingen: refs.overtuigingen,
     referenceMindsetCategories: refs.mindsetCategories,
+    referenceProgramPrompts: refs.programPrompts,
+    referenceExperienceLevels: refs.experienceLevels,
     personalGoals,
     persoonlijkeOvertuigingen,
     programs,

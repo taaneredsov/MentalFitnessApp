@@ -11,6 +11,7 @@ import {
   Lightbulb,
   Loader2
 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { MethodPicker } from "./MethodPicker"
 import type { ScheduleReviewProps, AIScheduleMethod } from "./types"
 import type { Method } from "@/types/program"
@@ -41,10 +42,11 @@ export function ScheduleReview({
   onBack,
   isConfirming
 }: ScheduleReviewProps) {
+  const { t } = useTranslation()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null)
 
-  const { weeklySessionTime, recommendations, programSummary, availableMethods, selectedGoals, suggestedOvertuigingen } = preview
+  const { weeklySessionTime, recommendations, programSummary, programName, availableMethods, selectedGoals, suggestedOvertuigingen } = preview
 
   // Sort schedule by date
   const sortedSchedule = useMemo(() => {
@@ -98,10 +100,14 @@ export function ScheduleReview({
     <div className="flex flex-col h-[calc(100vh-12rem)] max-h-[700px]">
       {/* Fixed header */}
       <div className="text-center space-y-2 pb-4">
-        <h3 className="text-xl font-semibold">Controleer je programma</h3>
-        <p className="text-sm text-muted-foreground">
-          Bekijk je schema hieronder en klik op <strong>Bevestig Programma</strong> om te starten.
-        </p>
+        {programName && (
+          <p className="text-sm font-medium text-primary">{programName}</p>
+        )}
+        <h3 className="text-xl font-semibold">{t("wizard.review.title")}</h3>
+        <p
+          className="text-sm text-muted-foreground"
+          dangerouslySetInnerHTML={{ __html: t("wizard.review.subtitle") }}
+        />
       </div>
 
       {/* Scrollable content */}
@@ -110,13 +116,13 @@ export function ScheduleReview({
         {/* Summary Card */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Overzicht</CardTitle>
+            <CardTitle className="text-base">{t("wizard.review.summary")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">{sortedSchedule.length} trainingsdagen</p>
+                <p className="text-sm font-medium">{sortedSchedule.length} {t("schedule.trainingDays")}</p>
                 <p className="text-xs text-muted-foreground">
                   {selectedGoals.map(g => g.name).join(", ")}
                 </p>
@@ -125,9 +131,9 @@ export function ScheduleReview({
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">{weeklySessionTime} minuten per week</p>
+                <p className="text-sm font-medium">{t("schedule.minutesPerWeek", { count: weeklySessionTime })}</p>
                 <p className="text-xs text-muted-foreground">
-                  Totaal: {totalSessionTime} minuten
+                  {t("schedule.totalMinutes", { count: totalSessionTime })}
                 </p>
               </div>
             </div>
@@ -139,7 +145,7 @@ export function ScheduleReview({
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Lightbulb className="w-4 h-4 text-amber-500" />
-              <h4 className="text-sm font-medium">Overtuigingen</h4>
+              <h4 className="text-sm font-medium">{t("overtuigingen.title")}</h4>
             </div>
             <div className="flex flex-wrap gap-2">
               {suggestedOvertuigingen.map(o => (
@@ -152,7 +158,7 @@ export function ScheduleReview({
               ))}
             </div>
             <p className="text-xs text-muted-foreground">
-              Je kunt deze later aanpassen in je programma.
+              {t("overtuigingen.adjustLater")}
             </p>
           </div>
         )}
@@ -168,9 +174,9 @@ export function ScheduleReview({
 
         {/* Editable Schedule */}
         <div className="space-y-3">
-          <h4 className="font-medium">Trainingsschema</h4>
+          <h4 className="font-medium">{t("schedule.trainingSchedule")}</h4>
           <p className="text-xs text-muted-foreground">
-            Klik op X om een methode te verwijderen, of + om een methode toe te voegen.
+            {t("schedule.editHint")}
           </p>
           <div className="space-y-2">
             {sortedSchedule.map((day, dayIndex) => {
@@ -187,7 +193,7 @@ export function ScheduleReview({
                 <div key={day.date}>
                   {showWeekHeader && (
                     <p className="text-xs font-medium text-muted-foreground mt-3 mb-1">
-                      Week {weekNum}
+                      {t("common.week")} {weekNum}
                     </p>
                   )}
                   <Card>
@@ -232,7 +238,7 @@ export function ScheduleReview({
                           onClick={() => handleAddMethod(actualIndex)}
                         >
                           <Plus className="h-4 w-4 mr-1" />
-                          Methode toevoegen
+                          {t("schedule.addMethod")}
                         </Button>
                       </div>
                     </CardContent>
@@ -248,7 +254,7 @@ export function ScheduleReview({
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Lightbulb className="w-5 h-5 text-yellow-500" />
-              <h4 className="font-medium">Aanbevelingen</h4>
+              <h4 className="font-medium">{t("schedule.recommendations")}</h4>
             </div>
             <Card>
               <CardContent className="py-3">
@@ -278,7 +284,7 @@ export function ScheduleReview({
             disabled={isConfirming}
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
-            Terug
+            {t("common.back")}
           </Button>
           <Button
             onClick={onConfirm}
@@ -288,12 +294,12 @@ export function ScheduleReview({
             {isConfirming ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Bezig met opslaan...
+                {t("wizard.review.saving")}
               </>
             ) : (
               <>
                 <Check className="mr-2 h-4 w-4" />
-                Bevestig Programma
+                {t("wizard.review.confirm")}
               </>
             )}
           </Button>

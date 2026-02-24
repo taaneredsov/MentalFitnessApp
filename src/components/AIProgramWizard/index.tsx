@@ -6,6 +6,7 @@ import { useGoals, useDays, usePrograms } from "@/hooks/queries"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AlertCircle } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { AIInputForm } from "./AIInputForm"
 import { GeneratingAnimation } from "./GeneratingAnimation"
 import { ScheduleReview } from "./ScheduleReview"
@@ -26,6 +27,7 @@ const initialState: AIWizardState = {
 }
 
 export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const queryClient = useQueryClient()
   const [state, setState] = useState<AIWizardState>(initialState)
@@ -49,7 +51,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
   // Step 1: Generate preview (no Airtable save)
   const handleGenerate = async () => {
     if (!user?.id || !accessToken) {
-      setError("Sessie verlopen. Log opnieuw in.")
+      setError(t("wizard.sessionExpired"))
       setPhase("error")
       return
     }
@@ -77,7 +79,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
       setError(
         err instanceof Error
           ? err.message
-          : "Kon programma niet genereren. Probeer het opnieuw."
+          : t("wizard.generateError")
       )
       setPhase("error")
     }
@@ -86,7 +88,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
   // Step 2: Confirm and save to Airtable
   const handleConfirm = async () => {
     if (!user?.id || !accessToken || !preview) {
-      setError("Sessie verlopen. Log opnieuw in.")
+      setError(t("wizard.sessionExpired"))
       setPhase("error")
       return
     }
@@ -105,6 +107,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
           daysOfWeek: state.daysOfWeek,
           editedSchedule,
           programSummary: preview.programSummary,
+          programName: preview.programName,
           overtuigingen
         },
         accessToken
@@ -120,7 +123,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
       setError(
         err instanceof Error
           ? err.message
-          : "Kon programma niet opslaan. Probeer het opnieuw."
+          : t("wizard.saveError")
       )
       setPhase("error")
     }
@@ -161,13 +164,13 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-destructive/10 mb-2">
               <AlertCircle className="w-8 h-8 text-destructive" />
             </div>
-            <h3 className="text-lg font-semibold">Er ging iets mis</h3>
+            <h3 className="text-lg font-semibold">{t("wizard.error.title")}</h3>
             <p className="text-sm text-muted-foreground">{error}</p>
             <div className="flex justify-center gap-4 pt-4">
               <Button variant="outline" onClick={onCancel}>
-                Annuleren
+                {t("common.cancel")}
               </Button>
-              <Button onClick={handleRetry}>Opnieuw proberen</Button>
+              <Button onClick={handleRetry}>{t("wizard.retry")}</Button>
             </div>
           </div>
         </CardContent>
@@ -195,8 +198,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
             <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-primary/10 mb-2 animate-pulse">
               <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin" />
             </div>
-            <h3 className="text-lg font-semibold">Je programma wordt opgeslagen...</h3>
-            <p className="text-sm text-muted-foreground">Even geduld...</p>
+            <h3 className="text-lg font-semibold">{t("wizard.saving")}</h3>
+            <p className="text-sm text-muted-foreground">{t("wizard.patience")}</p>
           </div>
         </CardContent>
       </Card>

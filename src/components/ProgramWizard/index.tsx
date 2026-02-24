@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext"
 import { useGoals, useDays, useMethods } from "@/hooks/queries"
 import { Card, CardContent } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { useTranslation } from "react-i18next"
 import { STEPS, type WizardState } from "./types"
 import { BasicInfoStep } from "./BasicInfoStep"
 import { GoalsStep } from "./GoalsStep"
@@ -35,6 +36,7 @@ const initialState: WizardState = {
 }
 
 export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
+  const { t } = useTranslation()
   const { user, accessToken } = useAuth()
   const queryClient = useQueryClient()
   const [state, setState] = useState<WizardState>(initialState)
@@ -84,7 +86,7 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
   // Step 0 completion: Create program with basic info
   const handleBasicInfoComplete = async () => {
     if (!user?.id || !accessToken) {
-      setError("Sessie verlopen. Log opnieuw in.")
+      setError(t("wizard.sessionExpired"))
       return
     }
 
@@ -105,14 +107,14 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
     } catch (err) {
       console.error("Failed to create program:", err)
       updateState({ isSaving: false })
-      setError("Kon programma niet aanmaken")
+      setError(t("wizard.generateError"))
     }
   }
 
   // Step 1 completion: Update program with goals (triggers Airtable automation)
   const handleGoalsComplete = async () => {
     if (!user?.id || !accessToken || !state.programId) {
-      setError("Sessie verlopen. Log opnieuw in.")
+      setError(t("wizard.sessionExpired"))
       return
     }
 
@@ -130,14 +132,14 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
     } catch (err) {
       console.error("Failed to update goals:", err)
       updateState({ isSaving: false })
-      setError("Kon doelstellingen niet opslaan")
+      setError(t("wizard.saveError"))
     }
   }
 
   // Step 2 completion: Update program with schedule, then poll for methods
   const handleScheduleComplete = async () => {
     if (!user?.id || !accessToken || !state.programId) {
-      setError("Sessie verlopen. Log opnieuw in.")
+      setError(t("wizard.sessionExpired"))
       return
     }
 
@@ -161,14 +163,14 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
     } catch (err) {
       console.error("Failed to update schedule:", err)
       updateState({ isPolling: false })
-      setError("Kon schema niet opslaan")
+      setError(t("wizard.saveError"))
     }
   }
 
   // Final save with methods and notes
   const handleSave = async () => {
     if (!user?.id || !accessToken || !state.programId) {
-      setError("Sessie verlopen. Log opnieuw in.")
+      setError(t("wizard.sessionExpired"))
       return
     }
 
@@ -194,7 +196,7 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
     } catch (err) {
       console.error("Failed to save program:", err)
       updateState({ isSaving: false })
-      setError("Kon programma niet opslaan")
+      setError(t("wizard.saveError"))
     }
   }
 
@@ -210,11 +212,11 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
           <p className="text-destructive">{error}</p>
           <div className="flex justify-center gap-4">
             <Button variant="outline" onClick={handleRetry}>
-              Opnieuw proberen
+              {t("wizard.retry")}
             </Button>
             {onCancel && (
               <Button variant="ghost" onClick={onCancel}>
-                Annuleren
+                {t("common.cancel")}
               </Button>
             )}
           </div>
@@ -267,9 +269,9 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
 
       {/* Step title */}
       <div className="text-center mt-4">
-        <h2 className="text-xl font-semibold">{STEPS[state.step].title}</h2>
+        <h2 className="text-xl font-semibold">{t(STEPS[state.step].titleKey)}</h2>
         <p className="text-sm text-muted-foreground">
-          {STEPS[state.step].description}
+          {t(STEPS[state.step].descriptionKey)}
         </p>
       </div>
 

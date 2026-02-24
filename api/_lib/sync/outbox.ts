@@ -86,3 +86,20 @@ export async function enqueueSyncEvent(options: EnqueueOptions, client?: PoolCli
     ]
   )
 }
+
+/**
+ * Fire-and-forget version of enqueueSyncEvent.
+ * Logs errors but never throws — safe to use in API handlers
+ * where Airtable sync failure should not block the response.
+ */
+export async function enqueueSyncEventSafe(options: EnqueueOptions): Promise<void> {
+  try {
+    await enqueueSyncEvent(options)
+  } catch (error) {
+    console.error("[outbox] Failed to enqueue sync event (non-fatal):", {
+      entityType: options.entityType,
+      entityId: options.entityId,
+      error: error instanceof Error ? error.message : error
+    })
+  }
+}

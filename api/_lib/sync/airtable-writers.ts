@@ -10,6 +10,7 @@ import {
   PERSOONLIJKE_OVERTUIGING_FIELDS,
   USER_FIELDS
 } from "../field-mappings.js"
+import { dbQuery } from "../db/client.js"
 import { isAirtableRecordId } from "../db/id-utils.js"
 import { findAirtableId, upsertAirtableIdMap } from "./id-map.js"
 
@@ -220,6 +221,12 @@ async function upsertPersonalGoal(entityId: string, payload: Record<string, unkn
 
   const record = await base(tables.personalGoals).create(fields, { typecast: true })
   await upsertAirtableIdMap("personal_goal", entityId, record.id)
+
+  // Also store the Airtable record ID directly on the personal_goals_pg row
+  await dbQuery(
+    `UPDATE personal_goals_pg SET airtable_record_id = $1 WHERE id = $2 AND airtable_record_id IS NULL`,
+    [record.id, entityId]
+  )
 }
 
 async function upsertPersoonlijkeOvertuiging(entityId: string, payload: Record<string, unknown>): Promise<void> {

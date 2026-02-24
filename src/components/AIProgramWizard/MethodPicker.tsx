@@ -9,6 +9,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Search, Clock, Star, Plus } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import type { Method } from "@/types/program"
 
 interface MethodPickerProps {
@@ -24,6 +25,7 @@ export function MethodPicker({
   availableMethods,
   onSelect
 }: MethodPickerProps) {
+  const { t } = useTranslation()
   const [search, setSearch] = useState("")
 
   // Sort methods: recommended first, then alphabetically
@@ -48,9 +50,9 @@ export function MethodPicker({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md max-h-[80vh] flex flex-col">
         <DialogHeader>
-          <DialogTitle>Methode toevoegen</DialogTitle>
+          <DialogTitle>{t("methodPicker.title")}</DialogTitle>
           <DialogDescription>
-            Selecteer een methode om toe te voegen aan deze dag.
+            {t("methodPicker.description")}
           </DialogDescription>
         </DialogHeader>
 
@@ -58,7 +60,7 @@ export function MethodPicker({
         <div className="relative">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Zoek methode..."
+            placeholder={t("methodPicker.search")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -69,7 +71,7 @@ export function MethodPicker({
         <div className="flex-1 overflow-y-auto space-y-2 min-h-0 max-h-[40vh]">
           {sortedMethods.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
-              Geen methodes gevonden
+              {t("methodPicker.noResults")}
             </p>
           ) : (
             sortedMethods.map(method => (

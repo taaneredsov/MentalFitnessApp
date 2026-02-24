@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
+import { toast } from "sonner"
 import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData } from "@/types/program"
@@ -117,6 +118,10 @@ export function useCreateProgram() {
     onSuccess: (_data, variables) => {
       // Invalidate programs list for the user
       queryClient.invalidateQueries({ queryKey: queryKeys.programs(variables.data.userId) })
+    },
+    onError: (error) => {
+      console.error("Failed to create program:", error)
+      toast.error("Kon programma niet aanmaken")
     }
   })
 }
@@ -139,6 +144,10 @@ export function useUpdateProgram() {
       queryClient.invalidateQueries({ queryKey: queryKeys.program(variables.id) })
       // Also invalidate all programs lists so homepage updates
       queryClient.invalidateQueries({ queryKey: ["programs"] })
+    },
+    onError: (error) => {
+      console.error("Failed to update program:", error)
+      toast.error("Kon programma niet bijwerken")
     }
   })
 }
@@ -155,6 +164,10 @@ export function useUpdateProgrammaplanning(programId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
       // Also invalidate programs list
       queryClient.invalidateQueries({ queryKey: ["programs"] })
+    },
+    onError: (error) => {
+      console.error("Failed to update planning:", error)
+      toast.error("Kon planning niet bijwerken")
     }
   })
 }
@@ -209,6 +222,10 @@ export function useRecordMethodUsage() {
       }
       // Invalidate programs list so homepage shows updated progress
       queryClient.invalidateQueries({ queryKey: ["programs"] })
+    },
+    onError: (error) => {
+      console.error("Failed to record method usage:", error)
+      toast.error("Kon methodegebruik niet opslaan")
     }
   })
 }

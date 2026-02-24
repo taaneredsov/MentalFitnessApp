@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { CheckCircle2, Clock, Calendar, Lightbulb, Home, Plus, Target, X, Loader2 } from "lucide-react"
+import { useTranslation } from "react-i18next"
 import { useAuth } from "@/contexts/AuthContext"
 import { useCreatePersonalGoal, useOvertuigingen } from "@/hooks/queries"
 import type { ProgramResultProps } from "./types"
@@ -19,6 +20,7 @@ const DAY_CHIPS = [
 ] as const
 
 export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramResultProps) {
+  const { t } = useTranslation()
   const queryClient = useQueryClient()
   const { accessToken } = useAuth()
   const createGoalMutation = useCreatePersonalGoal()
@@ -79,7 +81,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   // Format start date for display
   const formatDate = (dateStr: string | undefined | null) => {
     const date = parseDate(dateStr)
-    if (!date) return "Niet beschikbaar"
+    if (!date) return t("wizard.result.unavailable")
     return date.toLocaleDateString("nl-NL", {
       weekday: "long",
       day: "numeric",
@@ -163,30 +165,30 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-2">
             <CheckCircle2 className="w-8 h-8 text-green-600" />
           </div>
-          <h3 className="text-xl font-semibold">Je programma is klaar!</h3>
+          <h3 className="text-xl font-semibold">{t("wizard.result.title")}</h3>
           <p className="text-sm text-muted-foreground">
-            We hebben een gepersonaliseerd programma voor je samengesteld.
+            {t("wizard.result.subtitle")}
           </p>
         </div>
 
         {/* Program Summary Card */}
         <Card>
           <CardHeader className="pb-3">
-            <CardTitle className="text-base">Programma Overzicht</CardTitle>
+            <CardTitle className="text-base">{t("wizard.result.overview")}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center gap-3">
               <Calendar className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">Start: {formatDate(effectiveStartDate)}</p>
+                <p className="text-sm font-medium">{t("wizard.result.start", { date: formatDate(effectiveStartDate) })}</p>
                 <p className="text-xs text-muted-foreground">{program.duration}</p>
               </div>
             </div>
             <div className="flex items-center gap-3">
               <Clock className="w-5 h-5 text-muted-foreground" />
               <div>
-                <p className="text-sm font-medium">{weeklySessionTime} minuten per week</p>
-                <p className="text-xs text-muted-foreground">{aiSchedule.length} trainingsdagen</p>
+                <p className="text-sm font-medium">{t("schedule.minutesPerWeek", { count: weeklySessionTime })}</p>
+                <p className="text-xs text-muted-foreground">{aiSchedule.length} {t("schedule.trainingDays")}</p>
               </div>
             </div>
           </CardContent>
@@ -197,7 +199,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
           <div className="space-y-2">
             <div className="flex items-center gap-2">
               <Lightbulb className="w-4 h-4 text-amber-500" />
-              <h4 className="text-sm font-medium">Overtuigingen</h4>
+              <h4 className="text-sm font-medium">{t("overtuigingen.title")}</h4>
             </div>
             <div className="flex flex-wrap gap-2">
               {programOvertuigingen.map(o => (
@@ -217,16 +219,15 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
           <CardHeader className="pb-2">
             <div className="flex items-center gap-2">
               <Target className="w-5 h-5 text-orange-500" />
-              <CardTitle className="text-base">Persoonlijke Doelen</CardTitle>
-              <span className="text-xs text-muted-foreground ml-auto">(optioneel)</span>
+              <CardTitle className="text-base">{t("personalGoals.title")}</CardTitle>
+              <span className="text-xs text-muted-foreground ml-auto">{t("personalGoals.optional")}</span>
             </div>
           </CardHeader>
           <CardContent>
             {!showGoalsSection ? (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Maak je Mental Fitness training nog persoonlijker door eigen doelen toe te voegen.
-                  Denk aan situaties waarin je je nieuwe vaardigheden wilt toepassen.
+                  {t("personalGoals.addPrompt")}
                 </p>
                 <div className="flex gap-2">
                   <Button
@@ -236,14 +237,14 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                     className="flex-1"
                   >
                     <Plus className="mr-2 h-4 w-4" />
-                    Doelen toevoegen
+                    {t("personalGoals.addButton")}
                   </Button>
                 </div>
               </div>
             ) : (
               <div className="space-y-3">
                 <p className="text-sm text-muted-foreground">
-                  Waar wil je je nieuwe vaardigheden toepassen? Bijv. "Rustiger reageren op kritiek", "Beter slapen", "Focus behouden in vergaderingen".
+                  {t("personalGoals.examplesPrompt")}
                 </p>
 
                 {/* Added goals list */}
@@ -290,7 +291,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                 {/* Add new goal input */}
                 <div className="flex gap-2">
                   <Input
-                    placeholder="Typ een doel..."
+                    placeholder={t("personalGoals.inputPlaceholder")}
                     value={newGoalInput}
                     onChange={(e) => setNewGoalInput(e.target.value)}
                     onKeyDown={handleKeyDown}
@@ -320,7 +321,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
 
         {/* Date-based Schedule */}
         <div className="space-y-3">
-          <h4 className="font-medium">Trainingsschema</h4>
+          <h4 className="font-medium">{t("schedule.trainingSchedule")}</h4>
           <div className="space-y-2">
             {sortedSchedule.map((day, index) => {
               const weekNum = getWeekNumber(day.date, effectiveStartDate)
@@ -331,7 +332,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                 <div key={`${day.date}-${day.dayId}`}>
                   {showWeekHeader && (
                     <p className="text-xs font-medium text-muted-foreground mt-3 mb-1">
-                      Week {weekNum}
+                      {t("common.week")} {weekNum}
                     </p>
                   )}
                   <Card>
@@ -364,7 +365,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
           <div className="space-y-3">
             <div className="flex items-center gap-2">
               <Lightbulb className="w-5 h-5 text-yellow-500" />
-              <h4 className="font-medium">Aanbevelingen</h4>
+              <h4 className="font-medium">{t("schedule.recommendations")}</h4>
             </div>
             <Card>
               <CardContent className="py-3">
@@ -396,18 +397,18 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
             {savingGoals ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Opslaan...
+                {t("wizard.result.saving")}
               </>
             ) : (
               <>
                 <Home className="mr-2 h-4 w-4" />
-                {personalGoals.length > 0 ? "Opslaan en doorgaan" : "Naar mijn startpagina"}
+                {personalGoals.length > 0 ? t("wizard.result.saveAndContinue") : t("wizard.result.goHome")}
               </>
             )}
           </Button>
           <Button variant="outline" onClick={onCreateNew} disabled={savingGoals}>
             <Plus className="mr-2 h-4 w-4" />
-            Nieuw
+            {t("wizard.result.new")}
           </Button>
         </div>
       </div>

@@ -24,6 +24,7 @@ const FULL_AIRTABLE_POLL_SYNC_ENABLED = readBooleanFlag("FULL_AIRTABLE_POLL_SYNC
 const FULL_AIRTABLE_POLL_SECONDS = Number(process.env.SYNC_FULL_POLL_SECONDS || 120)
 const PUSH_NOTIFICATIONS_ENABLED = readBooleanFlag("PUSH_NOTIFICATIONS_ENABLED", true)
 const NOTIFICATION_RECONCILE_SECONDS = Number(process.env.NOTIFICATION_RECONCILE_SECONDS || 120)
+const DEAD_LETTER_REPLAY_SECONDS = Number(process.env.DEAD_LETTER_REPLAY_SECONDS || 300)
 
 async function claimOutboxBatch(limit: number): Promise<OutboxRow[]> {
   return withDbTransaction(async (client) => {
@@ -154,6 +155,8 @@ export async function processSyncBatch(limit = BATCH_SIZE): Promise<number> {
 let lastUserFallbackPoll = 0
 let lastFullPollSync = 0
 let lastNotificationReconcile = 0
+let lastDeadLetterReplay = 0
+let lastSuccessfulBatch = false
 
 async function maybeRunUserFallbackPoll(): Promise<void> {
   if (!USER_FAST_LANE_ENABLED) return
@@ -209,6 +212,66 @@ async function maybeRunNotificationReconcile(): Promise<void> {
   }
 }
 
+async function replayDeadLetters(): Promise<void> {
+  try {
+    const countResult = await dbQuery<{ count: string }>(
+      `SELECT COUNT(*) AS count FROM sync_dead_letter`
+    )
+    const count = parseInt(countResult.rows[0]?.count || "0", 10)
+    if (count === 0) return
+
+    // Move dead-letter events back to outbox for retry (batch of 50)
+    await withDbTransaction(async (client) => {
+      const deleted = await client.query<{ outbox_id: number | null }>(
+        `DELETE FROM sync_dead_letter
+         WHERE id IN (
+           SELECT id FROM sync_dead_letter
+           ORDER BY failed_at ASC
+           LIMIT 50
+         )
+         RETURNING outbox_id`
+      )
+
+      const outboxIds = deleted.rows
+        .map((r) => r.outbox_id)
+        .filter((id): id is number => id != null)
+
+      if (outboxIds.length === 0) return
+
+      const resetResult = await client.query(
+        `UPDATE sync_outbox
+         SET status = 'pending',
+             attempt_count = 0,
+             next_attempt_at = NOW(),
+             last_error = NULL,
+             updated_at = NOW()
+         WHERE id = ANY($1::bigint[])
+           AND status = 'dead_letter'`,
+        [outboxIds]
+      )
+
+      const replayed = resetResult.rowCount ?? 0
+      if (replayed > 0) {
+        console.log("[sync-worker] replayed dead-letter events:", replayed)
+      }
+    })
+  } catch (error) {
+    console.error("[sync-worker] dead-letter replay failed:", error)
+  }
+}
+
+async function maybeReplayDeadLetterBatch(): Promise<void> {
+  if (!lastSuccessfulBatch) return
+
+  const now = Date.now()
+  if ((now - lastDeadLetterReplay) < DEAD_LETTER_REPLAY_SECONDS * 1000) {
+    return
+  }
+
+  lastDeadLetterReplay = now
+  await replayDeadLetters()
+}
+
 async function loop(): Promise<void> {
   if (!isPostgresConfigured()) {
     throw new Error("DATABASE_URL is required for sync worker")
@@ -234,14 +297,17 @@ async function loop(): Promise<void> {
   while (!shuttingDown) {
     try {
       const outboxCount = await processSyncBatch()
+      lastSuccessfulBatch = outboxCount > 0
       const notificationCount = PUSH_NOTIFICATIONS_ENABLED ? await processNotificationBatch() : 0
       await maybeRunUserFallbackPoll()
       await maybeRunFullPollSync()
       await maybeRunNotificationReconcile()
+      await maybeReplayDeadLetterBatch()
       if (outboxCount === 0 && notificationCount === 0) {
         await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
       }
     } catch (error) {
+      lastSuccessfulBatch = false
       console.error("[sync-worker] batch failure:", error)
       await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
     }

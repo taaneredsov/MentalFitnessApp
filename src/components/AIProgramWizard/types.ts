@@ -9,9 +9,9 @@ export interface AIWizardState {
 }
 
 export const AI_WIZARD_STEPS = [
-  { title: "Doelstellingen", description: "Selecteer je doelen" },
-  { title: "Planning", description: "Kies startdatum en duur" },
-  { title: "Trainingsdagen", description: "Selecteer je trainingsdagen" }
+  { titleKey: "wizard.step.goals.title", descriptionKey: "wizard.step.goals.description" },
+  { titleKey: "wizard.step.planning.title", descriptionKey: "wizard.step.planning.description" },
+  { titleKey: "wizard.step.trainingDays.title", descriptionKey: "wizard.step.trainingDays.description" }
 ]
 
 export type AIWizardPhase = "input" | "generating" | "review" | "confirming" | "result" | "error"
@@ -35,6 +35,7 @@ export interface AIGenerateResult {
   weeklySessionTime: number
   recommendations: string[]
   programSummary?: string
+  programName?: string
 }
 
 export interface AIPreviewResult {
@@ -42,6 +43,7 @@ export interface AIPreviewResult {
   weeklySessionTime: number
   recommendations: string[]
   programSummary?: string
+  programName?: string
   availableMethods: Method[]
   selectedGoals: Goal[]
   suggestedOvertuigingen?: Overtuiging[]
@@ -74,20 +76,20 @@ export interface ProgramResultProps {
 }
 
 export const DURATION_OPTIONS = [
-  { value: "1 week", label: "1 week" },
-  { value: "2 weken", label: "2 weken" },
-  { value: "3 weken", label: "3 weken" },
-  { value: "4 weken", label: "4 weken" },
-  { value: "6 weken", label: "6 weken" },
-  { value: "8 weken", label: "8 weken" }
+  { value: "1 week", labelKey: "duration.1week" },
+  { value: "2 weken", labelKey: "duration.2weeks" },
+  { value: "3 weken", labelKey: "duration.3weeks" },
+  { value: "4 weken", labelKey: "duration.4weeks" },
+  { value: "6 weken", labelKey: "duration.6weeks" },
+  { value: "8 weken", labelKey: "duration.8weeks" }
 ]
 
-export const LOADING_MESSAGES = [
-  "We analyseren je doelen...",
-  "We selecteren de beste methodes...",
-  "We stellen je schema samen...",
-  "We optimaliseren je programma...",
-  "Bijna klaar..."
+export const LOADING_MESSAGE_KEYS = [
+  "wizard.generating.analyzing",
+  "wizard.generating.selecting",
+  "wizard.generating.scheduling",
+  "wizard.generating.optimizing",
+  "wizard.generating.almostDone"
 ]
 
 // Order days correctly (Monday first)

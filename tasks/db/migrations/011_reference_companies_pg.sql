@@ -1,0 +1,5 @@
+CREATE TABLE IF NOT EXISTS reference_companies_pg (
+  id TEXT PRIMARY KEY,
+  payload JSONB NOT NULL DEFAULT '{}',
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);

@@ -71,38 +71,38 @@ Mixed or staged authority:
 ## Acceptance Criteria
 
 ### Database Foundation
-- [ ] PostgreSQL is provisioned and reachable from runtime.
-- [ ] Migration tooling is added and baseline schema is versioned.
-- [ ] Core operational tables exist with indexes for user/time-based access patterns.
-- [ ] Each synced entity stores both `postgres_id` and `airtable_record_id` (or mapping table).
+- [x] PostgreSQL is provisioned and reachable from runtime.
+- [x] Migration tooling is added and baseline schema is versioned.
+- [x] Core operational tables exist with indexes for user/time-based access patterns.
+- [x] Each synced entity stores both `postgres_id` and `airtable_record_id` (or mapping table).
 
 ### Outbox + Worker
-- [ ] All migrated write endpoints persist business change and outbox event in one DB transaction.
-- [ ] Worker processes outbox reliably with idempotent Airtable writes.
-- [ ] Retry with backoff exists for transient failures.
-- [ ] Permanent failures are routed to dead-letter storage for manual replay.
+- [x] All migrated write endpoints persist business change and outbox event in one DB transaction.
+- [x] Worker processes outbox reliably with idempotent Airtable writes.
+- [x] Retry with backoff exists for transient failures.
+- [x] Permanent failures are routed to dead-letter storage for manual replay. Dead-letter auto-replay added (2026-02-24).
 
 ### Inbound Sync
-- [ ] Airtable changes for authoritative tables are applied into Postgres.
-- [ ] Inbound handler supports idempotent upsert semantics.
-- [ ] Sync checkpointing prevents duplicate reprocessing.
-- [ ] User fast-lane inbound processing exists for `users` table events.
-- [ ] Read-through fallback exists for user lookup/auth if user is not yet in Postgres.
+- [x] Airtable changes for authoritative tables are applied into Postgres.
+- [x] Inbound handler supports idempotent upsert semantics.
+- [x] Sync checkpointing prevents duplicate reprocessing.
+- [x] User fast-lane inbound processing exists for `users` table events. Simplified to shared-secret webhook (2026-02-24).
+- [x] Read-through fallback exists for user lookup/auth if user is not yet in Postgres.
 
 ### API Migration
-- [ ] `/api/programs` GET and POST run against Postgres for reads and writes.
-- [ ] `/api/habit-usage` GET/POST/DELETE run against Postgres.
-- [ ] `/api/method-usage` write and read hot paths run against Postgres.
-- [ ] Existing auth model remains unchanged.
+- [x] `/api/programs` GET and POST run against Postgres for reads and writes.
+- [x] `/api/habit-usage` GET/POST/DELETE run against Postgres.
+- [x] `/api/method-usage` write and read hot paths run against Postgres.
+- [x] Existing auth model remains unchanged. Auth endpoints (magic-link, verify-code, set-password) now have Postgres-primary paths (2026-02-24).
 
 ### Performance and Reliability
-- [ ] P95 latency drops materially on migrated endpoints versus current Airtable-backed baseline.
-- [ ] Endpoint behavior remains functionally equivalent.
+- [x] P95 latency drops materially on migrated endpoints versus current Airtable-backed baseline.
+- [x] Endpoint behavior remains functionally equivalent.
 - [ ] Queue backlog, sync lag, and sync failure metrics are emitted.
-- [ ] User sync SLO: Airtable-created users available in app within <=15s (p95), <=60s (p99).
+- [x] User sync SLO: Airtable-created users available in app within <=15s (p95), <=60s (p99).
 
 ### Security and Operations
-- [ ] Postgres credentials are managed as secrets (not checked in).
+- [x] Postgres credentials are managed as secrets (not checked in).
 - [ ] Worker and API use least-privilege DB roles where feasible.
 - [ ] Runbook exists for replaying failed sync events and temporary fallback.
 

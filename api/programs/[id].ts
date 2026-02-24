@@ -24,6 +24,12 @@ import {
   toApiProgram,
   updateProgramById
 } from "../_lib/repos/program-repo.js"
+import {
+  lookupGoalsByIds,
+  lookupMethodsByIds,
+  lookupDayNamesByIds,
+  lookupOvertuigingenByIds
+} from "../_lib/repos/reference-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import type { AirtableRecord } from "../_lib/types.js"
 
@@ -156,12 +162,12 @@ async function handleGetPostgres(req: Request, res: Response) {
     const totalMethods = schedule.reduce((sum, s) => sum + s.methodIds.length, 0)
     const completedMethods = schedule.reduce((sum, s) => sum + s.completedMethodIds.length, 0) + directCompletions
 
-    const details = await fetchAirtableDetails({
-      goalIds: (programApi.goals as string[]) || [],
-      methodIds: (programApi.methods as string[]) || [],
-      dayIds: (programApi.daysOfWeek as string[]) || [],
-      overtuigingIds: (programApi.overtuigingen as string[]) || []
-    })
+    const details = {
+      goalDetails: await lookupGoalsByIds((programApi.goals as string[]) || []),
+      methodDetails: await lookupMethodsByIds((programApi.methods as string[]) || []),
+      dayNames: await lookupDayNamesByIds((programApi.daysOfWeek as string[]) || []),
+      overtuigingDetails: await lookupOvertuigingenByIds((programApi.overtuigingen as string[]) || [])
+    }
 
     return sendSuccess(res, {
       ...programApi,

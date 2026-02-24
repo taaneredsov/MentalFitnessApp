@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react"
 import { Brain, Sparkles, Target, Calendar } from "lucide-react"
-import { LOADING_MESSAGES } from "./types"
+import { useTranslation } from "react-i18next"
+import { LOADING_MESSAGE_KEYS } from "./types"
 
 export function GeneratingAnimation() {
+  const { t } = useTranslation()
   const [messageIndex, setMessageIndex] = useState(0)
 
   useEffect(() => {
     const interval = setInterval(() => {
-      setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGES.length)
+      setMessageIndex((prev) => (prev + 1) % LOADING_MESSAGE_KEYS.length)
     }, 3000)
 
     return () => clearInterval(interval)
@@ -69,10 +71,10 @@ export function GeneratingAnimation() {
       {/* Main message */}
       <div className="text-center space-y-2">
         <h3 className="text-lg font-semibold">
-          We zijn bezig uw mentale fitness programma samen te stellen
+          {t("wizard.generating.title")}
         </h3>
         <p className="text-sm text-muted-foreground h-5 transition-opacity duration-300">
-          {LOADING_MESSAGES[messageIndex]}
+          {t(LOADING_MESSAGE_KEYS[messageIndex])}
         </p>
       </div>
 

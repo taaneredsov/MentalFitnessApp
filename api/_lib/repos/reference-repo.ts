@@ -2,9 +2,14 @@ import { dbQuery } from "../db/client.js"
 import {
   METHOD_FIELDS,
   GOAL_FIELDS,
+  COMPANY_FIELDS,
   transformMethod,
+  transformGoal,
+  transformDay,
   transformOvertuiging,
-  transformMindsetCategory
+  transformMindsetCategory,
+  transformProgramPrompt,
+  transformExperienceLevel
 } from "../field-mappings.js"
 
 // ---------- Methods ----------
@@ -72,6 +77,85 @@ export async function getGoalByName(name: string): Promise<{ id: string; name: s
   return { id: match.id, name: String(match.payload[GOAL_FIELDS.name] || "") }
 }
 
+export async function listAllGoals(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_goals_pg`
+  )
+  return result.rows.map(row => transformGoal({ id: row.id, fields: row.payload }))
+}
+
+// ---------- Days ----------
+
+export async function listAllDays(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_days_pg`
+  )
+  return result.rows.map(row => transformDay({ id: row.id, fields: row.payload }))
+}
+
+// ---------- Lookup by IDs (for program detail) ----------
+
+export async function lookupGoalsByIds(ids: string[]): Promise<Record<string, unknown>[]> {
+  if (ids.length === 0) return []
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_goals_pg WHERE id = ANY($1::text[])`,
+    [ids]
+  )
+  return result.rows.map(row => transformGoal({ id: row.id, fields: row.payload }))
+}
+
+export async function lookupMethodsByIds(ids: string[]): Promise<Record<string, unknown>[]> {
+  if (ids.length === 0) return []
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_methods_pg WHERE id = ANY($1::text[])`,
+    [ids]
+  )
+  return result.rows.map(row => transformMethod({ id: row.id, fields: row.payload }))
+}
+
+export async function lookupDayNamesByIds(ids: string[]): Promise<string[]> {
+  if (ids.length === 0) return []
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_days_pg WHERE id = ANY($1::text[])`,
+    [ids]
+  )
+  return result.rows.map(row => transformDay({ id: row.id, fields: row.payload }).name)
+}
+
+export async function lookupOvertuigingenByIds(ids: string[]): Promise<Record<string, unknown>[]> {
+  if (ids.length === 0) return []
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_overtuigingen_pg WHERE id = ANY($1::text[])`,
+    [ids]
+  )
+  return result.rows.map(row => transformOvertuiging({ id: row.id, fields: row.payload }))
+}
+
+// ---------- Mindset Categories ----------
+
+export async function listAllMindsetCategories(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_mindset_categories_pg`
+  )
+  return result.rows.map(row => transformMindsetCategory({ id: row.id, fields: row.payload }))
+}
+
+// ---------- Companies ----------
+
+export async function lookupCompanyNames(ids: string[]): Promise<Record<string, string>> {
+  if (ids.length === 0) return {}
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_companies_pg WHERE id = ANY($1::text[])`,
+    [ids]
+  )
+  const map: Record<string, string> = {}
+  for (const row of result.rows) {
+    const name = row.payload[COMPANY_FIELDS.name]
+    if (name) map[row.id] = String(name)
+  }
+  return map
+}
+
 // ---------- Overtuigingen ----------
 
 export async function listAllOvertuigingen(): Promise<Record<string, unknown>[]> {
@@ -117,6 +201,24 @@ export async function getOvertuigingenByGoalIds(goalIds: string[]): Promise<Reco
       return matchesDirectGoal || matchesCategoryGoal
     })
     .sort((a, b) => ((a.order as number) || 0) - ((b.order as number) || 0))
+}
+
+// ---------- Program Prompts ----------
+
+export async function listAllProgramPrompts(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_program_prompts_pg`
+  )
+  return result.rows.map(row => transformProgramPrompt({ id: row.id, fields: row.payload }))
+}
+
+// ---------- Experience Levels ----------
+
+export async function listAllExperienceLevels(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_experience_levels_pg`
+  )
+  return result.rows.map(row => transformExperienceLevel({ id: row.id, fields: row.payload }))
 }
 
 // ---------- Personal Goals ----------
