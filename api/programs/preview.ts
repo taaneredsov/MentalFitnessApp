@@ -125,7 +125,7 @@ export default async function handler(req: Request, res: Response) {
 
     // Build system prompt with training dates and overtuigingen
     const systemPrompt = buildSystemPrompt({
-      goals: data.goals,
+      goals: data.goals as Array<{ id: string; name: string; description?: string }>,
       programPrompts: data.programPrompts,
       systemPrompts: data.systemPrompts,
       methods: data.methods,
