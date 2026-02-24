@@ -16,6 +16,13 @@ import { dbQuery } from "../db/client.js"
 import { findPostgresId, upsertAirtableIdMap } from "./id-map.js"
 import { upsertUserFromAirtable } from "../repos/user-repo.js"
 
+// Track when the last full sync completed (for health endpoint)
+let _lastFullPollSyncAt: string | null = null
+
+export function getLastFullPollSyncAt(): string | null {
+  return _lastFullPollSyncAt
+}
+
 interface FullSyncCounts {
   users: number
   referenceMethods: number
@@ -44,8 +51,10 @@ async function syncReferenceTable(
   targetTable: "reference_methods_pg" | "reference_goals_pg" | "reference_days_pg" | "reference_overtuigingen_pg" | "reference_mindset_categories_pg" | "reference_companies_pg" | "reference_program_prompts_pg" | "reference_experience_levels_pg" | "reference_goede_gewoontes_pg"
 ): Promise<number> {
   const records = await base(tableId).select({ returnFieldsByFieldId: true }).all()
+  const seenIds = new Set<string>()
   let count = 0
   for (const record of records) {
+    seenIds.add(record.id)
     await dbQuery(
       `INSERT INTO ${targetTable} (id, payload, updated_at)
        VALUES ($1, $2::jsonb, NOW())
@@ -55,6 +64,15 @@ async function syncReferenceTable(
     )
     count += 1
   }
+
+  // Delete records no longer in Airtable
+  if (seenIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM ${targetTable} WHERE id != ALL($1::text[])`,
+      [[...seenIds]]
+    )
+  }
+
   return count
 }
 
@@ -90,6 +108,7 @@ export async function syncTranslationsFromAirtable(): Promise<number> {
   }
 
   const records = await base(tables.translations).select({}).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
 
   for (const record of records) {
@@ -118,7 +137,16 @@ export async function syncTranslationsFromAirtable(): Promise<number> {
       ]
     )
 
+    seenAirtableIds.add(record.id)
     count += 1
+  }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM translations_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
   }
 
   return count
@@ -147,6 +175,7 @@ export async function syncUsersFromAirtable(): Promise<number> {
 
 export async function syncPersonalGoalsFromAirtable(): Promise<number> {
   const records = await base(tables.personalGoals).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[PERSONAL_GOAL_FIELDS.user] as string[] | undefined)?.[0]
@@ -207,13 +236,24 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
     // Register the mapping so future syncs can resolve this Airtable record to the correct Postgres row
     await upsertAirtableIdMap("personal_goal", insertId, record.id)
 
+    seenAirtableIds.add(record.id)
     count += 1
   }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM personal_goals_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
+  }
+
   return count
 }
 
 export async function syncPersoonlijkeOvertuigingenFromAirtable(): Promise<number> {
   const records = await base(tables.persoonlijkeOvertuigingen).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.user] as string[] | undefined)?.[0]
@@ -261,13 +301,29 @@ export async function syncPersoonlijkeOvertuigingenFromAirtable(): Promise<numbe
     // Register the mapping so future syncs can resolve this Airtable record to the correct Postgres row
     await upsertAirtableIdMap("persoonlijke_overtuiging", insertId, record.id)
 
+    seenAirtableIds.add(record.id)
     count += 1
   }
+
+  // Delete rows whose Airtable record no longer exists (via airtable_id_map since this table lacks airtable_record_id column)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM persoonlijke_overtuigingen_pg
+       WHERE id IN (
+         SELECT postgres_id FROM airtable_id_map
+         WHERE entity_type = 'persoonlijke_overtuiging'
+           AND airtable_record_id != ALL($1::text[])
+       )`,
+      [[...seenAirtableIds]]
+    )
+  }
+
   return count
 }
 
 export async function syncProgramsFromAirtable(): Promise<number> {
   const records = await base(tables.programs).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[PROGRAM_FIELDS.user] as string[] | undefined)?.[0]
@@ -339,13 +395,24 @@ export async function syncProgramsFromAirtable(): Promise<number> {
       )
     }
 
+    seenAirtableIds.add(record.id)
     count += 1
   }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM programs_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
+  }
+
   return count
 }
 
 export async function syncProgramScheduleFromAirtable(): Promise<number> {
   const records = await base(tables.programmaplanning).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
 
   for (const record of records) {
@@ -421,7 +488,16 @@ export async function syncProgramScheduleFromAirtable(): Promise<number> {
       [result.rows[0].id, record.id]
     )
 
+    seenAirtableIds.add(record.id)
     count += 1
+  }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM program_schedule_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
   }
 
   return count
@@ -429,6 +505,7 @@ export async function syncProgramScheduleFromAirtable(): Promise<number> {
 
 export async function syncMethodUsageFromAirtable(): Promise<number> {
   const records = await base(tables.methodUsage).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[METHOD_USAGE_FIELDS.user] as string[] | undefined)?.[0]
@@ -511,7 +588,16 @@ export async function syncMethodUsageFromAirtable(): Promise<number> {
       [result.rows[0].id, record.id]
     )
 
+    seenAirtableIds.add(record.id)
     count += 1
+  }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM method_usage_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
   }
 
   await dbQuery(
@@ -531,6 +617,7 @@ export async function syncMethodUsageFromAirtable(): Promise<number> {
 
 export async function syncHabitUsageFromAirtable(): Promise<number> {
   const records = await base(tables.habitUsage).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[HABIT_USAGE_FIELDS.user] as string[] | undefined)?.[0]
@@ -555,13 +642,24 @@ export async function syncHabitUsageFromAirtable(): Promise<number> {
       [result.rows[0].id, record.id]
     )
 
+    seenAirtableIds.add(record.id)
     count += 1
   }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM habit_usage_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
+  }
+
   return count
 }
 
 export async function syncPersonalGoalUsageFromAirtable(): Promise<number> {
   const records = await base(tables.personalGoalUsage).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[PERSONAL_GOAL_USAGE_FIELDS.user] as string[] | undefined)?.[0]
@@ -586,13 +684,24 @@ export async function syncPersonalGoalUsageFromAirtable(): Promise<number> {
       [result.rows[0].id, record.id]
     )
 
+    seenAirtableIds.add(record.id)
     count += 1
   }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM personal_goal_usage_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
+  }
+
   return count
 }
 
 export async function syncOvertuigingUsageFromAirtable(): Promise<number> {
   const records = await base(tables.overtuigingenGebruik).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[OVERTUIGING_USAGE_FIELDS.user] as string[] | undefined)?.[0]
@@ -619,13 +728,24 @@ export async function syncOvertuigingUsageFromAirtable(): Promise<number> {
       [result.rows[0].id, record.id]
     )
 
+    seenAirtableIds.add(record.id)
     count += 1
   }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM overtuiging_usage_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
+  }
+
   return count
 }
 
 export async function syncGoedeGewoonteUsageFromAirtable(): Promise<number> {
   const records = await base(tables.goedeGewoonteGebruik).select({ returnFieldsByFieldId: true }).all()
+  const seenAirtableIds = new Set<string>()
   let count = 0
   for (const record of records) {
     const userId = (record.fields[GOEDE_GEWOONTE_GEBRUIK_FIELDS.user] as string[] | undefined)?.[0]
@@ -650,8 +770,18 @@ export async function syncGoedeGewoonteUsageFromAirtable(): Promise<number> {
       [result.rows[0].id, record.id]
     )
 
+    seenAirtableIds.add(record.id)
     count += 1
   }
+
+  // Delete rows whose Airtable record no longer exists (only rows that came from Airtable)
+  if (seenAirtableIds.size > 0) {
+    await dbQuery(
+      `DELETE FROM goede_gewoontes_usage_pg WHERE airtable_record_id IS NOT NULL AND airtable_record_id != ALL($1::text[])`,
+      [[...seenAirtableIds]]
+    )
+  }
+
   return count
 }
 
@@ -668,6 +798,8 @@ export async function runFullAirtableToPostgresSync(): Promise<FullSyncCounts> {
   const personalGoalUsage = await syncPersonalGoalUsageFromAirtable()
   const overtuigingUsage = await syncOvertuigingUsageFromAirtable()
   const goedeGewoonteUsage = await syncGoedeGewoonteUsageFromAirtable()
+
+  _lastFullPollSyncAt = new Date().toISOString()
 
   return {
     users,

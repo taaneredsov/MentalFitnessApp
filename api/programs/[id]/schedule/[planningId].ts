@@ -17,6 +17,7 @@ import {
   getProgramSessionByAnyId,
   updateProgramSessionById
 } from "../../../_lib/repos/program-repo.js"
+import { lookupMethodsByIds } from "../../../_lib/repos/reference-repo.js"
 import { enqueueSyncEvent } from "../../../_lib/sync/outbox.js"
 import { syncNotificationJobsForUser } from "../../../_lib/notifications/planner.js"
 import type { AirtableRecord } from "../../../_lib/types.js"
@@ -87,6 +88,21 @@ async function buildSessionDescription(methodIds: string[]): Promise<string> {
     .join("\n")
 }
 
+async function buildSessionDescriptionFromPostgres(methodIds: string[]): Promise<string> {
+  const methodRecords = await lookupMethodsByIds(methodIds)
+  const methodMap = new Map<string, Record<string, unknown>>()
+  for (const m of methodRecords) {
+    methodMap.set(m.id as string, m)
+  }
+
+  return methodIds
+    .map(mid => {
+      const method = methodMap.get(mid)
+      return method ? `${method.name} (${method.duration} min)` : String(mid)
+    })
+    .join("\n")
+}
+
 async function handlePatchPostgres(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
@@ -132,7 +148,7 @@ async function handlePatchPostgres(req: Request, res: Response) {
       return sendError(res, "Cannot edit past or current day sessions", 400)
     }
 
-    const sessionDescription = await buildSessionDescription(parsed.methods)
+    const sessionDescription = await buildSessionDescriptionFromPostgres(parsed.methods)
 
     const updated = await updateProgramSessionById({
       sessionId: session.id,

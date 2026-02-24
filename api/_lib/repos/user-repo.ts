@@ -211,6 +211,13 @@ export async function upsertUserFromAirtable(record: {
   })
 }
 
+export async function updateUserPasswordHash(id: string, hash: string): Promise<void> {
+  await dbQuery(
+    `UPDATE users_pg SET password_hash = $1, updated_at = NOW() WHERE id = $2`,
+    [hash, id]
+  )
+}
+
 export async function updateUserLastLogin(id: string, lastLogin: string): Promise<void> {
   await dbQuery(
     `UPDATE users_pg

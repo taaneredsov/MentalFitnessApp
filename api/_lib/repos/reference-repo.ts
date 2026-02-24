@@ -111,6 +111,15 @@ export async function lookupDayNamesByIds(ids: string[]): Promise<string[]> {
   return result.rows.map(row => transformDay({ id: row.id, fields: row.payload }).name)
 }
 
+export async function lookupDaysByIds(ids: string[]): Promise<Array<{ id: string; name: string }>> {
+  if (ids.length === 0) return []
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_days_pg WHERE id = ANY($1::text[])`,
+    [ids]
+  )
+  return result.rows.map(row => transformDay({ id: row.id, fields: row.payload }))
+}
+
 export async function lookupOvertuigingenByIds(ids: string[]): Promise<Record<string, unknown>[]> {
   if (ids.length === 0) return []
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(

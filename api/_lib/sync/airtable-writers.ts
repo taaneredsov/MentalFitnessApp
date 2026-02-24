@@ -296,6 +296,10 @@ async function upsertUser(_entityId: string, payload: Record<string, unknown>): 
   }
 
   const fields: Record<string, unknown> = {}
+  if (payload.passwordHash !== undefined) fields[USER_FIELDS.passwordHash] = payload.passwordHash
+  if (payload.name !== undefined) fields[USER_FIELDS.name] = payload.name
+  if (payload.role !== undefined) fields[USER_FIELDS.role] = payload.role
+  if (payload.languageCode !== undefined) fields[USER_FIELDS.languageCode] = payload.languageCode
   if (payload.currentStreak !== undefined) fields[USER_FIELDS.currentStreak] = payload.currentStreak
   if (payload.longestStreak !== undefined) fields[USER_FIELDS.longestStreak] = payload.longestStreak
   if (payload.lastActiveDate !== undefined) fields[USER_FIELDS.lastActiveDate] = payload.lastActiveDate

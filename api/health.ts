@@ -1,5 +1,7 @@
 import type { Request, Response } from "express"
 import { isPostgresConfigured, dbQuery } from "./_lib/db/client.js"
+import { getLastFullPollSyncAt } from "./_lib/sync/full-sync.js"
+import { base, tables } from "./_lib/airtable.js"
 
 export default async function handler(_req: Request, res: Response) {
   const timestamp = new Date().toISOString()
@@ -75,6 +77,18 @@ export default async function handler(_req: Request, res: Response) {
     }
   }
 
+  // Airtable connectivity check (non-fatal)
+  let airtableConnectivity: "ok" | "degraded" | "unavailable" = "unavailable"
+  try {
+    await Promise.race([
+      base(tables.users).select({ maxRecords: 1 }).firstPage(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000))
+    ])
+    airtableConnectivity = "ok"
+  } catch {
+    airtableConnectivity = "degraded"
+  }
+
   const isHealthy = pgStatus !== "error"
 
   res.status(isHealthy ? 200 : 503).json({
@@ -83,6 +97,10 @@ export default async function handler(_req: Request, res: Response) {
     postgres: {
       status: pgStatus,
       ...pgDetails
+    },
+    sync: {
+      lastFullPollSyncAt: getLastFullPollSyncAt(),
+      airtableConnectivity
     }
   })
 }

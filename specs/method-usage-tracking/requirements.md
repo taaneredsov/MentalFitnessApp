@@ -23,7 +23,8 @@ Program (Mentale Fitnessprogramma's)
 Method Usage (Methodegebruik)
   ├── user (link to User)
   ├── method (link to Method)
-  ├── programmaplanning (link to Programmaplanning) ← NEW: replaces program link
+  ├── programmaplanning (link to Programmaplanning) ← preferred
+  ├── program (link to Program) ← legacy fallback
   ├── usedAt (date)
   └── remark (feedback text)
 ```
@@ -40,12 +41,12 @@ Method Usage (Methodegebruik)
 ### Media Progress Tracking
 
 1. **Track playback progress**: Monitor how much of each audio/video file the user has consumed
-2. **80% completion threshold**: When a user reaches 80% of media duration, mark the session as "finished"
+2. **97% completion threshold**: When a user pauses near the end (97%+), mark the session as "finished"
 3. **Persist across sessions**: If user pauses and returns, resume from where they left off
 
 ### Session Recording
 
-1. **Create usage record**: When media is marked as finished (80%), create a record in Method Usage table (tblktNOXF3yPPavXU)
+1. **Create usage record**: When media is marked as finished (97%+), create a record in Method Usage table (tblktNOXF3yPPavXU)
 2. **Link to user**: Associate the usage record with the current authenticated user
 3. **Link to method**: Associate the usage record with the method being practiced
 4. **Link to Programmaplanning**: If accessed from a program schedule, link the usage to that specific Programmaplanning record
@@ -60,7 +61,7 @@ When navigating to a method from a program's schedule:
 
 ### User Feedback
 
-1. **Prompt after completion**: When media finishes playing (or reaches 80%), show a feedback modal
+1. **Prompt after completion**: When media finishes playing (or reaches 97%+), show a feedback modal
 2. **Single input field**: Ask user for their feedback/remarks (Opmerking field)
 3. **Optional submission**: User can skip or submit feedback
 4. **Save feedback**: Store the remark in the Method Usage record
@@ -75,7 +76,7 @@ When navigating to a method from a program's schedule:
 
 ## Acceptance Criteria
 
-- [ ] When I play a video/audio to 80%, it's marked as completed
+- [ ] When I play a video/audio and pause at 97%+, it's marked as completed
 - [ ] A record appears in Method Usage table with my user, the method, and timestamp
 - [ ] After media ends, I see a feedback prompt
 - [ ] I can submit or skip the feedback
@@ -100,11 +101,11 @@ When navigating to a method from a program's schedule:
 |-------|-----|-------------|
 | Gebruiker | `fldlJtJOwZ4poOcoN` | User link |
 | Methode | `fldPyWglLXgXVO0ru` | Method link |
-| Programmaplanning | `fld???` | **NEW**: Link to Programmaplanning (replaces Program link) |
+| Programmaplanning | `fld???` | Preferred link to Programmaplanning |
 | Gebruikt op | `fldvUGcgnwuux1bvi` | Date |
 | Opmerking | `fldpskQnKFWDFGRFk` | Feedback text |
 
-> **Note**: The existing "Mentale Fitnessprogramma's" field (`fld18WcaPR8nXNr4a`) should be **replaced** with a link to Programmaplanning. The program can be derived from `Programmaplanning.program`.
+> **Note**: `programmaplanning` is preferred for schedule-accurate tracking. `program` can still be accepted as a legacy fallback path.
 
 ### Programmaplanning (tbl2PHUaonvs1MYRx)
 | Field | ID | Description |
@@ -120,12 +121,12 @@ When navigating to a method from a program's schedule:
 
 ### Airtable Changes Required
 
-1. **Method Usage table**: Add/update field to link to Programmaplanning instead of Program
+1. **Method Usage table**: Ensure Programmaplanning link exists and is used when available
 2. **Verify bidirectional link**: Programmaplanning.methodUsage should auto-update when Method Usage links to it
 
 ### Code Changes
 
-1. Update `METHOD_USAGE_FIELDS` to use `programmaplanning` instead of `program`
-2. Update API endpoint to accept `programmaplanningId` instead of `programId`
+1. Prioritize `programmaplanning` in `METHOD_USAGE_FIELDS` and request payloads
+2. Keep `programId` support as a legacy fallback while migration remains
 3. Update navigation state to pass `programmaplanningId`
 4. Update MethodDetailPage to receive and use `programmaplanningId`

@@ -118,3 +118,26 @@ export async function update(
 
   return row
 }
+
+export async function deleteById(
+  id: string,
+  userId: string
+): Promise<boolean> {
+  const result = await dbQuery(
+    `UPDATE persoonlijke_overtuigingen_pg
+     SET status = 'Verwijderd', updated_at = NOW()
+     WHERE id = $1 AND user_id = $2`,
+    [id, userId]
+  )
+
+  if ((result.rowCount ?? 0) === 0) return false
+
+  await enqueueSyncEvent({
+    eventType: "delete",
+    entityType: "persoonlijke_overtuiging",
+    entityId: id,
+    priority: 40
+  })
+
+  return true
+}

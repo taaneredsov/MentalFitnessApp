@@ -6,6 +6,9 @@ import { hashPassword } from "../_lib/password.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import { USER_FIELDS } from "../_lib/field-mappings.js"
 import { isRateLimited, clearRateLimit } from "../_lib/security.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
+import { updateUserPasswordHash } from "../_lib/repos/user-repo.js"
+import { enqueueSyncEventSafe } from "../_lib/sync/outbox.js"
 
 const changePasswordSchema = z.object({
   password: z.string().min(8, "Password must be at least 8 characters")
@@ -35,9 +38,23 @@ export default async function handler(req: Request, res: Response) {
     // Hash and store the new password
     const passwordHash = await hashPassword(password)
 
-    await base(tables.users).update(userId, {
-      [USER_FIELDS.passwordHash]: passwordHash
-    })
+    if (isPostgresConfigured()) {
+      // Postgres-primary path
+      await updateUserPasswordHash(userId, passwordHash)
+
+      // Async sync to Airtable via outbox
+      await enqueueSyncEventSafe({
+        entityType: "user",
+        entityId: userId,
+        eventType: "upsert",
+        payload: { userId, passwordHash }
+      })
+    } else {
+      // Airtable fallback
+      await base(tables.users).update(userId, {
+        [USER_FIELDS.passwordHash]: passwordHash
+      })
+    }
 
     clearRateLimit(userId)
 

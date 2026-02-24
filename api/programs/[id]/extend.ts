@@ -14,6 +14,7 @@ import {
   isValidRecordId
 } from "../../_lib/field-mappings.js"
 import { getProgramByAnyId, toApiProgram } from "../../_lib/repos/program-repo.js"
+import { lookupDaysByIds, lookupMethodsByIds } from "../../_lib/repos/reference-repo.js"
 import { enqueueSyncEvent } from "../../_lib/sync/outbox.js"
 import { syncNotificationJobsForUser } from "../../_lib/notifications/planner.js"
 import type { AirtableRecord } from "../../_lib/types.js"
@@ -349,8 +350,13 @@ async function handlePostPostgres(req: Request, res: Response) {
     const newDuration = `${newDurationWeeks} weken`
     const newStatus = getProgramStatusByDates(program.startDate, newEndDate, today)
 
-    const days = await fetchDays(program.daysOfWeek)
-    const methods = await fetchMethods(program.methods)
+    const days = await lookupDaysByIds(program.daysOfWeek)
+    const methodRecords = await lookupMethodsByIds(program.methods)
+    const methods = methodRecords.map(m => ({
+      id: m.id as string,
+      name: String(m.name || ""),
+      duration: Number(m.duration) || 0
+    }))
     const trainingDates = calculateTrainingDates(extensionStart, newEndDate, days)
     const newSchedule = distributeMethodsEvenly(methods, trainingDates)
 

@@ -1,9 +1,12 @@
 import type { Request, Response } from "express"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
+import { isPostgresConfigured } from "../_lib/db/client.js"
 import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
+import { findMagicLinkByToken, markMagicLinkUsed } from "../_lib/repos/magic-link-repo.js"
 import { hashToken, constantTimeCompare, randomDelay } from "../_lib/security.js"
+import { getUserByIdWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
 
 /**
  * GET /api/auth/verify?token=xxx
@@ -31,6 +34,64 @@ export default async function handler(req: Request, res: Response) {
     // Hash the token to compare with stored hash
     const hashedToken = hashToken(token)
 
+    // Postgres-primary path
+    if (isPostgresConfigured()) {
+      const magicLink = await findMagicLinkByToken(hashedToken)
+
+      if (!magicLink) {
+        console.log("[verify] Invalid token - not found in Postgres")
+        await randomDelay(100, 300)
+        return sendError(res, "Ongeldige of verlopen link", 401)
+      }
+
+      // Check expiry
+      if (new Date(magicLink.expiresAt) < new Date()) {
+        console.log("[verify] Token expired")
+        await markMagicLinkUsed(magicLink.id)
+        await randomDelay(100, 300)
+        return sendError(res, "Link is verlopen. Vraag een nieuwe aan.", 401)
+      }
+
+      // Constant-time compare (already matched at DB level, but verify for safety)
+      const tokenMatches = magicLink.hashedToken
+        ? constantTimeCompare(hashedToken, magicLink.hashedToken)
+        : false
+
+      if (!tokenMatches) {
+        console.log("[verify] Token mismatch after DB lookup")
+        await randomDelay(100, 300)
+        return sendError(res, "Ongeldige of verlopen link", 401)
+      }
+
+      // Success
+      await markMagicLinkUsed(magicLink.id)
+
+      const user = await getUserByIdWithReadThrough(magicLink.userId)
+      if (!user) {
+        return sendError(res, "User not found", 404)
+      }
+
+      const accessToken = await signAccessToken({
+        userId: user.id,
+        email: user.email
+      })
+      const refreshToken = await signRefreshToken({
+        userId: user.id,
+        email: user.email
+      })
+
+      res.setHeader("Set-Cookie", [
+        `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}`
+      ])
+
+      console.log(`[verify] User logged in via magic link: ${user.email}`)
+      return sendSuccess(res, {
+        user: toApiUserPayload(user),
+        accessToken
+      })
+    }
+
+    // Airtable fallback path
     // Find users with active magic link tokens
     // We fetch by token hash match, then verify with constant-time comparison
     // This prevents database-level timing attacks

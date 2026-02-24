@@ -30,6 +30,29 @@ export async function storeMagicLinkCode(input: {
   )
 }
 
+export async function findMagicLinkByToken(hashedToken: string): Promise<MagicLinkCode | null> {
+  const result = await dbQuery<Record<string, unknown>>(
+    `SELECT id, user_id, email, hashed_token, hashed_code, expires_at, used_at
+     FROM magic_link_codes
+     WHERE hashed_token = $1 AND used_at IS NULL
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [hashedToken]
+  )
+
+  if (result.rows.length === 0) return null
+  const row = result.rows[0]
+  return {
+    id: String(row.id),
+    userId: String(row.user_id),
+    email: String(row.email),
+    hashedToken: row.hashed_token ? String(row.hashed_token) : null,
+    hashedCode: row.hashed_code ? String(row.hashed_code) : null,
+    expiresAt: String(row.expires_at),
+    usedAt: row.used_at ? String(row.used_at) : null
+  }
+}
+
 export async function findMagicLinkByEmail(email: string): Promise<MagicLinkCode | null> {
   const result = await dbQuery<Record<string, unknown>>(
     `SELECT id, user_id, email, hashed_token, hashed_code, expires_at, used_at

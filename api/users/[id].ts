@@ -6,6 +6,8 @@ import { verifyToken } from "../_lib/jwt.js"
 import { transformUser, USER_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { updateUserProfileFields } from "../_lib/repos/user-repo.js"
+import { getUserByIdWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
+import { enqueueSyncEventSafe } from "../_lib/sync/outbox.js"
 import type { AirtableRecord } from "../_lib/types.js"
 
 const updateUserSchema = z.object({
@@ -50,16 +52,8 @@ export default async function handler(req: Request, res: Response) {
   try {
     const body = updateUserSchema.parse(parseBody(req))
 
-    // Map to field IDs
-    const fields: Record<string, unknown> = {}
-    if (body.name) fields[USER_FIELDS.name] = body.name
-    if (body.role) fields[USER_FIELDS.role] = body.role
-    if (body.languageCode) fields[USER_FIELDS.languageCode] = body.languageCode
-    if (body.lastLogin) fields[USER_FIELDS.lastLogin] = body.lastLogin
-
-    const record = await base(tables.users).update(id, fields)
-
     if (isPostgresConfigured()) {
+      // Postgres-primary path
       await updateUserProfileFields({
         id,
         name: body.name,
@@ -67,8 +61,37 @@ export default async function handler(req: Request, res: Response) {
         languageCode: body.languageCode,
         lastLogin: body.lastLogin
       })
+
+      // Async sync to Airtable via outbox
+      const syncPayload: Record<string, unknown> = { userId: id }
+      if (body.name !== undefined) syncPayload.name = body.name
+      if (body.role !== undefined) syncPayload.role = body.role
+      if (body.languageCode !== undefined) syncPayload.languageCode = body.languageCode
+      if (body.lastLogin !== undefined) syncPayload.lastLogin = body.lastLogin
+
+      await enqueueSyncEventSafe({
+        entityType: "user",
+        entityId: id,
+        eventType: "upsert",
+        payload: syncPayload
+      })
+
+      const user = await getUserByIdWithReadThrough(id)
+      if (!user) {
+        return sendError(res, "User not found", 404)
+      }
+
+      return sendSuccess(res, toApiUserPayload(user))
     }
 
+    // Airtable fallback
+    const fields: Record<string, unknown> = {}
+    if (body.name) fields[USER_FIELDS.name] = body.name
+    if (body.role) fields[USER_FIELDS.role] = body.role
+    if (body.languageCode) fields[USER_FIELDS.languageCode] = body.languageCode
+    if (body.lastLogin) fields[USER_FIELDS.lastLogin] = body.lastLogin
+
+    const record = await base(tables.users).update(id, fields)
     const user = transformUser(record as AirtableRecord)
 
     return sendSuccess(res, user)
