@@ -157,7 +157,9 @@ async function ensureLanguageResources(langInput: string, force = false): Promis
 
 const initialLanguage = getInitialLanguage()
 const cachedInitial = typeof window !== "undefined" ? getCachedPayload(initialLanguage) : null
-const initialByKey = cachedInitial?.byKey || fallbackTranslations[initialLanguage] || fallbackTranslations.nl
+// Always use fallback translations as base, override with cached/API values
+const baseFallback = fallbackTranslations[initialLanguage] || fallbackTranslations.nl
+const initialByKey = { ...baseFallback, ...(cachedInitial?.byKey || {}) }
 byNlStore[initialLanguage] = cachedInitial?.byNl || {}
 
 domCopyTranslator.start()
