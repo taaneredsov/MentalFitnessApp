@@ -73,6 +73,37 @@ async function resolveProgramScheduleAirtableId(
   return null
 }
 
+async function resolvePersonalGoalAirtableId(
+  personalGoalId: string | null | undefined,
+  options: { required?: boolean } = {}
+): Promise<string | null> {
+  const required = options.required ?? false
+  if (!personalGoalId) return null
+  if (isAirtableRecordId(personalGoalId)) return personalGoalId
+
+  const mapped = await findAirtableId("personal_goal", personalGoalId)
+  if (mapped) return mapped
+
+  // Self-heal from Postgres if the row already has an Airtable ID.
+  const result = await dbQuery<{ airtable_record_id: string | null }>(
+    `SELECT airtable_record_id
+     FROM personal_goals_pg
+     WHERE id = $1
+     LIMIT 1`,
+    [personalGoalId]
+  )
+  const airtableRecordId = result.rows[0]?.airtable_record_id || null
+  if (airtableRecordId) {
+    await upsertAirtableIdMap("personal_goal", personalGoalId, airtableRecordId)
+    return airtableRecordId
+  }
+
+  if (required) {
+    throw new RetryableSyncError(`Personal goal mapping missing for ${personalGoalId}`)
+  }
+  return null
+}
+
 async function upsertProgram(entityId: string, payload: Record<string, unknown>): Promise<void> {
   const existingAirtableId = await findAirtableId("program", entityId)
 
@@ -230,10 +261,14 @@ async function upsertHabitUsage(entityId: string, payload: Record<string, unknow
 
 async function upsertPersonalGoalUsage(entityId: string, payload: Record<string, unknown>): Promise<void> {
   const existingAirtableId = await findAirtableId("personal_goal_usage", entityId)
+  const mappedPersonalGoalId = await resolvePersonalGoalAirtableId(
+    (payload.personalGoalId as string | undefined) || null,
+    { required: true }
+  )
 
   const fields: Record<string, unknown> = {
     [PERSONAL_GOAL_USAGE_FIELDS.user]: [String(payload.userId)],
-    [PERSONAL_GOAL_USAGE_FIELDS.personalGoal]: [String(payload.personalGoalId)],
+    [PERSONAL_GOAL_USAGE_FIELDS.personalGoal]: [mappedPersonalGoalId],
     [PERSONAL_GOAL_USAGE_FIELDS.date]: payload.date
   }
 
