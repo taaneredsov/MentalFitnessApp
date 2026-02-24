@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Label } from "@/components/ui/label"
-import { Check, Loader2, AlertTriangle, Sparkles, RefreshCw } from "lucide-react"
+import { Check, Loader2, AlertTriangle, Sparkles, RefreshCw, Trash2 } from "lucide-react"
 import type { ProgramDetail, Goal, Day } from "@/types/program"
 
 interface ProgramEditDialogProps {
@@ -24,6 +24,8 @@ interface ProgramEditDialogProps {
   isSaving?: boolean
   isRegenerating?: boolean
   futureSessions?: number  // Number of future sessions that will be regenerated
+  onDelete?: () => Promise<void>
+  isDeleting?: boolean
 }
 
 /**
@@ -113,13 +115,16 @@ export function ProgramEditDialog({
   onRegenerate,
   isSaving = false,
   isRegenerating = false,
-  futureSessions = 0
+  futureSessions = 0,
+  onDelete,
+  isDeleting = false
 }: ProgramEditDialogProps) {
   // Local state for editing
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [selectedDayIds, setSelectedDayIds] = useState<string[]>([])
   const [notes, setNotes] = useState("")
   const [showRegenerateConfirm, setShowRegenerateConfirm] = useState(false)
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
 
   // Create a map from day name to day id for initialization
   const dayNameToId = useMemo(() => {
@@ -145,6 +150,7 @@ export function ProgramEditDialog({
       setOriginalDayIds(dayIds)
       setNotes(program.notes || "")
       setShowRegenerateConfirm(false)
+      setShowDeleteConfirm(false)
     }
   }, [open, program, dayNameToId])
 
@@ -199,7 +205,7 @@ export function ProgramEditDialog({
   const canSave = selectedGoalIds.length >= 1 && selectedDayIds.length >= 1
 
   const isAIProgram = program?.creationType === "AI"
-  const isLoading = isSaving || isRegenerating
+  const isLoading = isSaving || isRegenerating || isDeleting
 
   const handleToggleGoal = (goalId: string) => {
     setSelectedGoalIds(prev => {
@@ -265,6 +271,53 @@ export function ProgramEditDialog({
 
   if (!program) return null
 
+  // Delete confirmation view
+  if (showDeleteConfirm) {
+    return (
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Programma verwijderen?
+            </DialogTitle>
+            <DialogDescription>
+              Dit verwijdert het programma en alle bijbehorende activiteiten permanent. Dit kan niet ongedaan worden.
+            </DialogDescription>
+          </DialogHeader>
+
+          <DialogFooter className="flex-col gap-2 sm:flex-col">
+            <Button
+              variant="destructive"
+              onClick={async () => {
+                if (onDelete) await onDelete()
+              }}
+              disabled={isDeleting}
+              className="w-full"
+            >
+              {isDeleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Verwijderen...
+                </>
+              ) : (
+                "Verwijder definitief"
+              )}
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setShowDeleteConfirm(false)}
+              disabled={isDeleting}
+              className="w-full"
+            >
+              Annuleren
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    )
+  }
+
   // Regeneration confirmation view
   if (showRegenerateConfirm) {
     return (
@@ -297,30 +350,30 @@ export function ProgramEditDialog({
                 <Button
                   onClick={() => handleRegenerate("ai")}
                   disabled={isLoading}
-                  className="w-full justify-start"
+                  className="w-full justify-start overflow-hidden"
                   variant="outline"
                 >
                   {isRegenerating ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 shrink-0 animate-spin" />
                   ) : (
-                    <Sparkles className="h-4 w-4 mr-2 text-amber-500" />
+                    <Sparkles className="h-4 w-4 mr-2 shrink-0 text-amber-500" />
                   )}
-                  Automatische herberekening
-                  <span className="ml-auto text-xs text-muted-foreground">Aanbevolen</span>
+                  <span className="flex-1 text-left truncate">Automatische herberekening</span>
+                  <span className="text-xs text-muted-foreground shrink-0">Aanbevolen</span>
                 </Button>
                 <Button
                   onClick={() => handleRegenerate("simple")}
                   disabled={isLoading}
-                  className="w-full justify-start"
+                  className="w-full justify-start overflow-hidden"
                   variant="outline"
                 >
                   {isRegenerating ? (
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    <Loader2 className="h-4 w-4 mr-2 shrink-0 animate-spin" />
                   ) : (
-                    <RefreshCw className="h-4 w-4 mr-2" />
+                    <RefreshCw className="h-4 w-4 mr-2 shrink-0" />
                   )}
-                  Simpele herverdeling
-                  <span className="ml-auto text-xs text-muted-foreground">Bestaande methodes</span>
+                  <span className="flex-1 text-left truncate">Simpele herverdeling</span>
+                  <span className="text-xs text-muted-foreground shrink-0">Bestaande methodes</span>
                 </Button>
               </div>
             ) : (
@@ -484,6 +537,20 @@ export function ProgramEditDialog({
           >
             Annuleren
           </Button>
+          {onDelete && (
+            <>
+              <div className="border-t my-1" />
+              <Button
+                variant="ghost"
+                onClick={() => setShowDeleteConfirm(true)}
+                disabled={isLoading}
+                className="w-full text-destructive hover:text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Verwijder programma
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

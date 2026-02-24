@@ -105,7 +105,7 @@ export function RewardToast({ pointsAwarded, newBadges = [], levelUp, newLevel, 
   }
 
   return (
-    <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 animate-in slide-in-from-bottom-5 fade-in duration-300">
+    <div className="fixed bottom-28 left-1/2 -translate-x-1/2 z-50 max-w-[calc(100vw-2rem)] animate-in slide-in-from-bottom-5 fade-in duration-300">
       <div className="bg-primary text-primary-foreground px-4 py-3 rounded-full shadow-lg flex items-center gap-3">
         {renderContent()}
       </div>

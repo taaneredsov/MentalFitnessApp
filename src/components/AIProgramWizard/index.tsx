@@ -219,7 +219,7 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
   // Review phase
   if (phase === "review" && preview) {
     return (
-      <Card>
+      <Card className="overflow-hidden">
         <CardContent className="py-4">
           <ScheduleReview
             preview={preview}

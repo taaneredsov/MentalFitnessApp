@@ -263,6 +263,12 @@ export const api = {
         body: JSON.stringify(data)
       }),
 
+    delete: (id: string, accessToken: string) =>
+      request<null>(`/programs/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${accessToken}` }
+      }),
+
     generate: (data: AIGenerateRequest, accessToken: string) =>
       request<AIGenerateResponse>("/programs/generate", {
         method: "POST",

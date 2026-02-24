@@ -155,6 +155,27 @@ export function useUpdateProgram() {
   })
 }
 
+export function useDeleteProgram() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  return useMutation({
+    mutationFn: ({ id, accessToken }: { id: string; accessToken: string }) =>
+      api.programs.delete(id, accessToken),
+    onSuccess: () => {
+      if (user?.id) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.programs(user.id) })
+      }
+      // Also invalidate all programs lists so homepage updates
+      queryClient.invalidateQueries({ queryKey: ["programs"] })
+    },
+    onError: (error) => {
+      console.error("Failed to delete program:", error)
+      toast.error("Kon programma niet verwijderen")
+    }
+  })
+}
+
 export function useUpdateProgrammaplanning(programId: string) {
   const queryClient = useQueryClient()
   const { accessToken } = useAuth()

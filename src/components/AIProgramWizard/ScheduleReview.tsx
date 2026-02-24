@@ -282,6 +282,7 @@ export function ScheduleReview({
             variant="outline"
             onClick={onBack}
             disabled={isConfirming}
+            className="shrink-0"
           >
             <ArrowLeft className="mr-2 h-4 w-4" />
             {t("common.back")}
@@ -289,7 +290,7 @@ export function ScheduleReview({
           <Button
             onClick={onConfirm}
             disabled={isConfirming || editedSchedule.every(d => d.methods.length === 0)}
-            className="flex-1"
+            className="flex-1 min-w-0"
           >
             {isConfirming ? (
               <>

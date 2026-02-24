@@ -18,6 +18,7 @@ import { getDataBackendMode } from "../_lib/data-backend.js"
 import { isPostgresConfigured } from "../_lib/db/client.js"
 import { isEntityId, isAirtableRecordId } from "../_lib/db/id-utils.js"
 import {
+  deleteProgramById,
   getMethodUsageByProgram,
   getProgramByAnyId,
   listProgramSessions,
@@ -38,6 +39,7 @@ const PROGRAMS_BACKEND_ENV = "DATA_BACKEND_PROGRAMS"
 /**
  * GET /api/programs/[id] - Returns a single program with expanded relations
  * PATCH /api/programs/[id] - Updates a program
+ * DELETE /api/programs/[id] - Deletes a program
  */
 export default async function handler(req: Request, res: Response) {
   const mode = getDataBackendMode(PROGRAMS_BACKEND_ENV)
@@ -47,6 +49,13 @@ export default async function handler(req: Request, res: Response) {
       return handlePatchPostgres(req, res)
     }
     return handlePatchAirtable(req, res)
+  }
+
+  if (req.method === "DELETE") {
+    if (mode === "postgres_primary" && isPostgresConfigured()) {
+      return handleDeletePostgres(req, res)
+    }
+    return handleDeleteAirtable(req, res)
   }
 
   if (req.method !== "GET") {
@@ -404,6 +413,104 @@ async function handlePatchAirtable(req: Request, res: Response) {
     const program = transformProgram(record as AirtableRecord)
 
     return sendSuccess(res, program)
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
+    return handleApiError(res, error)
+  }
+}
+
+async function handleDeletePostgres(req: Request, res: Response) {
+  try {
+    const auth = await requireAuth(req)
+    const { id } = req.params
+    if (!id || typeof id !== "string") {
+      return sendError(res, "Program ID is required", 400)
+    }
+    if (!isEntityId(id)) {
+      return sendError(res, "Invalid program ID format", 400)
+    }
+
+    const result = await deleteProgramById(id, auth.userId)
+    if (!result) {
+      return sendError(res, "Program not found", 404)
+    }
+
+    // Enqueue Airtable delete events for method usages
+    for (const muId of result.methodUsageIds) {
+      await enqueueSyncEvent({
+        eventType: "delete",
+        entityType: "method_usage",
+        entityId: muId,
+        payload: {},
+        priority: 20
+      })
+    }
+
+    // Enqueue Airtable delete events for schedules
+    for (const schedId of result.scheduleIds) {
+      await enqueueSyncEvent({
+        eventType: "delete",
+        entityType: "program_schedule",
+        entityId: schedId,
+        payload: {},
+        priority: 20
+      })
+    }
+
+    // Enqueue Airtable delete event for the program itself
+    await enqueueSyncEvent({
+      eventType: "delete",
+      entityType: "program",
+      entityId: id,
+      payload: {},
+      priority: 20
+    })
+
+    return sendSuccess(res, null)
+  } catch (error) {
+    if (error instanceof AuthError) {
+      return sendError(res, error.message, error.status)
+    }
+    return handleApiError(res, error)
+  }
+}
+
+async function handleDeleteAirtable(req: Request, res: Response) {
+  try {
+    const auth = await requireAuth(req)
+    const { id } = req.params
+    if (!id || typeof id !== "string") {
+      return sendError(res, "Program ID is required", 400)
+    }
+    if (!isValidRecordId(id)) {
+      return sendError(res, "Invalid program ID format", 400)
+    }
+
+    const existingRecords = await base(tables.programs)
+      .select({
+        filterByFormula: `RECORD_ID() = "${id}"`,
+        maxRecords: 1,
+        returnFieldsByFieldId: true
+      })
+      .firstPage()
+
+    if (existingRecords.length === 0) {
+      return sendError(res, "Program not found", 404)
+    }
+
+    const programUserId = (existingRecords[0].fields[PROGRAM_FIELDS.user] as string[])?.[0]
+    if (programUserId !== auth.userId) {
+      return sendError(res, "Forbidden: You don't own this program", 403)
+    }
+
+    // Soft-delete: set status to "Afgewerkt"
+    await base(tables.programs).update(id, {
+      [PROGRAM_FIELDS.status]: "Afgewerkt"
+    }, { typecast: true })
+
+    return sendSuccess(res, null)
   } catch (error) {
     if (error instanceof AuthError) {
       return sendError(res, error.message, error.status)

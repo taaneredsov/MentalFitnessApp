@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useParams, useNavigate } from "react-router-dom"
 import { useQueryClient } from "@tanstack/react-query"
-import { useProgram, useMethodUsage, useUpdateProgrammaplanning, useGoals, useDays, useUpdateProgram, useRegenerateSchedule } from "@/hooks/queries"
+import { useProgram, useMethodUsage, useUpdateProgrammaplanning, useGoals, useDays, useUpdateProgram, useRegenerateSchedule, useDeleteProgram } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { queryKeys } from "@/lib/query-keys"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -16,6 +16,7 @@ import { OvertuigingenSection } from "@/components/OvertuigingenSection"
 import { InAppReminderBanner } from "@/components/InAppReminderBanner"
 import { getProgramStatus } from "@/types/program"
 import type { Programmaplanning } from "@/types/program"
+import { toast } from "sonner"
 import {
   ArrowLeft,
   Calendar,
@@ -81,6 +82,7 @@ export function ProgramDetailPage() {
   const updateProgramMutation = useUpdateProgram()
   // Mutation for regenerating schedule
   const regenerateMutation = useRegenerateSchedule(id || "")
+  const deleteProgramMutation = useDeleteProgram()
 
   const isLoading = programLoading
   const error = programError ? "Kon programma niet laden" : null
@@ -115,6 +117,14 @@ export function ProgramDetailPage() {
   const handleRegenerateProgram = async (data: { daysOfWeek: string[]; goals?: string[]; regenerateMethod: "ai" | "simple"; force?: boolean }) => {
     await regenerateMutation.mutateAsync(data)
     setShowProgramEdit(false)
+  }
+
+  const handleDeleteProgram = async () => {
+    if (!id || !accessToken) return
+    await deleteProgramMutation.mutateAsync({ id, accessToken })
+    setShowProgramEdit(false)
+    toast.success("Programma verwijderd")
+    navigate("/programs")
   }
 
   // Calculate number of future sessions (dates after today)
@@ -405,6 +415,8 @@ export function ProgramDetailPage() {
         isSaving={updateProgramMutation.isPending}
         isRegenerating={regenerateMutation.isPending}
         futureSessions={futureSessions}
+        onDelete={handleDeleteProgram}
+        isDeleting={deleteProgramMutation.isPending}
       />
       </div>
     </PullToRefreshWrapper>

@@ -472,3 +472,37 @@ export async function computeProgramProgress(programs: PgProgram[]): Promise<Map
 
   return progress
 }
+
+export async function deleteProgramById(
+  programId: string,
+  userId: string
+): Promise<{ airtableRecordId: string | null; methodUsageIds: string[]; scheduleIds: string[] } | null> {
+  return withDbTransaction(async (client) => {
+    const ownerCheck = await client.query<Record<string, unknown>>(
+      `SELECT id, airtable_record_id FROM programs_pg WHERE id = $1 AND user_id = $2`,
+      [programId, userId]
+    )
+    if (ownerCheck.rows.length === 0) return null
+
+    const airtableRecordId = ownerCheck.rows[0].airtable_record_id
+      ? String(ownerCheck.rows[0].airtable_record_id)
+      : null
+
+    const muResult = await client.query<Record<string, unknown>>(
+      `SELECT id FROM method_usage_pg WHERE program_id = $1`,
+      [programId]
+    )
+    const methodUsageIds = muResult.rows.map((r) => String(r.id))
+
+    const schedResult = await client.query<Record<string, unknown>>(
+      `SELECT id FROM program_schedule_pg WHERE program_id = $1`,
+      [programId]
+    )
+    const scheduleIds = schedResult.rows.map((r) => String(r.id))
+
+    await client.query(`DELETE FROM method_usage_pg WHERE program_id = $1`, [programId])
+    await client.query(`DELETE FROM programs_pg WHERE id = $1 AND user_id = $2`, [programId, userId])
+
+    return { airtableRecordId, methodUsageIds, scheduleIds }
+  })
+}

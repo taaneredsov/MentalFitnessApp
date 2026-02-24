@@ -288,7 +288,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                             <X className="h-4 w-4" />
                           </Button>
                         </div>
-                        <div className="flex gap-1 pl-6">
+                        <div className="flex flex-wrap gap-1 pl-6">
                           {DAY_CHIPS.map(({ key, label }) => (
                             <button
                               key={key}
