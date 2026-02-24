@@ -210,6 +210,10 @@ async function setupRoutes() {
   app.patch("/api/notifications/preferences", notificationPreferencesHandler)
   app.post("/api/notifications/test", notificationTestHandler)
 
+  // Account routes
+  const { default: nukeUserHandler } = await import("./api/account/nuke.js")
+  app.post("/api/account/nuke", nukeUserHandler)
+
   // Health check
   const { default: healthHandler } = await import("./api/health.js")
   app.get("/api/health", healthHandler)

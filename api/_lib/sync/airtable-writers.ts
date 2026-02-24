@@ -288,6 +288,12 @@ async function upsertUser(_entityId: string, payload: Record<string, unknown>): 
 }
 
 async function deleteByEntity(entityType: string, entityId: string): Promise<void> {
+  // User IDs ARE Airtable record IDs — delete directly, no map lookup
+  if (entityType === "user") {
+    await base(tables.users).destroy(entityId)
+    return
+  }
+
   const airtableId = await findAirtableId(entityType, entityId)
   if (!airtableId) return
 
