@@ -1,7 +1,7 @@
 import { base, tables } from "../airtable.js"
 import {
   METHOD_USAGE_FIELDS,
-  HABIT_USAGE_FIELDS,
+  GOEDE_GEWOONTE_GEBRUIK_FIELDS,
   PERSONAL_GOAL_USAGE_FIELDS,
   OVERTUIGING_USAGE_FIELDS,
   PROGRAM_FIELDS,
@@ -272,7 +272,7 @@ async function getAirtableRewardStateAndCounts(userId: string): Promise<{ state:
 
   const [methodUsageRecords, habitUsageRecords, personalGoalUsageRecords, overtuigingUsageRecords, programRecords] = await Promise.all([
     base(tables.methodUsage).select({ returnFieldsByFieldId: true }).all(),
-    base(tables.habitUsage).select({ returnFieldsByFieldId: true }).all(),
+    base(tables.goedeGewoonteGebruik).select({ returnFieldsByFieldId: true }).all(),
     base(tables.personalGoalUsage).select({ returnFieldsByFieldId: true }).all(),
     base(tables.overtuigingenGebruik).select({ returnFieldsByFieldId: true }).all(),
     base(tables.programs).select({ returnFieldsByFieldId: true }).all()
@@ -284,13 +284,13 @@ async function getAirtableRewardStateAndCounts(userId: string): Promise<{ state:
   }).length
 
   const userHabitRecords = habitUsageRecords.filter((record) => {
-    const field = (record.fields as Record<string, unknown>)[HABIT_USAGE_FIELDS.user] as string[] | undefined
+    const field = (record.fields as Record<string, unknown>)[GOEDE_GEWOONTE_GEBRUIK_FIELDS.user] as string[] | undefined
     return field?.includes(userId)
   })
   const habitCount = userHabitRecords.length
   const habitDays = new Set(
     userHabitRecords
-      .map((record) => normalizeDateString((record.fields as Record<string, unknown>)[HABIT_USAGE_FIELDS.date] as string | undefined))
+      .map((record) => normalizeDateString((record.fields as Record<string, unknown>)[GOEDE_GEWOONTE_GEBRUIK_FIELDS.date] as string | undefined))
       .filter((value): value is string => !!value)
   )
 

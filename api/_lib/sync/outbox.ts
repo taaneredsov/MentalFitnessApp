@@ -10,6 +10,7 @@ export type SyncEntityType =
   | "personal_goal_usage"
   | "overtuiging_usage"
   | "persoonlijke_overtuiging"
+  | "goede_gewoonte_usage"
   | "user"
 
 export type SyncEventType =

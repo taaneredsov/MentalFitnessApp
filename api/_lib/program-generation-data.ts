@@ -17,10 +17,11 @@ import {
   listAllOvertuigingen,
   listAllProgramPrompts,
   listAllExperienceLevels,
-  lookupGoalsByIds
+  lookupGoalsByIds,
+  listAllGoedeGewoontes
 } from "./repos/reference-repo.js"
 import type { AirtableRecord } from "./types.js"
-import type { AIMethod, AIOvertuiging } from "./openai.js"
+import type { AIMethod, AIOvertuiging, AIGoedeGewoonte } from "./openai.js"
 
 export interface ProgramGenerationData {
   goals: Record<string, unknown>[]
@@ -32,6 +33,7 @@ export interface ProgramGenerationData {
   aiOvertuigingen: AIOvertuiging[]
   allOvertuigingen: Array<{ id: string; name: string; categoryIds: string[]; order: number; levels: string[] }>
   experienceLevelMap: Map<string, string>
+  aiGoedeGewoontes: AIGoedeGewoonte[]
 }
 
 export async function loadProgramGenerationData(input: {
@@ -52,14 +54,15 @@ async function loadFromPostgres(input: {
   goalIds: string[]
   dayIds: string[]
 }): Promise<ProgramGenerationData> {
-  const [allGoals, allPrompts, allExperienceLevels, allMethods, allDays, allCategories, allOvertuigingen] = await Promise.all([
+  const [allGoals, allPrompts, allExperienceLevels, allMethods, allDays, allCategories, allOvertuigingen, allGoedeGewoontes] = await Promise.all([
     lookupGoalsByIds(input.goalIds),
     listAllProgramPrompts(),
     listAllExperienceLevels(),
     listAllMethods(),
     listAllDays(),
     listAllMindsetCategories(),
-    listAllOvertuigingen()
+    listAllOvertuigingen(),
+    listAllGoedeGewoontes()
   ])
 
   return processReferenceData({
@@ -70,6 +73,7 @@ async function loadFromPostgres(input: {
     allDays,
     allCategories,
     allOvertuigingen: allOvertuigingen as Array<{ id: string; name: string; categoryIds: string[]; order: number; levels: string[] }>,
+    allGoedeGewoontes,
     goalIds: input.goalIds,
     dayIds: input.dayIds
   })
@@ -148,6 +152,7 @@ async function loadFromAirtable(input: {
     allDays,
     allCategories,
     allOvertuigingen,
+    allGoedeGewoontes: [],
     goalIds: input.goalIds,
     dayIds: input.dayIds
   })
@@ -161,6 +166,7 @@ function processReferenceData(data: {
   allDays: Record<string, unknown>[]
   allCategories: Record<string, unknown>[]
   allOvertuigingen: Array<{ id: string; name: string; categoryIds: string[]; order: number; levels: string[] }>
+  allGoedeGewoontes?: Record<string, unknown>[]
   goalIds: string[]
   dayIds: string[]
 }): ProgramGenerationData {
@@ -236,6 +242,13 @@ function processReferenceData(data: {
     categoryName: (o.categoryIds?.[0] ? categoryNameMap.get(o.categoryIds[0]) : undefined) as string | undefined
   }))
 
+  // Process goede gewoontes
+  const aiGoedeGewoontes: AIGoedeGewoonte[] = (data.allGoedeGewoontes || []).map(g => ({
+    id: g.id as string,
+    name: g.name as string,
+    notes: g.notes as string | undefined
+  }))
+
   return {
     goals: data.goals,
     programPrompts,
@@ -245,6 +258,7 @@ function processReferenceData(data: {
     days,
     aiOvertuigingen,
     allOvertuigingen: filteredOvertuigingen,
-    experienceLevelMap
+    experienceLevelMap,
+    aiGoedeGewoontes
   }
 }

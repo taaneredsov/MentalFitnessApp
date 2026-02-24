@@ -341,7 +341,11 @@ export const api = {
 
     get: (id: string) => request<MethodDetail>(`/methods/${encodeURIComponent(id)}`),
 
-    getHabits: () => request<{ id: string; name: string; description?: string }[]>("/methods/habits")
+    getHabits: (accessToken: string) => request<{ id: string; name: string; notes?: string; description?: string }[]>("/methods/habits", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`
+        }
+      })
   },
 
   methodUsage: {
@@ -392,14 +396,14 @@ export const api = {
   },
 
   habitUsage: {
-    get: (userId: string, date: string, accessToken: string) =>
-      request<string[]>(`/habit-usage?userId=${encodeURIComponent(userId)}&date=${encodeURIComponent(date)}`, {
+    get: (_userId: string, date: string, accessToken: string) =>
+      request<string[]>(`/habit-usage?date=${encodeURIComponent(date)}`, {
         headers: {
           Authorization: `Bearer ${accessToken}`
         }
       }),
 
-    create: (data: { userId: string; methodId: string; date: string }, accessToken: string) =>
+    create: (data: { userId: string; goedeGewoonteId: string; date: string }, accessToken: string) =>
       request<{ id: string; pointsAwarded?: number }>("/habit-usage", {
         method: "POST",
         headers: {
@@ -408,8 +412,8 @@ export const api = {
         body: JSON.stringify(data)
       }),
 
-    delete: (userId: string, methodId: string, date: string, accessToken: string) =>
-      request<void>(`/habit-usage?userId=${encodeURIComponent(userId)}&methodId=${encodeURIComponent(methodId)}&date=${encodeURIComponent(date)}`, {
+    delete: (userId: string, goedeGewoonteId: string, date: string, accessToken: string) =>
+      request<void>(`/habit-usage?userId=${encodeURIComponent(userId)}&goedeGewoonteId=${encodeURIComponent(goedeGewoonteId)}&date=${encodeURIComponent(date)}`, {
         method: "DELETE",
         headers: {
           Authorization: `Bearer ${accessToken}`

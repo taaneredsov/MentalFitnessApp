@@ -177,7 +177,8 @@ export default async function handler(req: Request, res: Response) {
       methods: data.methods,
       trainingDates,
       duration: body.duration,
-      overtuigingen: data.aiOvertuigingen
+      overtuigingen: data.aiOvertuigingen,
+      goedeGewoontes: data.aiGoedeGewoontes
     })
 
     // Call OpenAI GPT-4o with Structured Outputs
@@ -237,6 +238,11 @@ export default async function handler(req: Request, res: Response) {
       .filter(sel => overtuigingMap.has(sel.overtuigingId))
       .map(sel => sel.overtuigingId)
 
+    // Map AI-selected goede gewoonte IDs for return
+    const validGoedeGewoonteIds = new Set(data.aiGoedeGewoontes.map(g => g.id))
+    const selectedGoedeGewoontes = (aiResponse.selectedGoedeGewoontes || [])
+      .filter(sel => validGoedeGewoonteIds.has(sel.goedeGewoonteId))
+
     // Create program in Airtable
     const programFields: Record<string, unknown> = {
       [PROGRAM_FIELDS.user]: [body.userId],
@@ -276,7 +282,8 @@ export default async function handler(req: Request, res: Response) {
       weeklySessionTime: aiResponse.weeklySessionTime,
       recommendations: aiResponse.recommendations || [],
       programSummary: aiResponse.programSummary,
-      programName: aiResponse.programName
+      programName: aiResponse.programName,
+      selectedGoedeGewoontes
     }, 201)
   } catch (error) {
     if (error instanceof AuthError) {

@@ -8,6 +8,7 @@ import {
   PERSONAL_GOAL_USAGE_FIELDS,
   OVERTUIGING_USAGE_FIELDS,
   PERSOONLIJKE_OVERTUIGING_FIELDS,
+  GOEDE_GEWOONTE_GEBRUIK_FIELDS,
   USER_FIELDS
 } from "../field-mappings.js"
 import { dbQuery } from "../db/client.js"
@@ -52,6 +53,9 @@ async function upsertProgram(entityId: string, payload: Record<string, unknown>)
   }
   if (payload.notes) {
     fields[PROGRAM_FIELDS.notes] = payload.notes
+  }
+  if (payload.name) {
+    fields[PROGRAM_FIELDS.name] = payload.name
   }
 
   if (existingAirtableId) {
@@ -186,6 +190,24 @@ async function upsertOvertuigingUsage(entityId: string, payload: Record<string, 
   await upsertAirtableIdMap("overtuiging_usage", entityId, record.id)
 }
 
+async function upsertGoedeGewoonteUsage(entityId: string, payload: Record<string, unknown>): Promise<void> {
+  const existingAirtableId = await findAirtableId("goede_gewoonte_usage", entityId)
+
+  const fields: Record<string, unknown> = {
+    [GOEDE_GEWOONTE_GEBRUIK_FIELDS.user]: [String(payload.userId)],
+    [GOEDE_GEWOONTE_GEBRUIK_FIELDS.goedeGewoonte]: [String(payload.goedeGewoonteId)],
+    [GOEDE_GEWOONTE_GEBRUIK_FIELDS.date]: payload.date
+  }
+
+  if (existingAirtableId) {
+    await base(tables.goedeGewoonteGebruik).update(existingAirtableId, fields, { typecast: true })
+    return
+  }
+
+  const record = await base(tables.goedeGewoonteGebruik).create(fields, { typecast: true })
+  await upsertAirtableIdMap("goede_gewoonte_usage", entityId, record.id)
+}
+
 async function upsertPersonalGoal(entityId: string, payload: Record<string, unknown>): Promise<void> {
   const existingAirtableId = await findAirtableId("personal_goal", entityId)
 
@@ -317,6 +339,10 @@ async function deleteByEntity(entityType: string, entityId: string): Promise<voi
     await base(tables.overtuigingenGebruik).destroy(airtableId)
     return
   }
+  if (entityType === "goede_gewoonte_usage") {
+    await base(tables.goedeGewoonteGebruik).destroy(airtableId)
+    return
+  }
   if (entityType === "persoonlijke_overtuiging") {
     await base(tables.persoonlijkeOvertuigingen).destroy(airtableId)
     return
@@ -362,6 +388,9 @@ export async function writeOutboxEventToAirtable(input: {
       return
     case "overtuiging_usage":
       await upsertOvertuigingUsage(input.entityId, input.payload)
+      return
+    case "goede_gewoonte_usage":
+      await upsertGoedeGewoonteUsage(input.entityId, input.payload)
       return
     case "persoonlijke_overtuiging":
       await upsertPersoonlijkeOvertuiging(input.entityId, input.payload)

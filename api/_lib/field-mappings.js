@@ -57,7 +57,9 @@ export const TABLES = {
   overtuigingen: process.env.AIRTABLE_TABLE_OVERTUIGINGEN || "tbl42zgwzkwq3s0cO",                    // Overtuigingen
   mindsetCategories: process.env.AIRTABLE_TABLE_MINDSET_CATEGORIES || "tblFTnF8xCReN2Sk3",           // Mindset Category
   persoonlijkeOvertuigingen: process.env.AIRTABLE_TABLE_PERSOONLIJKE_OVERTUIGINGEN || "tbl6RJteNCCcelyfR", // Persoonlijke Overtuigingen
-  overtuigingenGebruik: process.env.AIRTABLE_TABLE_OVERTUIGINGEN_GEBRUIK || "tblsPtnIlTezVacxv"       // Overtuigingen Gebruik
+  overtuigingenGebruik: process.env.AIRTABLE_TABLE_OVERTUIGINGEN_GEBRUIK || "tblsPtnIlTezVacxv",       // Overtuigingen Gebruik
+  goedeGewoontes: process.env.AIRTABLE_TABLE_GOEDE_GEWOONTES || "tblg0lHLnqYIkfvPV",
+  goedeGewoonteGebruik: process.env.AIRTABLE_TABLE_GOEDE_GEWOONTE_GEBRUIK || "tbl3PAonRhbzyIe0o"
 }
 
 // User table field IDs (Gebruikers) - use for reading/writing
@@ -266,6 +268,21 @@ export const OVERTUIGING_USAGE_FIELDS = {
   date: "fldaDnnhvJ8H9gjB3"               // Datum (date)
 }
 
+// Goede Gewoontes (ref) table field IDs (tblg0lHLnqYIkfvPV)
+export const GOEDE_GEWOONTE_FIELDS = {
+  name: "fldVR1yiFbpLaafe4",        // Name
+  notes: "fldz1n17gRwkoUmge"        // Notes
+}
+
+// Goede Gewoontes Gebruik table field IDs (tbl3PAonRhbzyIe0o)
+export const GOEDE_GEWOONTE_GEBRUIK_FIELDS = {
+  name: "fld0M8vf1Tx20OomS",        // Name
+  user: "fldLIzVxJ5TmPtwBJ",        // Gebruikers (link to Users)
+  goedeGewoonte: "fld23ht8gYEFQ3r4U", // Goede gewoontes (link to ref)
+  program: "fldRVMJX7okGCVxDM",     // Programma's (link to Programs)
+  date: "fldLDuoW175HMOl4W"         // Datum
+}
+
 // Field NAMES for use in filterByFormula (Airtable requires names, not IDs)
 export const FIELD_NAMES = {
   user: {
@@ -374,6 +391,12 @@ export const FIELD_NAMES = {
     user: "Gebruikers",
     overtuiging: "Overtuigingen",
     program: "Mentale Fitnessprogramma's",
+    date: "Datum"
+  },
+  goedeGewoonteGebruik: {
+    user: "Gebruikers",
+    goedeGewoonte: "Goede gewoontes",
+    program: "Programma's",
     date: "Datum"
   }
 }
@@ -726,5 +749,17 @@ export function transformOvertuigingUsage(record) {
     overtuigingId: fields[OVERTUIGING_USAGE_FIELDS.overtuiging]?.[0],
     programId: fields[OVERTUIGING_USAGE_FIELDS.program]?.[0],
     date: fields[OVERTUIGING_USAGE_FIELDS.date]
+  }
+}
+
+/**
+ * Transform Airtable goede gewoonte record to clean GoedeGewoonte object
+ */
+export function transformGoedeGewoonte(record) {
+  const fields = record.fields
+  return {
+    id: record.id,
+    name: fields[GOEDE_GEWOONTE_FIELDS.name],
+    notes: fields[GOEDE_GEWOONTE_FIELDS.notes]
   }
 }

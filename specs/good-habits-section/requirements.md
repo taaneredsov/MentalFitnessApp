@@ -1,85 +1,138 @@
-# Requirements: Good Habits Section
+# Requirements: Goede Gewoontes (Good Habits)
+
+> **Updated 2026-02-24**: Refactored from Methodes-based filtering to standalone Airtable tables with Postgres sync.
 
 ## Overview
 
-Add a "Goede Gewoontes" (Good Habits) section to the HomePage that displays habit-based methods. These are methods linked to the "Goede gewoontes" goal in Airtable. Unlike regular methods, these are simple reminders/tips without video content.
+"Goede Gewoontes" are daily good habits that users practice alongside their mental fitness program. They are separate from training methods - they represent simple lifestyle habits (drink water, stretch, eat healthy) that users check off daily for bonus points.
 
-## User Story
+## Architecture
 
-As a user on the homepage, I want to see a section with good daily habits I can practice, so that I can build healthy routines alongside my mental fitness program.
+### Data Source (Current)
 
-## Data Source
+Goede Gewoontes use **dedicated Airtable tables** (not the Methodes table):
 
-Good habits are methods from the `Methodes` table filtered by their linked `Doelstellingen` (Goals):
-- Filter: Methods where linked goal name = "Goede gewoontes"
-- Current habits (3):
-  1. 💧 Drink water
-  2. 🧘 Stretch-pauze
-  3. 🥗 Eet gezond
+| Table | Airtable ID | Purpose |
+|-------|------------|---------|
+| Goede gewoontes | `tblg0lHLnqYIkfvPV` | Reference table (name, notes) |
+| Goede gewoontes gebruik | `tbl3PAonRhbzyIe0o` | Usage tracking (user, habit, date) |
 
-## Display Requirements
+### Field Mappings
 
-### Section Layout
-- Separate card section on HomePage titled "Goede Gewoontes"
-- Located after "Activiteit van Vandaag" or "Huidig Programma" section
-- Collapsible or always visible (simple card list)
+**Goede gewoontes (reference)**:
+- `fldVR1yiFbpLaafe4` - Name
+- `fldz1n17gRwkoUmge` - Notes
 
-### Habit Card Display
-- **Name**: Full method name including emoji (e.g., "💧 Drink water")
-- **Description**: Method description in smaller/muted text
-- **No navigation**: Clicking does NOT navigate to method detail (no video)
-- **No duration**: Don't show duration since there's no media
+**Goede gewoontes gebruik (usage)**:
+- `fld0M8vf1Tx20OomS` - Name
+- `fldLIzVxJ5TmPtwBJ` - Gebruikers (linked user)
+- `fld23ht8gYEFQ3r4U` - Goede gewoontes (linked habit)
+- `fldRVMJX7okGCVxDM` - Programma (linked program)
+- `fldLDuoW175HMOl4W` - Datum
 
-### Visual Style
-- Simple, clean cards matching existing app design
-- Emoji should display prominently
-- Description text in `text-muted-foreground` and smaller size
+### Postgres Tables
+
+- `reference_goede_gewoontes_pg` - Synced from Airtable reference table
+- `goede_gewoontes_usage_pg` - Usage records with UNIQUE(user_id, goede_gewoonte_id, usage_date)
+- `users_pg.goede_gewoontes` - JSONB column storing user's selected habit IDs (max 3)
+
+## User Stories
+
+### US-1: View Good Habits
+**As a** user on the homepage
+**I want to** see my selected good habits
+**So that** I'm reminded to practice them daily
+
+### US-2: Track Daily Completion
+**As a** user
+**I want to** check off good habits I've completed today
+**So that** I earn bonus points and build consistency
+
+### US-3: AI Selection During Onboarding
+**As a** new user creating my first program
+**I want the** AI to suggest up to 3 good habits for me
+**So that** I start with relevant daily habits without manual selection
 
 ## Functional Requirements
 
-1. **Fetch good habits**: Query methods API with goal filter for "Goede gewoontes"
-2. **Display on HomePage**: Show section with habit cards
-3. **Static display**: No interaction needed (read-only reminder cards)
-4. **Cache-friendly**: Use React Query for caching
+### FR-1: Homepage Display
+- Show "Goede Gewoontes" section on HomePage
+- Display user's selected habits (from `users_pg.goede_gewoontes`)
+- If no habits selected, show all available habits as fallback
+- Each habit shows name and checkbox for today's completion
+- Optimistic UI updates on check/uncheck
 
-## Non-Functional Requirements
+### FR-2: Daily Completion Tracking
+- Users can check a habit once per day (UNIQUE constraint enforced)
+- Checking awards 10 bonus points via rewards engine
+- Unchecking removes the usage record for that date
+- Completion state resets daily
 
-- Should not slow down HomePage load (parallel fetch or lazy load)
-- Gracefully handle empty state (no habits configured)
-- Works on mobile and desktop
+### FR-3: AI Integration
+- AI program generation selects up to 3 goede gewoontes
+- Selection based on user's goals and profile
+- AI provides a reason for each selection
+- Selections shown on ProgramResult page after program creation
+- Confirm endpoint saves selections to `users_pg.goede_gewoontes`
+
+### FR-4: Airtable Sync
+- Usage records sync to Airtable via outbox pattern
+- Entity type: `goede_gewoonte_usage`
+- Reference data synced from Airtable during full sync
+
+## API Endpoints
+
+### GET /api/methods/habits
+Returns user's selected goede gewoontes (or all if none selected).
+
+### POST /api/habit-usage
+Records a habit completion for a date.
+Body: `{ userId, goedeGewoonteId, date }`
+
+### DELETE /api/habit-usage
+Removes a habit completion.
+Query: `?userId=...&goedeGewoonteId=...&date=...`
+
+### GET /api/habit-usage
+Returns completed habit IDs for a date.
+Query: `?date=YYYY-MM-DD`
+
+## Key Implementation Files
+
+| File | Purpose |
+|------|---------|
+| `api/_lib/repos/goede-gewoonte-usage-repo.ts` | CRUD for usage records |
+| `api/_lib/repos/reference-repo.ts` | `listAllGoedeGewoontes()`, `lookupByIds()` |
+| `api/_lib/repos/user-repo.ts` | `updateUserGoedeGewoontes()`, `getUserGoedeGewoontes()` |
+| `api/habit-usage/index.ts` | Usage API endpoint |
+| `api/methods/habits.ts` | Returns user's selected habits |
+| `api/_lib/sync/airtable-writers.ts` | `upsertGoedeGewoonteUsage()` |
+| `api/_lib/sync/full-sync.ts` | Reference data sync |
+| `api/_lib/openai.ts` | AI schema with `selectedGoedeGewoontes` |
+| `api/_lib/program-generation-data.ts` | Loads goede gewoontes for AI |
+| `api/programs/preview.ts` | Returns AI-suggested goede gewoontes |
+| `api/programs/confirm.ts` | Saves selections to user record |
+| `src/components/GoodHabitsSection.tsx` | Homepage UI component |
+| `src/components/AIProgramWizard/ProgramResult.tsx` | Shows selections after onboarding |
+| `src/hooks/queries.ts` | React Query hooks with optimistic updates |
+| `tasks/db/migrations/014_goede_gewoontes.sql` | Database migration |
+
+## Important Constraints
+
+- **NOT part of the Mentaal Fitness Programma** - goede gewoontes are independent of program schedule
+- **Max 3 selection** - AI selects up to 3, enforced in schema
+- **Usage NOT linked to a program** - usage records are standalone daily habits
+- **Suggested during onboarding only** - at end of first program creation (ProgramResult page)
 
 ## Acceptance Criteria
 
-- [ ] "Goede Gewoontes" section appears on HomePage
-- [ ] Shows all methods linked to "Goede gewoontes" goal
-- [ ] Each habit displays name (with emoji) and description
-- [ ] Habits are NOT clickable/navigable
-- [ ] Section doesn't appear if no good habits exist
-
-## Technical Notes
-
-### Airtable Structure
-- **Table**: Methodes (`tblB0QvbGg3zWARt4`)
-- **Filter by**: `Doelstellingen (gekoppeld)` field contains goal with name "Goede gewoontes"
-- **Fields needed**:
-  - `name` (Methode Naam) - includes emoji
-  - `description` (Beschrijving)
-
-### API Approach Options
-1. **New endpoint**: `GET /api/methods/habits` - filtered server-side
-2. **Existing endpoint**: `GET /api/methods?goal=goede-gewoontes` - add query param
-3. **Client filter**: Fetch all methods, filter client-side (less efficient)
-
-Recommended: Option 1 or 2 for efficiency.
-
-## Dependencies
-
-- Existing Methods API (`/api/methods`)
-- Existing field mappings for methods
-- HomePage component
-
-## Future Considerations
-
-- Track habit completion (daily check-off)
-- Habit streaks/gamification
-- User-customizable habits
+- [x] Goede Gewoontes section appears on HomePage
+- [x] Users can check/uncheck habits daily
+- [x] Points awarded on completion
+- [x] Optimistic UI updates
+- [x] AI selects up to 3 during program creation
+- [x] Selections shown on ProgramResult page
+- [x] Selections saved to user record on confirm
+- [x] Airtable sync via outbox
+- [ ] End-to-end test after deploy
+- [ ] Migration 014 run on production

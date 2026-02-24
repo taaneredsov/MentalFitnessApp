@@ -24,6 +24,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
   const { data: goalCounts = {}, isLoading: isLoadingUsage } = usePersonalGoalUsage(user?.id, today)
 
   const completeGoalMutation = useCompletePersonalGoal()
+  const [pendingGoalIds, setPendingGoalIds] = useState<Set<string>>(new Set())
 
   const [expandedGoal, setExpandedGoal] = useState<string | null>(null)
   const [recentlyCompleted, setRecentlyCompleted] = useState<string | null>(null)
@@ -41,7 +42,10 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
   const isLoading = isLoadingGoals || isLoadingUsage
 
   const completeGoal = async (goalId: string) => {
-    if (!user?.id || !accessToken) return
+    if (!user?.id || !accessToken || pendingGoalIds.has(goalId)) return
+
+    // Track this goal as pending
+    setPendingGoalIds(prev => new Set(prev).add(goalId))
 
     // Show points animation
     setRecentlyCompleted(goalId)
@@ -56,6 +60,13 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
       },
       accessToken
     }, {
+      onSettled: () => {
+        setPendingGoalIds(prev => {
+          const next = new Set(prev)
+          next.delete(goalId)
+          return next
+        })
+      },
       onError: () => {
         setRecentlyCompleted(null)
       }
@@ -197,7 +208,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
                         e.stopPropagation()
                         completeGoal(goal.id)
                       }}
-                      disabled={completeGoalMutation.isPending}
+                      disabled={pendingGoalIds.has(goal.id)}
                       className={`flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 relative ${
                         recentlyCompleted === goal.id
                           ? "bg-[oklch(60%_.12_185)] text-white shadow-sm"

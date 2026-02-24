@@ -53,6 +53,24 @@ export interface AISelectedOvertuiging {
 }
 
 /**
+ * Goede gewoonte available for AI selection
+ */
+export interface AIGoedeGewoonte {
+  id: string
+  name: string
+  notes?: string
+}
+
+/**
+ * AI-selected goede gewoonte
+ */
+export interface AISelectedGoedeGewoonte {
+  goedeGewoonteId: string
+  goedeGewoonteName: string
+  reason: string
+}
+
+/**
  * Complete response from AI program generation
  */
 export interface AIProgramResponse {
@@ -62,6 +80,7 @@ export interface AIProgramResponse {
   recommendations: string[]
   programSummary: string
   selectedOvertuigingen: AISelectedOvertuiging[]
+  selectedGoedeGewoontes: AISelectedGoedeGewoonte[]
 }
 
 /**
@@ -107,6 +126,7 @@ export interface AIPromptInput {
   duration: string
   editContext?: EditContext  // Optional context when regenerating an existing program
   overtuigingen?: AIOvertuiging[]  // Available overtuigingen for AI to select from
+  goedeGewoontes?: AIGoedeGewoonte[]  // Available goede gewoontes for AI to select from
 }
 
 /**
@@ -167,9 +187,23 @@ export const AI_PROGRAM_SCHEMA = {
             additionalProperties: false
           },
           description: "Up to 3 selected overtuigingen matching the user's goals"
+        },
+        selectedGoedeGewoontes: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              goedeGewoonteId: { type: "string", description: "Record ID for the goede gewoonte" },
+              goedeGewoonteName: { type: "string", description: "Name of the goede gewoonte" },
+              reason: { type: "string", description: "Brief reason why this habit fits the user (in Dutch)" }
+            },
+            required: ["goedeGewoonteId", "goedeGewoonteName", "reason"],
+            additionalProperties: false
+          },
+          description: "Up to 3 selected goede gewoontes (good habits) for daily practice"
         }
       },
-      required: ["programName", "schedule", "weeklySessionTime", "recommendations", "programSummary", "selectedOvertuigingen"],
+      required: ["programName", "schedule", "weeklySessionTime", "recommendations", "programSummary", "selectedOvertuigingen", "selectedGoedeGewoontes"],
       additionalProperties: false
     }
   }
@@ -201,6 +235,13 @@ Houd rekening met de "Frequentie" van elke methode:
 6. Gebruik ALLEEN de exacte methode IDs en dayIDs uit de lijsten hierboven
 7. Kopieer de datum, dayOfWeek en dayId exact zoals opgegeven`,
 
+  goede_gewoontes_selectie: `## Goede Gewoontes Selectie:
+Selecteer maximaal 3 goede gewoontes die het beste passen bij de doelstellingen en het profiel van de gebruiker.
+Goede gewoontes zijn dagelijkse gewoontes die de gebruiker kan aannemen om mentale fitheid te verbeteren.
+Geef voor elke gekozen gewoonte een korte reden waarom deze past.
+Gebruik ALLEEN de exacte IDs uit de lijst "Beschikbare Goede Gewoontes".
+Als er geen goede gewoontes beschikbaar zijn, geef een lege array [].`,
+
   output_formaat: `## Output Formaat:
 Retourneer een JSON object met exact deze structuur:
 {
@@ -220,6 +261,9 @@ Retourneer een JSON object met exact deze structuur:
   "programSummary": "Korte samenvatting van het programma",
   "selectedOvertuigingen": [
     { "overtuigingId": "rec...", "overtuigingName": "Naam", "reason": "Korte reden" }
+  ],
+  "selectedGoedeGewoontes": [
+    { "goedeGewoonteId": "rec...", "goedeGewoonteName": "Naam", "reason": "Korte reden" }
   ]
 }
 
@@ -228,7 +272,8 @@ Retourneer een JSON object met exact deze structuur:
 - weeklySessionTime: gemiddelde totale tijd per week in minuten
 - recommendations: 3-5 gepersonaliseerde tips in het Nederlands
 - programSummary: korte samenvatting van het programma in het Nederlands
-- selectedOvertuigingen: maximaal 3 overtuigingen die passen bij de doelstellingen (gebruik ALLEEN IDs uit de lijst "Beschikbare Overtuigingen"). Als er geen overtuigingen beschikbaar zijn, geef een lege array [].`
+- selectedOvertuigingen: maximaal 3 overtuigingen die passen bij de doelstellingen (gebruik ALLEEN IDs uit de lijst "Beschikbare Overtuigingen"). Als er geen overtuigingen beschikbaar zijn, geef een lege array [].
+- selectedGoedeGewoontes: maximaal 3 goede gewoontes die passen bij de doelstellingen (gebruik ALLEEN IDs uit de lijst "Beschikbare Goede Gewoontes"). Als er geen goede gewoontes beschikbaar zijn, geef een lege array [].`
 }
 
 /**
@@ -245,7 +290,7 @@ function getSystemPrompt(
  * Build the system prompt for GPT-4o with training dates and frequency rules
  */
 export function buildSystemPrompt(input: AIPromptInput): string {
-  const { goals, programPrompts, systemPrompts, methods, trainingDates, duration, editContext, overtuigingen } = input
+  const { goals, programPrompts, systemPrompts, methods, trainingDates, duration, editContext, overtuigingen, goedeGewoontes } = input
 
   // Get dynamic system prompts (with fallbacks)
   const introPrompt = getSystemPrompt(systemPrompts, "intro")
@@ -327,6 +372,20 @@ Gebruik ALLEEN de exacte IDs uit de bovenstaande lijst.
 Er zijn geen overtuigingen beschikbaar voor de geselecteerde doelstellingen. Geef een lege array [] voor selectedOvertuigingen.
 `
 
+  // Build goede gewoontes section if available
+  const goedeGewoontePrompt = getSystemPrompt(systemPrompts, "goede_gewoontes_selectie")
+  const goedeGewoonteSection = goedeGewoontes && goedeGewoontes.length > 0
+    ? `
+## Beschikbare Goede Gewoontes:
+${goedeGewoontes.map(g => `- ID: "${g.id}", Naam: "${g.name}"${g.notes ? `, Beschrijving: "${g.notes}"` : ""}`).join("\n")}
+
+${goedeGewoontePrompt}
+`
+    : `
+## Goede Gewoontes:
+Er zijn geen goede gewoontes beschikbaar. Geef een lege array [] voor selectedGoedeGewoontes.
+`
+
   return `${introPrompt}
 ${editContextSection}
 ## Programma Naam:
@@ -350,6 +409,7 @@ ${trainingDatesList}
 ## Programma Duur:
 ${duration}
 ${overtuigingenSection}
+${goedeGewoonteSection}
 ${selectieRegels}
 
 ${frequentieRegels}

@@ -9,7 +9,8 @@ import {
   transformOvertuiging,
   transformMindsetCategory,
   transformProgramPrompt,
-  transformExperienceLevel
+  transformExperienceLevel,
+  transformGoedeGewoonte
 } from "../field-mappings.js"
 
 // ---------- Methods ----------
@@ -207,6 +208,24 @@ export async function listAllExperienceLevels(): Promise<Record<string, unknown>
     `SELECT id, payload FROM reference_experience_levels_pg`
   )
   return result.rows.map(row => transformExperienceLevel({ id: row.id, fields: row.payload }))
+}
+
+// ---------- Goede Gewoontes ----------
+
+export async function listAllGoedeGewoontes(): Promise<Record<string, unknown>[]> {
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_goede_gewoontes_pg`
+  )
+  return result.rows.map(row => transformGoedeGewoonte({ id: row.id, fields: row.payload }))
+}
+
+export async function lookupGoedeGewoontesByIds(ids: string[]): Promise<Record<string, unknown>[]> {
+  if (ids.length === 0) return []
+  const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
+    `SELECT id, payload FROM reference_goede_gewoontes_pg WHERE id = ANY($1::text[])`,
+    [ids]
+  )
+  return result.rows.map(row => transformGoedeGewoonte({ id: row.id, fields: row.payload }))
 }
 
 // ---------- Personal Goals ----------

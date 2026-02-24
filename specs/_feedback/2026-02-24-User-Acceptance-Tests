@@ -1,0 +1,170 @@
+# User Acceptance Tests - 2026-02-24
+
+**Context**: Pre-launch UAT session for Multifarma pilot
+**Tester**: Renaatdevos
+**Environment**: Production (postgres_primary mode)
+
+---
+
+## Bug 1: Onboarding wrong text on certain steps
+
+**Priority**: MEDIUM | **Status**: NO ISSUES FOUND - NEEDS CLARIFICATION
+
+### Description
+User reported "wrong text on certain steps" during onboarding. The specific steps and expected vs actual text were not specified.
+
+### Investigation (thorough review of all onboarding text)
+All onboarding text reviewed after the Goede Gewoontes refactor. No critical issues found:
+- `src/lib/tourSteps.ts` - All 6 tour steps correct. "Bouw goede gewoontes op met dagelijkse check-ins" correctly references the standalone feature.
+- `src/components/WelcomeScreen.tsx` - Generic text, no outdated references
+- `src/components/AIProgramWizard/AIInputForm.tsx` - Correctly filters out "Goede gewoontes" goal (line 174)
+- `src/components/AIProgramWizard/ProgramResult.tsx` - Correctly shows goede gewoontes as separate section
+- `src/components/ProgramEditDialog.tsx` - Correctly filters out "Goede gewoontes" goal (line 153)
+- `src/pages/MethodsPage.tsx` - Correctly filters out goede gewoontes methods
+
+### Minor Observation
+The "Goede gewoontes" goal is silently filtered from goal selection in both the wizard and edit dialog without explanatory text. Users might wonder why this goal doesn't appear. However, goede gewoontes DO appear on the ProgramResult page after creation.
+
+### Action Required
+- [ ] **Ask tester**: Which specific onboarding steps show wrong text? Screenshot or exact wording needed
+- [ ] Consider adding a brief note in goal selection explaining that goede gewoontes are handled separately
+
+---
+
+## Bug 2: Recalculating program (edit program) not working
+
+**Priority**: HIGH | **Status**: FIXED
+
+### Root Cause
+`api/programs/[id]/regenerate-schedule.ts` was entirely Airtable-only. In `postgres_primary` mode, program IDs are UUIDs (e.g., `a1b2c3d4-...`), but the endpoint used `isValidRecordId(id)` which only accepts Airtable format (`rec...`). This caused a **400 "Invalid program ID"** error that was silently swallowed by the frontend (no error toast).
+
+### Fix Applied
+1. **Backend**: Implemented full `postgres_primary` path in `regenerate-schedule.ts`:
+   - New `handlePostgres()` function using `getProgramByAnyId()`, `listProgramSessions()`, `updateProgramById()`
+   - Preserves method_usage records by unlinking from sessions before deletion
+   - Both AI and simple regeneration methods supported
+   - Outbox sync events for Airtable synchronization
+   - Original Airtable code moved to `handleAirtable()`, untouched
+
+2. **Frontend error handling**:
+   - Added `onError` toast to `useRegenerateSchedule` hook (`queries.ts`)
+   - Added try-catch in `ProgramEditDialog.handleRegenerate` to reset confirmation view on error
+
+### Files Changed
+- `api/programs/[id]/regenerate-schedule.ts` - Major: full postgres_primary implementation (~250 new lines)
+- `src/hooks/queries.ts` - Added `onError` handler to `useRegenerateSchedule`
+- `src/components/ProgramEditDialog.tsx` - Added try-catch to `handleRegenerate`
+
+### Related Spec
+- `specs/edit-running-program/requirements.md`
+
+---
+
+## Bug 3: Program name not sent to Airtable
+
+**Priority**: HIGH | **Status**: FIXED
+
+### Root Cause
+`upsertProgram()` in `api/_lib/sync/airtable-writers.ts` was missing the `name` field when writing program data to Airtable via the outbox sync worker. The program name was saved correctly in Postgres but never synced to Airtable.
+
+### Fix Applied
+Added `name` field mapping to `upsertProgram()`:
+```typescript
+if (payload.name) {
+  fields[PROGRAM_FIELDS.name] = payload.name
+}
+```
+
+### Files Changed
+- `api/_lib/sync/airtable-writers.ts` - Added `name` field to `upsertProgram()`
+
+---
+
+## Bug 4: Registering personal goals (persoonlijke doelen) doesn't work (or only 1 registration)
+
+**Priority**: HIGH | **Status**: FIXED
+
+### Root Causes (3 identified)
+
+1. **CRITICAL - Single shared mutation blocked all buttons** (`PersonalGoalsSection.tsx:200`):
+   `completeGoalMutation.isPending` disabled ALL goal checkmarks while any one mutation was in-flight. This is the primary cause of "only 1 registration works" - after clicking one goal, all other buttons went disabled until the API call completed.
+
+2. **Missing UNIQUE constraint** on `personal_goal_usage_pg`: Unlike `goede_gewoontes_usage_pg` which has `UNIQUE(user_id, goede_gewoonte_id, usage_date)`, personal goals had no duplicate prevention. Could cause duplicate registrations.
+
+3. **Cache not reconciled after success** (`queries.ts:529-532`): `onSuccess` handler only invalidated rewards cache, never invalidated the `personalGoalUsage` query to reconcile the optimistic update with the actual server response.
+
+### Fixes Applied
+
+**Fix 1 - Per-goal pending tracking** (`PersonalGoalsSection.tsx`):
+- Added `pendingGoalIds` state (Set) to track which specific goals have in-flight mutations
+- Changed button `disabled` from `completeGoalMutation.isPending` to `pendingGoalIds.has(goal.id)`
+- Added `onSettled` callback to clear goal from pending set after mutation completes
+- Users can now complete multiple goals in rapid succession
+
+**Fix 2 - UNIQUE constraint migration** (`015_personal_goal_usage_unique.sql`):
+```sql
+ALTER TABLE personal_goal_usage_pg
+  ADD CONSTRAINT unique_user_personal_goal_date
+  UNIQUE (user_id, personal_goal_id, usage_date);
+```
+
+**Fix 3 - Cache reconciliation** (`queries.ts`):
+- `onSuccess` now invalidates `personalGoalUsage(userId, date)` query to reconcile with server
+- Removed stale `["completedPersonalGoals"]` invalidation (key doesn't exist)
+
+**Fix 4 - Error toast** (`queries.ts`, applied earlier):
+- Added `onError` handler with rollback and user-visible toast
+
+### Files Changed
+- `src/components/PersonalGoalsSection.tsx` - Per-goal pending tracking instead of global mutation disable
+- `src/hooks/queries.ts` - Added `onError` handler + fixed `onSuccess` cache invalidation
+- `tasks/db/migrations/015_personal_goal_usage_unique.sql` - UNIQUE constraint
+
+### Related Spec
+- `specs/personal-goals/requirements.md`
+
+---
+
+## Related: Goede Gewoontes Feature (Uncommitted)
+
+Not reported as a UAT bug, but discovered during investigation: the Goede Gewoontes onboarding chain was broken. The feature was fully implemented on the backend but not wired through the frontend wizard.
+
+### Issues Found and Fixed
+1. `api/programs/preview.ts` didn't pass `goedeGewoontes` to AI `buildSystemPrompt` - AI couldn't select habits
+2. `api/programs/preview.ts` didn't return `suggestedGoedeGewoontes` in response
+3. Wizard `AIPreviewResult` type missing `suggestedGoedeGewoontes`
+4. `handleConfirm` in wizard didn't pass `selectedGoedeGewoontes` to confirm endpoint
+5. `ProgramResult.tsx` didn't display AI-selected goede gewoontes
+
+### Fix Applied
+- Backend: Preview endpoint now passes goede gewoontes to AI and returns selections
+- Frontend types: Added `suggestedGoedeGewoontes` to preview result, `selectedGoedeGewoontes` to generate result
+- Frontend wizard: `handleConfirm` maps and passes goede gewoontes to confirm
+- Frontend display: ProgramResult shows goede gewoontes with name + AI reason
+- i18n: Added `goedeGewoontes.title` translations (nl/fr/en)
+
+### Files Changed
+- `api/programs/preview.ts`
+- `src/types/program.ts`
+- `src/components/AIProgramWizard/types.ts`
+- `src/components/AIProgramWizard/index.tsx`
+- `src/components/AIProgramWizard/ProgramResult.tsx`
+- `src/lib/i18n-fallback.ts`
+
+### Related Spec
+- `specs/good-habits-section/requirements.md` (NOTE: outdated - still references old Methodes-based approach. Goede Gewoontes now use separate Airtable table `tblg0lHLnqYIkfvPV`)
+
+---
+
+## Pre-Deploy Checklist
+
+- [ ] Run migration `014_goede_gewoontes.sql` on production database
+- [ ] Run migration `015_personal_goal_usage_unique.sql` on production database
+- [ ] Verify Airtable field "Programma's" matches actual table structure (`field-mappings.js:399`)
+- [ ] Commit all changes with version bump
+- [ ] Deploy via `git push dev main`
+- [ ] Smoke test: create new program via AI wizard, verify goede gewoontes appear
+- [ ] Smoke test: edit program schedule (regenerate), verify it completes
+- [ ] Smoke test: check program name appears in Airtable after sync
+- [ ] Get clarification on Bug 1 (onboarding text) from tester
+- [ ] Investigate Bug 4 server logs after deploy (error toasts now visible)

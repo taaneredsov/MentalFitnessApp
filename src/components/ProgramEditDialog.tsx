@@ -239,13 +239,19 @@ export function ProgramEditDialog({
   }
 
   const handleRegenerate = async (method: "ai" | "simple") => {
-    await onRegenerate({
-      daysOfWeek: selectedDayIds,
-      goals: goalsChanged ? selectedGoalIds : undefined,
-      regenerateMethod: method,
-      force: true  // Force regeneration even if future sessions have completed activities
-    })
-    setShowRegenerateConfirm(false)
+    try {
+      await onRegenerate({
+        daysOfWeek: selectedDayIds,
+        goals: goalsChanged ? selectedGoalIds : undefined,
+        regenerateMethod: method,
+        force: true  // Force regeneration even if future sessions have completed activities
+      })
+      setShowRegenerateConfirm(false)
+    } catch {
+      // Error toast is shown by the mutation's onError handler
+      // Reset confirm view so user can try again
+      setShowRegenerateConfirm(false)
+    }
   }
 
   const handleSaveNotesOnly = async () => {

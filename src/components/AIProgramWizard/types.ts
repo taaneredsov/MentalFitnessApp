@@ -36,6 +36,11 @@ export interface AIGenerateResult {
   recommendations: string[]
   programSummary?: string
   programName?: string
+  selectedGoedeGewoontes?: Array<{
+    goedeGewoonteId: string
+    goedeGewoonteName: string
+    reason: string
+  }>
 }
 
 export interface AIPreviewResult {
@@ -47,6 +52,11 @@ export interface AIPreviewResult {
   availableMethods: Method[]
   selectedGoals: Goal[]
   suggestedOvertuigingen?: Overtuiging[]
+  suggestedGoedeGewoontes?: Array<{
+    id: string
+    name: string
+    reason: string
+  }>
 }
 
 export interface ScheduleReviewProps {

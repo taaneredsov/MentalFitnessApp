@@ -3,7 +3,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
-import { CheckCircle2, Clock, Calendar, Lightbulb, Home, Plus, Target, X, Loader2 } from "lucide-react"
+import { CheckCircle2, Clock, Calendar, Lightbulb, Home, Plus, Target, X, Loader2, Leaf } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "@/contexts/AuthContext"
 import { useCreatePersonalGoal, useOvertuigingen } from "@/hooks/queries"
@@ -25,7 +25,7 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   const { accessToken } = useAuth()
   const createGoalMutation = useCreatePersonalGoal()
 
-  const { program, aiSchedule, weeklySessionTime, recommendations, programSummary } = result
+  const { program, aiSchedule, weeklySessionTime, recommendations, programSummary, selectedGoedeGewoontes } = result
 
   // Resolve overtuigingen names from IDs
   const { data: allOvertuigingen = [] } = useOvertuigingen()
@@ -209,6 +209,27 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                 >
                   {o.name}
                 </span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Goede Gewoontes */}
+        {selectedGoedeGewoontes && selectedGoedeGewoontes.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Leaf className="w-4 h-4 text-green-500" />
+              <h4 className="text-sm font-medium">{t("goedeGewoontes.title")}</h4>
+            </div>
+            <div className="space-y-2">
+              {selectedGoedeGewoontes.map(g => (
+                <div
+                  key={g.goedeGewoonteId}
+                  className="px-3 py-2 text-sm rounded-lg bg-green-50 border border-green-200"
+                >
+                  <p className="font-medium text-green-800">{g.goedeGewoonteName}</p>
+                  <p className="text-xs text-green-600 mt-0.5">{g.reason}</p>
+                </div>
               ))}
             </div>
           </div>

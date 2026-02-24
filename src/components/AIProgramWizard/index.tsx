@@ -98,6 +98,11 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
 
     try {
       const overtuigingen = preview.suggestedOvertuigingen?.map(o => o.id) || []
+      const selectedGoedeGewoontes = preview.suggestedGoedeGewoontes?.map(g => ({
+        goedeGewoonteId: g.id,
+        goedeGewoonteName: g.name,
+        reason: g.reason
+      }))
       const response = await api.programs.confirm(
         {
           userId: user.id,
@@ -108,12 +113,17 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
           editedSchedule,
           programSummary: preview.programSummary,
           programName: preview.programName,
-          overtuigingen
+          overtuigingen,
+          selectedGoedeGewoontes
         },
         accessToken
       )
 
-      setResult(response)
+      // Pass through goede gewoontes to result for display
+      setResult({
+        ...response,
+        selectedGoedeGewoontes
+      })
       setPhase("result")
 
       // Invalidate queries so programs list shows fresh data

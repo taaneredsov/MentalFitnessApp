@@ -213,6 +213,11 @@ export interface AIGenerateResponse {
   recommendations: string[]
   programSummary?: string
   programName?: string
+  selectedGoedeGewoontes?: Array<{
+    goedeGewoonteId: string
+    goedeGewoonteName: string
+    reason: string
+  }>
 }
 
 // AI Program Preview (no saving to Airtable)
@@ -233,6 +238,11 @@ export interface AIPreviewResponse {
   availableMethods: Method[]
   selectedGoals: Goal[]
   suggestedOvertuigingen?: Overtuiging[]
+  suggestedGoedeGewoontes?: Array<{
+    id: string
+    name: string
+    reason: string
+  }>
 }
 
 // AI Program Confirm (save to Airtable)
@@ -246,6 +256,11 @@ export interface AIConfirmRequest {
   programSummary?: string
   programName?: string
   overtuigingen?: string[]
+  selectedGoedeGewoontes?: Array<{
+    goedeGewoonteId: string
+    goedeGewoonteName: string
+    reason: string
+  }>
 }
 
 /**

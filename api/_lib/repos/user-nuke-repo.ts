@@ -14,6 +14,7 @@ interface NukeResult {
   postgres: {
     magicLinkCodes: number
     overtuigingUsage: number
+    goedeGewoonteUsage: number
     persoonlijkeOvertuigingen: number
     userDeleted: boolean
     syncOutbox: number
@@ -72,6 +73,10 @@ export async function nukeUser(userId: string): Promise<NukeResult> {
       "DELETE FROM overtuiging_usage_pg WHERE user_id = $1",
       [userId]
     )
+    const goedeGewoonteUsage = await client.query(
+      "DELETE FROM goede_gewoontes_usage_pg WHERE user_id = $1",
+      [userId]
+    )
     const persOvertuigingen = await client.query(
       "DELETE FROM persoonlijke_overtuigingen_pg WHERE user_id = $1",
       [userId]
@@ -100,6 +105,7 @@ export async function nukeUser(userId: string): Promise<NukeResult> {
     return {
       magicLinkCodes: magicLinks.rowCount ?? 0,
       overtuigingUsage: overtuigingUsage.rowCount ?? 0,
+      goedeGewoonteUsage: goedeGewoonteUsage.rowCount ?? 0,
       persoonlijkeOvertuigingen: persOvertuigingen.rowCount ?? 0,
       userDeleted: (userResult.rowCount ?? 0) > 0,
       syncOutbox: outbox.rowCount ?? 0,

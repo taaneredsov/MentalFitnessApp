@@ -37,9 +37,12 @@ export function useMethod(id: string) {
 }
 
 export function useGoodHabits() {
+  const { accessToken } = useAuth()
+
   return useQuery({
     queryKey: queryKeys.habits,
-    queryFn: () => api.methods.getHabits(),
+    queryFn: () => api.methods.getHabits(accessToken!),
+    enabled: !!accessToken,
     staleTime: CACHE_LONG
   })
 }
@@ -184,6 +187,10 @@ export function useRegenerateSchedule(programId: string) {
       queryClient.invalidateQueries({ queryKey: queryKeys.program(programId) })
       // Also invalidate programs list
       queryClient.invalidateQueries({ queryKey: ["programs"] })
+    },
+    onError: (error) => {
+      console.error("Failed to regenerate schedule:", error)
+      toast.error("Kon planning niet herberekenen")
     }
   })
 }
@@ -305,7 +312,7 @@ export function useRecordHabitUsage() {
       data,
       accessToken
     }: {
-      data: { userId: string; methodId: string; date: string }
+      data: { userId: string; goedeGewoonteId: string; date: string }
       accessToken: string
     }) => api.habitUsage.create(data, accessToken),
     // Optimistic update: immediately add to cache
@@ -318,10 +325,10 @@ export function useRecordHabitUsage() {
       // Snapshot previous value for rollback
       const previousData = queryClient.getQueryData<string[]>(queryKey)
 
-      // Optimistically update cache - add methodId to completed list
+      // Optimistically update cache - add goedeGewoonteId to completed list
       queryClient.setQueryData<string[]>(queryKey, (old = []) => {
-        if (old.includes(variables.data.methodId)) return old
-        return [...old, variables.data.methodId]
+        if (old.includes(variables.data.goedeGewoonteId)) return old
+        return [...old, variables.data.goedeGewoonteId]
       })
 
       return { previousData, queryKey }
@@ -346,15 +353,15 @@ export function useDeleteHabitUsage() {
   return useMutation({
     mutationFn: ({
       userId,
-      methodId,
+      goedeGewoonteId,
       date,
       accessToken
     }: {
       userId: string
-      methodId: string
+      goedeGewoonteId: string
       date: string
       accessToken: string
-    }) => api.habitUsage.delete(userId, methodId, date, accessToken),
+    }) => api.habitUsage.delete(userId, goedeGewoonteId, date, accessToken),
     // Optimistic update: immediately remove from cache
     onMutate: async (variables) => {
       const queryKey = queryKeys.habitUsage(variables.userId, variables.date)
@@ -365,9 +372,9 @@ export function useDeleteHabitUsage() {
       // Snapshot previous value for rollback
       const previousData = queryClient.getQueryData<string[]>(queryKey)
 
-      // Optimistically update cache - remove methodId from completed list
+      // Optimistically update cache - remove goedeGewoonteId from completed list
       queryClient.setQueryData<string[]>(queryKey, (old = []) => {
-        return old.filter(id => id !== variables.methodId)
+        return old.filter(id => id !== variables.goedeGewoonteId)
       })
 
       return { previousData, queryKey }
@@ -511,16 +518,21 @@ export function useCompletePersonalGoal() {
 
       return { previousData, queryKey }
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       // Rollback on error
       if (context?.previousData !== undefined) {
         queryClient.setQueryData(context.queryKey, context.previousData)
       }
+      console.error("Failed to complete personal goal:", error)
+      toast.error("Kon persoonlijk doel niet registreren")
     },
-    onSuccess: () => {
+    onSuccess: (_data, variables) => {
+      // Invalidate to reconcile optimistic update with server
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.personalGoalUsage(variables.data.userId, variables.data.date)
+      })
       // Invalidate rewards cache to reflect point changes
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
-      queryClient.invalidateQueries({ queryKey: ["completedPersonalGoals"] })
     }
   })
 }

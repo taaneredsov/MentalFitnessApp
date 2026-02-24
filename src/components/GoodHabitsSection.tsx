@@ -33,7 +33,7 @@ export function GoodHabitsSection() {
       // Uncomplete the habit - React Query handles optimistic update
       deleteHabitMutation.mutate({
         userId: user.id,
-        methodId: habitId,
+        goedeGewoonteId: habitId,
         date: today,
         accessToken
       }, {
@@ -50,7 +50,7 @@ export function GoodHabitsSection() {
       recordHabitMutation.mutate({
         data: {
           userId: user.id,
-          methodId: habitId,
+          goedeGewoonteId: habitId,
           date: today
         },
         accessToken
@@ -118,9 +118,9 @@ export function GoodHabitsSection() {
                     <p className="font-semibold text-base">
                       {name}
                     </p>
-                    {habit.description && !isExpanded && (
+                    {(habit.notes || habit.description) && !isExpanded && (
                       <p className="text-sm text-muted-foreground mt-0.5 line-clamp-1">
-                        {habit.description}
+                        {habit.notes || habit.description}
                       </p>
                     )}
                   </div>
@@ -151,10 +151,10 @@ export function GoodHabitsSection() {
                 </div>
 
                 {/* Expanded description */}
-                {isExpanded && habit.description && (
+                {isExpanded && (habit.notes || habit.description) && (
                   <div className="mt-3 pl-16 pr-14">
                     <p className="text-sm text-muted-foreground">
-                      {habit.description}
+                      {habit.notes || habit.description}
                     </p>
                   </div>
                 )}

@@ -1,26 +1,15 @@
 import type { Request, Response } from "express"
 import { z } from "zod"
-import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import {
-  HABIT_USAGE_FIELDS,
-  FIELD_NAMES,
-  escapeFormulaValue,
-  isValidRecordId
-} from "../_lib/field-mappings.js"
-import { getDataBackendMode } from "../_lib/data-backend.js"
-import { isPostgresConfigured } from "../_lib/db/client.js"
-import {
-  createHabitUsage,
-  deleteHabitUsage,
-  findHabitUsage,
-  listHabitMethodIdsForDate
-} from "../_lib/repos/habit-usage-repo.js"
+  createGoedeGewoonteUsage,
+  deleteGoedeGewoonteUsage,
+  findGoedeGewoonteUsage,
+  listGoedeGewoonteIdsForDate
+} from "../_lib/repos/goede-gewoonte-usage-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { awardRewardActivity } from "../_lib/rewards/engine.js"
-
-const HABIT_BACKEND_ENV = "DATA_BACKEND_HABIT_USAGE"
 
 const POINTS = {
   habit: 5,
@@ -29,44 +18,44 @@ const POINTS = {
 
 const createUsageSchema = z.object({
   userId: z.string().min(1, "User ID is required"),
-  methodId: z.string().min(1, "Method ID is required"),
+  goedeGewoonteId: z.string().min(1, "Goede gewoonte ID is required"),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Date must be in YYYY-MM-DD format")
 })
 
-async function handleGetPostgres(req: Request, res: Response, tokenUserId: string) {
+async function handleGet(req: Request, res: Response, tokenUserId: string) {
   const { date } = req.query
   if (!date || typeof date !== "string") {
     return sendError(res, "date is required", 400)
   }
-  const completed = await listHabitMethodIdsForDate(tokenUserId, date)
+  const completed = await listGoedeGewoonteIdsForDate(tokenUserId, date)
   return sendSuccess(res, completed)
 }
 
-async function handlePostPostgres(req: Request, res: Response, tokenUserId: string) {
+async function handlePost(req: Request, res: Response, tokenUserId: string) {
   const body = createUsageSchema.parse(parseBody(req))
 
   if (body.userId !== tokenUserId) {
     return sendError(res, "Cannot create habit usage for another user", 403)
   }
 
-  const existing = await findHabitUsage(body.userId, body.methodId, body.date)
+  const existing = await findGoedeGewoonteUsage(body.userId, body.goedeGewoonteId, body.date)
   if (existing) {
     return sendSuccess(res, { id: existing.id, pointsAwarded: 0 })
   }
 
-  const created = await createHabitUsage({
+  const created = await createGoedeGewoonteUsage({
     userId: body.userId,
-    methodId: body.methodId,
+    goedeGewoonteId: body.goedeGewoonteId,
     date: body.date
   })
 
   await enqueueSyncEvent({
     eventType: "upsert",
-    entityType: "habit_usage",
+    entityType: "goede_gewoonte_usage",
     entityId: created.id,
     payload: {
       userId: body.userId,
-      methodId: body.methodId,
+      goedeGewoonteId: body.goedeGewoonteId,
       date: body.date
     },
     priority: 40
@@ -82,22 +71,22 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
   return sendSuccess(res, { id: created.id, pointsAwarded: POINTS.habit }, 201)
 }
 
-async function handleDeletePostgres(req: Request, res: Response, tokenUserId: string) {
-  const { userId, methodId, date } = req.query
+async function handleDelete(req: Request, res: Response, tokenUserId: string) {
+  const { userId, goedeGewoonteId, date } = req.query
   if (!userId || typeof userId !== "string") return sendError(res, "userId is required", 400)
-  if (!methodId || typeof methodId !== "string") return sendError(res, "methodId is required", 400)
+  if (!goedeGewoonteId || typeof goedeGewoonteId !== "string") return sendError(res, "goedeGewoonteId is required", 400)
   if (!date || typeof date !== "string") return sendError(res, "date is required", 400)
   if (userId !== tokenUserId) {
     return sendError(res, "Cannot delete habit usage for another user", 403)
   }
 
-  const existing = await findHabitUsage(userId, methodId, date)
-  await deleteHabitUsage(userId, methodId, date)
+  const existing = await findGoedeGewoonteUsage(userId, goedeGewoonteId, date)
+  await deleteGoedeGewoonteUsage(userId, goedeGewoonteId, date)
 
   if (existing) {
     await enqueueSyncEvent({
       eventType: "delete",
-      entityType: "habit_usage",
+      entityType: "goede_gewoonte_usage",
       entityId: existing.id,
       payload: {},
       priority: 40
@@ -107,145 +96,17 @@ async function handleDeletePostgres(req: Request, res: Response, tokenUserId: st
   return sendSuccess(res, null)
 }
 
-async function handleGetAirtable(req: Request, res: Response, tokenUserId: string) {
-  const { date } = req.query
-  const userId = tokenUserId
-
-  if (!date || typeof date !== "string") {
-    return sendError(res, "date is required", 400)
-  }
-
-  if (!isValidRecordId(userId)) {
-    return sendError(res, "Invalid user ID format", 400)
-  }
-
-  const records = await base(tables.habitUsage)
-    .select({
-      filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(date)}", 'day')`,
-      returnFieldsByFieldId: true
-    })
-    .all()
-
-  const completedHabitIds = records
-    .filter(r => {
-      const fields = r.fields as Record<string, unknown>
-      const userField = fields[HABIT_USAGE_FIELDS.user] as string[] | undefined
-      return userField?.includes(userId)
-    })
-    .map(r => {
-      const fields = r.fields as Record<string, unknown>
-      const methodField = fields[HABIT_USAGE_FIELDS.method] as string[] | undefined
-      return methodField?.[0]
-    })
-    .filter(Boolean)
-
-  return sendSuccess(res, completedHabitIds)
-}
-
-async function handlePostAirtable(req: Request, res: Response, tokenUserId: string) {
-  const body = createUsageSchema.parse(parseBody(req))
-
-  if (body.userId !== tokenUserId) {
-    return sendError(res, "Cannot create habit usage for another user", 403)
-  }
-
-  if (!isValidRecordId(body.userId) || !isValidRecordId(body.methodId)) {
-    return sendError(res, "Invalid ID format", 400)
-  }
-
-  const existingRecords = await base(tables.habitUsage)
-    .select({
-      filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(body.date)}", 'day')`,
-      returnFieldsByFieldId: true
-    })
-    .all()
-
-  const existing = existingRecords.find(r => {
-    const fields = r.fields as Record<string, unknown>
-    const userIds = fields[HABIT_USAGE_FIELDS.user] as string[] | undefined
-    const methodIds = fields[HABIT_USAGE_FIELDS.method] as string[] | undefined
-    return userIds?.includes(body.userId) && methodIds?.includes(body.methodId)
-  })
-
-  if (existing) {
-    return sendSuccess(res, { id: existing.id, pointsAwarded: 0 })
-  }
-
-  const record = await base(tables.habitUsage).create({
-    [HABIT_USAGE_FIELDS.user]: [body.userId],
-    [HABIT_USAGE_FIELDS.method]: [body.methodId],
-    [HABIT_USAGE_FIELDS.date]: body.date
-  }, {
-    typecast: true
-  })
-
-  await awardRewardActivity({
-    userId: body.userId,
-    activityType: "habit",
-    activityDate: body.date
-  })
-
-  return sendSuccess(res, { id: record.id, pointsAwarded: POINTS.habit }, 201)
-}
-
-async function handleDeleteAirtable(req: Request, res: Response, tokenUserId: string) {
-  const { userId, methodId, date } = req.query
-  if (!userId || typeof userId !== "string") return sendError(res, "userId is required", 400)
-  if (!methodId || typeof methodId !== "string") return sendError(res, "methodId is required", 400)
-  if (!date || typeof date !== "string") return sendError(res, "date is required", 400)
-  if (userId !== tokenUserId) {
-    return sendError(res, "Cannot delete habit usage for another user", 403)
-  }
-  if (!isValidRecordId(userId) || !isValidRecordId(methodId)) {
-    return sendError(res, "Invalid ID format", 400)
-  }
-
-  const allRecords = await base(tables.habitUsage)
-    .select({
-      filterByFormula: `IS_SAME({${FIELD_NAMES.habitUsage.date}}, "${escapeFormulaValue(date)}", 'day')`,
-      returnFieldsByFieldId: true
-    })
-    .all()
-
-  const recordToDelete = allRecords.find(r => {
-    const fields = r.fields as Record<string, unknown>
-    const userIds = fields[HABIT_USAGE_FIELDS.user] as string[] | undefined
-    const methodIds = fields[HABIT_USAGE_FIELDS.method] as string[] | undefined
-    return userIds?.includes(userId) && methodIds?.includes(methodId)
-  })
-
-  if (recordToDelete) {
-    await base(tables.habitUsage).destroy(recordToDelete.id)
-  }
-
-  return sendSuccess(res, null)
-}
-
 export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
-    const mode = getDataBackendMode(HABIT_BACKEND_ENV)
-    const usePostgres = mode === "postgres_primary" && isPostgresConfigured()
 
     switch (req.method) {
       case "GET":
-        if (usePostgres) {
-          return handleGetPostgres(req, res, auth.userId)
-        }
-        if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
-          void handleGetPostgres(req, res, auth.userId)
-            .then(() => undefined)
-            .catch((error) => console.warn("[habit-usage] shadow read failed:", error))
-        }
-        return handleGetAirtable(req, res, auth.userId)
+        return handleGet(req, res, auth.userId)
       case "POST":
-        return usePostgres
-          ? handlePostPostgres(req, res, auth.userId)
-          : handlePostAirtable(req, res, auth.userId)
+        return handlePost(req, res, auth.userId)
       case "DELETE":
-        return usePostgres
-          ? handleDeletePostgres(req, res, auth.userId)
-          : handleDeleteAirtable(req, res, auth.userId)
+        return handleDelete(req, res, auth.userId)
       default:
         return sendError(res, "Method not allowed", 405)
     }

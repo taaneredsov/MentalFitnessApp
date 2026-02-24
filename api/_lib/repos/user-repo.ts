@@ -89,6 +89,7 @@ const USER_CHILD_TABLES = [
   "personal_goals_pg",
   "personal_goal_usage_pg",
   "overtuiging_usage_pg",
+  "goede_gewoontes_usage_pg",
   "push_subscriptions_pg",
   "notification_preferences_pg",
   "notification_jobs_pg"
@@ -306,11 +307,11 @@ export async function getUserRewardStats(userId: string): Promise<UserRewardStat
   if (!user) return null
 
   const [habits, methods, goals, overtuigingen, habitDays, programsCompleted] = await Promise.all([
-    dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM habit_usage_pg WHERE user_id = $1`, [userId]),
+    dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM goede_gewoontes_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM method_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM personal_goal_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM overtuiging_usage_pg WHERE user_id = $1`, [userId]),
-    dbQuery<{ count: string }>(`SELECT COUNT(DISTINCT usage_date) as count FROM habit_usage_pg WHERE user_id = $1`, [userId]),
+    dbQuery<{ count: string }>(`SELECT COUNT(DISTINCT usage_date) as count FROM goede_gewoontes_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(
       `SELECT COUNT(*) as count
        FROM programs_pg
@@ -360,4 +361,27 @@ export async function updateUserRewardFields(input: {
       input.level
     ]
   )
+}
+
+export async function updateUserGoedeGewoontes(userId: string, goedeGewoonteIds: string[]): Promise<void> {
+  await dbQuery(
+    `UPDATE users_pg SET goede_gewoontes = $2::jsonb, updated_at = NOW() WHERE id = $1`,
+    [userId, JSON.stringify(goedeGewoonteIds)]
+  )
+}
+
+export async function getUserGoedeGewoontes(userId: string): Promise<string[]> {
+  const result = await dbQuery<{ goede_gewoontes: string }>(
+    `SELECT goede_gewoontes FROM users_pg WHERE id = $1 LIMIT 1`,
+    [userId]
+  )
+  if (result.rows.length === 0) return []
+  const raw = result.rows[0].goede_gewoontes
+  if (!raw) return []
+  try {
+    const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw
+    return Array.isArray(parsed) ? parsed : []
+  } catch {
+    return []
+  }
 }

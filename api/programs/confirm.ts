@@ -6,6 +6,7 @@ import { transformProgram, parseEuropeanDate, PROGRAM_FIELDS, PROGRAMMAPLANNING_
 import { getDataBackendMode } from "../_lib/data-backend.js"
 import { isPostgresConfigured, dbQuery } from "../_lib/db/client.js"
 import { createProgram, toApiProgram } from "../_lib/repos/program-repo.js"
+import { updateUserGoedeGewoontes } from "../_lib/repos/user-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import type { AirtableRecord } from "../_lib/types.js"
 
@@ -255,6 +256,12 @@ async function handleConfirmPostgres(req: Request, res: Response) {
     // Create schedule records in Postgres
     await createScheduleInPostgres(program.id, body.goals, body.editedSchedule)
 
+    // Save AI-selected goede gewoontes to user record
+    if (body.selectedGoedeGewoontes && Array.isArray(body.selectedGoedeGewoontes) && body.selectedGoedeGewoontes.length > 0) {
+      const goedeGewoonteIds = body.selectedGoedeGewoontes.map((g: { goedeGewoonteId: string }) => g.goedeGewoonteId)
+      await updateUserGoedeGewoontes(body.userId, goedeGewoonteIds)
+    }
+
     // Return response (same format as generate endpoint)
     return sendSuccess(res, {
       program: toApiProgram(program),
@@ -383,6 +390,15 @@ async function handleConfirmAirtable(req: Request, res: Response) {
     // Fetch created program with computed fields
     const createdRecord = await base(tables.programs).find(programRecord.id)
     const program = transformProgram(createdRecord as AirtableRecord)
+
+    // Save AI-selected goede gewoontes to user record (always in Postgres)
+    if (body.selectedGoedeGewoontes && Array.isArray(body.selectedGoedeGewoontes) && body.selectedGoedeGewoontes.length > 0) {
+      if (isPostgresConfigured()) {
+        const { updateUserGoedeGewoontes: updateGG } = await import("../_lib/repos/user-repo.js")
+        const goedeGewoonteIds = body.selectedGoedeGewoontes.map((g: { goedeGewoonteId: string }) => g.goedeGewoonteId)
+        await updateGG(body.userId, goedeGewoonteIds)
+      }
+    }
 
     // Return response (same format as generate endpoint)
     return sendSuccess(res, {

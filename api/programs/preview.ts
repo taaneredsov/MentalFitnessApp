@@ -123,7 +123,7 @@ export default async function handler(req: Request, res: Response) {
       return sendError(res, "No training dates could be calculated. Check start date and selected days.", 400)
     }
 
-    // Build system prompt with training dates and overtuigingen
+    // Build system prompt with training dates, overtuigingen, and goede gewoontes
     const systemPrompt = buildSystemPrompt({
       goals: data.goals as Array<{ id: string; name: string; description?: string }>,
       programPrompts: data.programPrompts,
@@ -131,7 +131,8 @@ export default async function handler(req: Request, res: Response) {
       methods: data.methods,
       trainingDates,
       duration: body.duration,
-      overtuigingen: data.aiOvertuigingen
+      overtuigingen: data.aiOvertuigingen,
+      goedeGewoontes: data.aiGoedeGewoontes
     })
 
     // Call OpenAI GPT-4o with Structured Outputs
@@ -198,6 +199,17 @@ export default async function handler(req: Request, res: Response) {
 
     console.log("[preview] AI-selected overtuigingen:", suggestedOvertuigingen.length, "from pool:", data.aiOvertuigingen.length)
 
+    // Map AI-selected goede gewoontes to frontend format
+    const goedeGewoonteMap = new Map(data.aiGoedeGewoontes.map(g => [g.id, g]))
+    const suggestedGoedeGewoontes = (aiResponse.selectedGoedeGewoontes || [])
+      .filter(sel => goedeGewoonteMap.has(sel.goedeGewoonteId))
+      .map(sel => {
+        const full = goedeGewoonteMap.get(sel.goedeGewoonteId)!
+        return { id: full.id, name: full.name, reason: sel.reason }
+      })
+
+    console.log("[preview] AI-selected goede gewoontes:", suggestedGoedeGewoontes.length, "from pool:", data.aiGoedeGewoontes.length)
+
     // Return preview response (NO Airtable records created)
     return sendSuccess(res, {
       aiSchedule: aiResponse.schedule,
@@ -207,7 +219,8 @@ export default async function handler(req: Request, res: Response) {
       programName: aiResponse.programName,
       availableMethods,
       selectedGoals: data.goals,
-      suggestedOvertuigingen
+      suggestedOvertuigingen,
+      suggestedGoedeGewoontes
     })
   } catch (error) {
     if (error instanceof AuthError) {
