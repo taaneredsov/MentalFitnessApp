@@ -9,6 +9,21 @@ import type { AirtableRecord } from "../_lib/types.js"
 
 const METHODS_BACKEND_ENV = "DATA_BACKEND_METHODS"
 
+/**
+ * Fetch media details from Airtable for a list of media record IDs.
+ * Media stays Airtable-only — this is an explicit exception to postgres-first.
+ */
+async function fetchMediaDetails(mediaIds: string[]): Promise<Record<string, unknown>[]> {
+  if (!mediaIds || mediaIds.length === 0) return []
+  const mediaRecords = await base(tables.media)
+    .select({
+      filterByFormula: `OR(${mediaIds.map((mid: string) => `RECORD_ID() = '${mid}'`).join(',')})`,
+      returnFieldsByFieldId: true
+    })
+    .all()
+  return mediaRecords.map(r => transformMedia({ id: r.id, fields: r.fields } as AirtableRecord))
+}
+
 async function handleGetPostgres(req: Request, res: Response) {
   const id = req.params.id
   if (!id || typeof id !== "string") {
@@ -20,7 +35,10 @@ async function handleGetPostgres(req: Request, res: Response) {
     return sendError(res, "Method not found", 404)
   }
 
-  return sendSuccess(res, method)
+  // Fetch media from Airtable (media stays Airtable-only)
+  const mediaDetails = await fetchMediaDetails((method.media as string[]) || [])
+
+  return sendSuccess(res, { ...method, mediaDetails })
 }
 
 async function handleGetAirtable(req: Request, res: Response) {
@@ -43,24 +61,9 @@ async function handleGetAirtable(req: Request, res: Response) {
 
   const record = records[0]
   const method = transformMethod({ id: record.id, fields: record.fields } as AirtableRecord)
+  const mediaDetails = await fetchMediaDetails((method.media as string[]) || [])
 
-  let mediaDetails: Record<string, unknown>[] = []
-  const mediaIds = method.media
-  if (mediaIds && mediaIds.length > 0) {
-    const mediaRecords = await base(tables.media)
-      .select({
-        filterByFormula: `OR(${mediaIds.map((mid: string) => `RECORD_ID() = '${mid}'`).join(',')})`,
-        returnFieldsByFieldId: true
-      })
-      .all()
-
-    mediaDetails = mediaRecords.map(r => transformMedia({ id: r.id, fields: r.fields } as AirtableRecord))
-  }
-
-  return sendSuccess(res, {
-    ...method,
-    mediaDetails
-  })
+  return sendSuccess(res, { ...method, mediaDetails })
 }
 
 export default async function handler(req: Request, res: Response) {

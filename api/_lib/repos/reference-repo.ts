@@ -29,19 +29,7 @@ export async function getMethodById(id: string): Promise<Record<string, unknown>
   if (result.rows.length === 0) return null
 
   const row = result.rows[0]
-  const method = transformMethod({ id: row.id, fields: row.payload })
-
-  // Fetch media details if linked
-  const mediaIds = method.media as string[] | undefined
-  let mediaDetails: Record<string, unknown>[] = []
-  if (mediaIds && mediaIds.length > 0) {
-    // Media is stored in a separate Airtable table; we don't have a reference_media_pg table
-    // For now, return the IDs; the frontend can resolve them if needed
-    // If we had a reference_media_pg, we'd query it here
-    mediaDetails = []
-  }
-
-  return { ...method, mediaDetails }
+  return transformMethod({ id: row.id, fields: row.payload })
 }
 
 export async function getMethodsByGoalId(goalId: string): Promise<Record<string, unknown>[]> {
