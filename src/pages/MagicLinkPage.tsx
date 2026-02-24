@@ -141,6 +141,9 @@ export function MagicLinkPage() {
         </div>
         </form>
       </div>
+      <p className="mt-6 text-[10px] text-muted-foreground/50">
+        v{__APP_VERSION__}
+      </p>
     </div>
   )
 }
