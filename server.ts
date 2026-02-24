@@ -140,9 +140,11 @@ async function setupRoutes() {
   // Rewards routes
   const { default: rewardsHandler } = await import("./api/rewards/index.js")
   const { default: awardRewardsHandler } = await import("./api/rewards/award.js")
+  const { default: rewardsBackfillHandler } = await import("./api/rewards/backfill.js")
 
   app.get("/api/rewards", rewardsHandler)
   app.post("/api/rewards/award", awardRewardsHandler)
+  app.post("/api/rewards/backfill", rewardsBackfillHandler)
 
   // Habit usage routes
   const { default: habitUsageHandler } = await import("./api/habit-usage/index.js")

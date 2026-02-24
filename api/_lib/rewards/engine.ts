@@ -227,7 +227,7 @@ function calculateBonusAward(input: {
 }
 
 function toBaseTotalPoints(counts: RewardCounts): number {
-  return (counts.methodCount * 10) + (counts.habitCount * 5)
+  return (counts.methodCount * 10) + (counts.habitCount * 5) + (counts.personalGoalCount * 10)
 }
 
 function parseBadgesField(value: unknown): string[] {
@@ -501,6 +501,11 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
     milestone
   })
 
+  const mentalFitnessScore = stats.methodCount * 10 + nextState.bonusPoints
+  const personalGoalsScore = stats.personalGoalCount * 10
+  const goodHabitsScore = stats.habitCount * 5
+  const totalPoints = mentalFitnessScore + personalGoalsScore + goodHabitsScore
+
   await updateUserRewardFields({
     userId: input.userId,
     bonusPoints: nextState.bonusPoints,
@@ -508,7 +513,11 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
     longestStreak: nextState.longestStreak,
     lastActiveDate: nextState.lastActiveDate,
     badges: nextState.badges,
-    level: nextState.level
+    level: nextState.level,
+    totalPoints,
+    mentalFitnessScore,
+    personalGoalsScore,
+    goodHabitsScore
   })
 
   await enqueueSyncEvent({
@@ -522,7 +531,11 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
       lastActiveDate: nextState.lastActiveDate,
       bonusPoints: nextState.bonusPoints,
       badges: JSON.stringify(nextState.badges),
-      level: nextState.level
+      level: nextState.level,
+      totalPoints,
+      mentalFitnessScore,
+      personalGoalsScore,
+      goodHabitsScore
     },
     priority: 10
   })

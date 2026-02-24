@@ -14,6 +14,10 @@ export interface PgUser {
   bonusPoints: number
   badges: string
   level: number
+  totalPoints: number
+  mentalFitnessScore: number
+  personalGoalsScore: number
+  goodHabitsScore: number
   createdAt: string
   updatedAt: string
   status: string
@@ -44,6 +48,10 @@ function mapUserRow(row: Record<string, unknown>): PgUser {
     bonusPoints: Number(row.bonus_points || 0),
     badges: String(row.badges || '[]'),
     level: Number(row.level || 1),
+    totalPoints: Number(row.total_points || 0),
+    mentalFitnessScore: Number(row.mental_fitness_score || 0),
+    personalGoalsScore: Number(row.personal_goals_score || 0),
+    goodHabitsScore: Number(row.good_habits_score || 0),
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
     status: String(row.status || 'active'),
@@ -340,6 +348,10 @@ export async function updateUserRewardFields(input: {
   lastActiveDate: string | null
   badges: string[]
   level: number
+  totalPoints?: number
+  mentalFitnessScore?: number
+  personalGoalsScore?: number
+  goodHabitsScore?: number
 }): Promise<void> {
   await dbQuery(
     `UPDATE users_pg
@@ -349,6 +361,10 @@ export async function updateUserRewardFields(input: {
          last_active_date = $5::date,
          badges = $6,
          level = $7,
+         total_points = COALESCE($8, total_points),
+         mental_fitness_score = COALESCE($9, mental_fitness_score),
+         personal_goals_score = COALESCE($10, personal_goals_score),
+         good_habits_score = COALESCE($11, good_habits_score),
          updated_at = NOW()
      WHERE id = $1`,
     [
@@ -358,7 +374,11 @@ export async function updateUserRewardFields(input: {
       input.longestStreak,
       input.lastActiveDate,
       JSON.stringify(input.badges),
-      input.level
+      input.level,
+      input.totalPoints ?? null,
+      input.mentalFitnessScore ?? null,
+      input.personalGoalsScore ?? null,
+      input.goodHabitsScore ?? null
     ]
   )
 }

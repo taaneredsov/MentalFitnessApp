@@ -303,6 +303,10 @@ async function upsertUser(_entityId: string, payload: Record<string, unknown>): 
   if (payload.bonusPoints !== undefined) fields[USER_FIELDS.bonusPoints] = payload.bonusPoints
   if (payload.badges !== undefined) fields[USER_FIELDS.badges] = payload.badges
   if (payload.level !== undefined) fields[USER_FIELDS.level] = payload.level
+  if (payload.totalPoints !== undefined) fields[USER_FIELDS.totalPoints] = payload.totalPoints
+  if (payload.mentalFitnessScore !== undefined) fields[USER_FIELDS.mentalFitnessScore] = payload.mentalFitnessScore
+  if (payload.personalGoalsScore !== undefined) fields[USER_FIELDS.personalGoalsScore] = payload.personalGoalsScore
+  if (payload.goodHabitsScore !== undefined) fields[USER_FIELDS.goodHabitsScore] = payload.goodHabitsScore
 
   if (Object.keys(fields).length === 0) return
 

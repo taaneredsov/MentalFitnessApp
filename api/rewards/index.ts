@@ -78,17 +78,23 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
     badges = []
   }
 
+  // Use stored scores from Postgres; fall back to on-the-fly calculation
+  // for pre-backfill state (all stored scores are 0 but user has activity)
+  const hasActivity = user.bonusPoints > 0 || methodCount > 0 || habitCount > 0 || personalGoalCount > 0
+  const hasStoredScores = user.totalPoints > 0 || user.mentalFitnessScore > 0 || user.personalGoalsScore > 0 || user.goodHabitsScore > 0
+  const useStored = hasStoredScores || !hasActivity
+
   const rewards: Record<string, unknown> = {
-    totalPoints: (methodCount * 10) + (habitCount * 5) + user.bonusPoints,
+    totalPoints: useStored ? user.totalPoints : (methodCount * 10) + (personalGoalCount * 10) + (habitCount * 5) + user.bonusPoints,
     bonusPoints: user.bonusPoints,
     currentStreak: user.currentStreak,
     longestStreak: user.longestStreak,
     lastActiveDate: user.lastActiveDate,
     badges,
     level: user.level,
-    mentalFitnessScore: methodCount * 10 + user.bonusPoints,
-    personalGoalsScore: personalGoalCount * 10,
-    goodHabitsScore: habitCount * 5
+    mentalFitnessScore: useStored ? user.mentalFitnessScore : methodCount * 10 + user.bonusPoints,
+    personalGoalsScore: useStored ? user.personalGoalsScore : personalGoalCount * 10,
+    goodHabitsScore: useStored ? user.goodHabitsScore : habitCount * 5
   }
 
   applyStreakStaleCheck(rewards)
@@ -104,7 +110,11 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
       longestStreak: 0,
       lastActiveDate: user.lastActiveDate,
       badges: [],
-      level: 1
+      level: 1,
+      totalPoints: 0,
+      mentalFitnessScore: 0,
+      personalGoalsScore: 0,
+      goodHabitsScore: 0
     })
   }
 
