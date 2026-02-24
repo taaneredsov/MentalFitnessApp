@@ -17,15 +17,60 @@ import { findAirtableId, upsertAirtableIdMap } from "./id-map.js"
 
 export class RetryableSyncError extends Error {}
 
-async function resolveProgramAirtableId(programId: string | null | undefined): Promise<string | null> {
+async function resolveProgramAirtableId(
+  programId: string | null | undefined,
+  options: { required?: boolean } = {}
+): Promise<string | null> {
+  const required = options.required ?? false
   if (!programId) return null
   if (isAirtableRecordId(programId)) return programId
 
   const mapped = await findAirtableId("program", programId)
-  if (!mapped) {
+  if (mapped) return mapped
+
+  // Self-heal mapping if program row already carries an Airtable ID.
+  const result = await dbQuery<{ airtable_record_id: string | null }>(
+    `SELECT airtable_record_id
+     FROM programs_pg
+     WHERE id = $1
+     LIMIT 1`,
+    [programId]
+  )
+  const airtableRecordId = result.rows[0]?.airtable_record_id || null
+  if (airtableRecordId) {
+    await upsertAirtableIdMap("program", programId, airtableRecordId)
+    return airtableRecordId
+  }
+
+  if (required) {
     throw new RetryableSyncError(`Program mapping missing for ${programId}`)
   }
-  return mapped
+  return null
+}
+
+async function resolveProgramScheduleAirtableId(
+  programScheduleId: string | null | undefined
+): Promise<string | null> {
+  if (!programScheduleId) return null
+  if (isAirtableRecordId(programScheduleId)) return programScheduleId
+
+  const mapped = await findAirtableId("program_schedule", programScheduleId)
+  if (mapped) return mapped
+
+  // Self-heal mapping if schedule row already carries an Airtable ID.
+  const result = await dbQuery<{ airtable_record_id: string | null }>(
+    `SELECT airtable_record_id
+     FROM program_schedule_pg
+     WHERE id = $1
+     LIMIT 1`,
+    [programScheduleId]
+  )
+  const airtableRecordId = result.rows[0]?.airtable_record_id || null
+  if (airtableRecordId) {
+    await upsertAirtableIdMap("program_schedule", programScheduleId, airtableRecordId)
+    return airtableRecordId
+  }
+  return null
 }
 
 async function upsertProgram(entityId: string, payload: Record<string, unknown>): Promise<void> {
@@ -56,20 +101,37 @@ async function upsertProgram(entityId: string, payload: Record<string, unknown>)
   }
   if (payload.name) {
     fields[PROGRAM_FIELDS.name] = payload.name
+    // Defensive fallback: keep writing by canonical field name as well.
+    // This protects against stale field-ID mappings for "Programma naam".
+    fields["Programma naam"] = String(payload.name)
   }
 
   if (existingAirtableId) {
     await base(tables.programs).update(existingAirtableId, fields, { typecast: true })
+    await dbQuery(
+      `UPDATE programs_pg
+       SET airtable_record_id = $2, updated_at = NOW()
+       WHERE id = $1
+         AND (airtable_record_id IS NULL OR airtable_record_id <> $2)`,
+      [entityId, existingAirtableId]
+    )
     return
   }
 
   const record = await base(tables.programs).create(fields, { typecast: true })
   await upsertAirtableIdMap("program", entityId, record.id)
+  await dbQuery(
+    `UPDATE programs_pg
+     SET airtable_record_id = $2, updated_at = NOW()
+     WHERE id = $1
+       AND (airtable_record_id IS NULL OR airtable_record_id <> $2)`,
+    [entityId, record.id]
+  )
 }
 
 async function upsertProgramSchedule(entityId: string, payload: Record<string, unknown>): Promise<void> {
   const existingAirtableId = await findAirtableId("program_schedule", entityId)
-  const mappedProgramId = await resolveProgramAirtableId((payload.programId as string | undefined) || null)
+  const mappedProgramId = await resolveProgramAirtableId((payload.programId as string | undefined) || null, { required: true })
 
   const fields: Record<string, unknown> = {}
   if (mappedProgramId) {
@@ -107,15 +169,31 @@ async function upsertProgramSchedule(entityId: string, payload: Record<string, u
 async function upsertMethodUsage(entityId: string, payload: Record<string, unknown>): Promise<void> {
   const existingAirtableId = await findAirtableId("method_usage", entityId)
   const mappedProgramId = await resolveProgramAirtableId((payload.programId as string | undefined) || null)
+  const mappedScheduleId = await resolveProgramScheduleAirtableId((payload.programScheduleId as string | undefined) || null)
+  const rawUsedAt = payload.usedAt
+  let normalizedUsedAt: string | null = null
+  if (typeof rawUsedAt === "string") {
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawUsedAt)) {
+      normalizedUsedAt = rawUsedAt
+    } else {
+      const parsed = new Date(rawUsedAt)
+      if (!Number.isNaN(parsed.getTime())) {
+        normalizedUsedAt = parsed.toISOString().slice(0, 10)
+      }
+    }
+  }
+  if (!normalizedUsedAt) {
+    normalizedUsedAt = new Date().toISOString().slice(0, 10)
+  }
 
   const fields: Record<string, unknown> = {
     [METHOD_USAGE_FIELDS.user]: [String(payload.userId)],
     [METHOD_USAGE_FIELDS.method]: [String(payload.methodId)],
-    [METHOD_USAGE_FIELDS.usedAt]: payload.usedAt
+    [METHOD_USAGE_FIELDS.usedAt]: normalizedUsedAt
   }
 
-  if (payload.programScheduleId) {
-    fields[METHOD_USAGE_FIELDS.programmaplanning] = [String(payload.programScheduleId)]
+  if (mappedScheduleId) {
+    fields[METHOD_USAGE_FIELDS.programmaplanning] = [mappedScheduleId]
   } else if (mappedProgramId) {
     fields[METHOD_USAGE_FIELDS.program] = [mappedProgramId]
   }

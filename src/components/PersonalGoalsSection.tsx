@@ -20,8 +20,8 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
   const navigate = useNavigate()
   const today = useMemo(() => getTodayDate(), [])
 
-  const { data: goals = [], isLoading: isLoadingGoals } = usePersonalGoals()
-  const { data: goalCounts = {}, isLoading: isLoadingUsage } = usePersonalGoalUsage(user?.id, today)
+  const { data: goals = [], isLoading: isLoadingGoals, isError: isGoalsError } = usePersonalGoals()
+  const { data: goalCounts = {} } = usePersonalGoalUsage(user?.id, today)
 
   const completeGoalMutation = useCompletePersonalGoal()
   const [pendingGoalIds, setPendingGoalIds] = useState<Set<string>>(new Set())
@@ -39,7 +39,9 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
     return [...scheduledToday, ...others]
   }, [goals, todayDay])
 
-  const isLoading = isLoadingGoals || isLoadingUsage
+  // Only block initial render on goals loading.
+  // Usage counts should not prevent showing goals/empty state.
+  const isLoading = isLoadingGoals
 
   const completeGoal = async (goalId: string) => {
     if (!user?.id || !accessToken || pendingGoalIds.has(goalId)) return
@@ -77,8 +79,8 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
     setExpandedGoal(prev => prev === goalId ? null : goalId)
   }
 
-  // Don't render the section at all if no goals and not loading
-  if (!isLoading && goals.length === 0) {
+  // Show empty state when goals are loaded (or goals fetch failed with no cached data)
+  if ((!isLoading && goals.length === 0) || (isGoalsError && goals.length === 0)) {
     return (
       <>
         <Card>
@@ -103,7 +105,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
           </CardHeader>
           <CardContent>
             <p className="text-muted-foreground text-center py-4">
-              Geen persoonlijke doelen. Voeg je eerste toe!
+              Maak je eerste persoonlijke doel aan.
             </p>
           </CardContent>
         </Card>

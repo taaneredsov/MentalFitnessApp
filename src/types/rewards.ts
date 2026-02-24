@@ -52,7 +52,7 @@ export const POINTS = {
   sessionBonus: 5,
   habit: 5,
   habitDayBonus: 5,
-  personalGoal: 10,  // Bonus points for completing a personal goal
+  personalGoal: 5,   // Bonus points for completing a personal goal
   overtuiging: 1,    // Bonus point for completing an overtuiging level
   streakWeek: 50,
   streakMonth: 200,

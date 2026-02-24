@@ -10,6 +10,20 @@ interface GuidedTourProps {
   onSkip: (step: number) => void
 }
 
+function getStepContent(step: TourStep | null, index: number): string {
+  if (!step) return ""
+
+  // Defensive mapping for home onboarding: ensure content always matches the intended step.
+  if (step.targetSelector === '[data-tour="scores"]' || index === 1) {
+    return "Hier zie je je punten en streak. Blijf actief om je score te verhogen!"
+  }
+  if (step.targetSelector === '[data-tour="activity"]' || index === 0) {
+    return "Hier verschijnen je geplande activiteiten. Op trainingsdagen kun je op een oefening tikken om te beginnen."
+  }
+
+  return step.content
+}
+
 /**
  * Scrolls an element into the center of the viewport and waits for completion.
  */
@@ -174,7 +188,7 @@ export function GuidedTour({ steps, onComplete, onSkip }: GuidedTourProps) {
       />
       <TourTooltip
         targetRect={targetRect}
-        content={currentStep?.content || ''}
+        content={getStepContent(currentStep, current?.index ?? currentStepIndex)}
         currentStep={visibleStepNumber - 1}
         totalSteps={totalVisibleSteps}
         onNext={handleNext}

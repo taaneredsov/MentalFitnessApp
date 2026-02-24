@@ -15,6 +15,8 @@ import {
   randomDelay
 } from "../_lib/security.js"
 import { getUserByIdWithReadThrough, toApiUserPayload } from "../_lib/sync/user-readthrough.js"
+import { updateUserLastLogin } from "../_lib/repos/user-repo.js"
+import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 
 const schema = z.object({
   email: z.string().email(),
@@ -103,6 +105,19 @@ export default async function handler(req: Request, res: Response) {
       if (!user) {
         return sendError(res, "User not found", 404)
       }
+
+      const lastLogin = new Date().toISOString().split("T")[0]
+      await updateUserLastLogin(user.id, lastLogin)
+      await enqueueSyncEvent({
+        eventType: "upsert",
+        entityType: "user",
+        entityId: user.id,
+        payload: {
+          userId: user.id,
+          lastLogin
+        },
+        priority: 10
+      })
 
       const accessToken = await signAccessToken({
         userId: user.id,

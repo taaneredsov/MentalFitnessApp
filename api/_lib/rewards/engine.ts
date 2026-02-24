@@ -227,7 +227,7 @@ function calculateBonusAward(input: {
 }
 
 function toBaseTotalPoints(counts: RewardCounts): number {
-  return (counts.methodCount * 10) + (counts.habitCount * 5) + (counts.personalGoalCount * 10)
+  return (counts.methodCount * 10) + (counts.habitCount * 5) + (counts.personalGoalCount * 5)
 }
 
 function parseBadgesField(value: unknown): string[] {
@@ -502,7 +502,7 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
   })
 
   const mentalFitnessScore = stats.methodCount * 10 + nextState.bonusPoints
-  const personalGoalsScore = stats.personalGoalCount * 10
+  const personalGoalsScore = stats.personalGoalCount * 5
   const goodHabitsScore = stats.habitCount * 5
   const totalPoints = mentalFitnessScore + personalGoalsScore + goodHabitsScore
 

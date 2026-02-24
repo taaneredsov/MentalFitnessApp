@@ -173,6 +173,43 @@ export async function syncUsersFromAirtable(): Promise<number> {
   return count
 }
 
+async function ensureUserExists(userId: string): Promise<boolean> {
+  const existing = await dbQuery<{ id: string }>(
+    `SELECT id FROM users_pg WHERE id = $1 LIMIT 1`,
+    [userId]
+  )
+  if (existing.rows.length > 0) return true
+
+  try {
+    const record = await base(tables.users).find(userId)
+    await upsertUserFromAirtable({
+      id: record.id,
+      name: String(record.fields[USER_FIELDS.name] || ""),
+      email: String(record.fields[USER_FIELDS.email] || ""),
+      role: record.fields[USER_FIELDS.role] ? String(record.fields[USER_FIELDS.role]) : null,
+      languageCode: record.fields[USER_FIELDS.languageCode] ? String(record.fields[USER_FIELDS.languageCode]) : null,
+      passwordHash: record.fields[USER_FIELDS.passwordHash] ? String(record.fields[USER_FIELDS.passwordHash]) : null,
+      lastLogin: record.fields[USER_FIELDS.lastLogin] ? String(record.fields[USER_FIELDS.lastLogin]) : null,
+      bonusPoints: record.fields[USER_FIELDS.bonusPoints] ? Number(record.fields[USER_FIELDS.bonusPoints]) : null,
+      badges: record.fields[USER_FIELDS.badges] ? String(record.fields[USER_FIELDS.badges]) : null,
+      level: record.fields[USER_FIELDS.level] ? Number(record.fields[USER_FIELDS.level]) : null
+    })
+  } catch (error) {
+    console.warn("[full-sync] unable to fetch/upsert missing user", { userId, error })
+  }
+
+  const afterUpsert = await dbQuery<{ id: string }>(
+    `SELECT id FROM users_pg WHERE id = $1 LIMIT 1`,
+    [userId]
+  )
+
+  if (afterUpsert.rows.length === 0) {
+    console.warn("[full-sync] skipping record because linked user does not exist", { userId })
+    return false
+  }
+  return true
+}
+
 export async function syncPersonalGoalsFromAirtable(): Promise<number> {
   const records = await base(tables.personalGoals).select({ returnFieldsByFieldId: true }).all()
   const seenAirtableIds = new Set<string>()
@@ -180,6 +217,7 @@ export async function syncPersonalGoalsFromAirtable(): Promise<number> {
   for (const record of records) {
     const userId = (record.fields[PERSONAL_GOAL_FIELDS.user] as string[] | undefined)?.[0]
     if (!userId) continue
+    if (!(await ensureUserExists(userId))) continue
 
     // Parse schedule days from Airtable (comma-separated string or array)
     let scheduleDays: string[] | null = null
@@ -258,6 +296,7 @@ export async function syncPersoonlijkeOvertuigingenFromAirtable(): Promise<numbe
   for (const record of records) {
     const userId = (record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.user] as string[] | undefined)?.[0]
     if (!userId) continue
+    if (!(await ensureUserExists(userId))) continue
 
     const status = String(record.fields[PERSOONLIJKE_OVERTUIGING_FIELDS.status] || "Actief")
 
@@ -328,6 +367,7 @@ export async function syncProgramsFromAirtable(): Promise<number> {
   for (const record of records) {
     const userId = (record.fields[PROGRAM_FIELDS.user] as string[] | undefined)?.[0]
     if (!userId) continue
+    if (!(await ensureUserExists(userId))) continue
 
     const result = await dbQuery<{ id: string }>(
       `INSERT INTO programs_pg (
@@ -386,13 +426,7 @@ export async function syncProgramsFromAirtable(): Promise<number> {
     )
 
     if (result.rows[0]?.id) {
-      await dbQuery(
-        `INSERT INTO airtable_id_map (entity_type, postgres_id, airtable_record_id, last_synced_at)
-         VALUES ('program', $1, $2, NOW())
-         ON CONFLICT (entity_type, postgres_id)
-         DO UPDATE SET airtable_record_id = EXCLUDED.airtable_record_id, last_synced_at = NOW()`,
-        [result.rows[0].id, record.id]
-      )
+      await upsertAirtableIdMap("program", result.rows[0].id, record.id)
     }
 
     seenAirtableIds.add(record.id)
@@ -480,13 +514,7 @@ export async function syncProgramScheduleFromAirtable(): Promise<number> {
       ]
     )
 
-    await dbQuery(
-      `INSERT INTO airtable_id_map (entity_type, postgres_id, airtable_record_id, last_synced_at)
-       VALUES ('program_schedule', $1, $2, NOW())
-       ON CONFLICT (entity_type, postgres_id)
-       DO UPDATE SET airtable_record_id = EXCLUDED.airtable_record_id, last_synced_at = NOW()`,
-      [result.rows[0].id, record.id]
-    )
+    await upsertAirtableIdMap("program_schedule", result.rows[0].id, record.id)
 
     seenAirtableIds.add(record.id)
     count += 1
@@ -511,6 +539,7 @@ export async function syncMethodUsageFromAirtable(): Promise<number> {
     const userId = (record.fields[METHOD_USAGE_FIELDS.user] as string[] | undefined)?.[0]
     const methodId = (record.fields[METHOD_USAGE_FIELDS.method] as string[] | undefined)?.[0]
     if (!userId || !methodId) continue
+    if (!(await ensureUserExists(userId))) continue
 
     const airtableProgramId = (record.fields[METHOD_USAGE_FIELDS.program] as string[] | undefined)?.[0]
     const airtableScheduleId = (record.fields[METHOD_USAGE_FIELDS.programmaplanning] as string[] | undefined)?.[0]
@@ -580,13 +609,7 @@ export async function syncMethodUsageFromAirtable(): Promise<number> {
       ]
     )
 
-    await dbQuery(
-      `INSERT INTO airtable_id_map (entity_type, postgres_id, airtable_record_id, last_synced_at)
-       VALUES ('method_usage', $1, $2, NOW())
-       ON CONFLICT (entity_type, postgres_id)
-       DO UPDATE SET airtable_record_id = EXCLUDED.airtable_record_id, last_synced_at = NOW()`,
-      [result.rows[0].id, record.id]
-    )
+    await upsertAirtableIdMap("method_usage", result.rows[0].id, record.id)
 
     seenAirtableIds.add(record.id)
     count += 1
@@ -624,6 +647,7 @@ export async function syncHabitUsageFromAirtable(): Promise<number> {
     const methodId = (record.fields[HABIT_USAGE_FIELDS.method] as string[] | undefined)?.[0]
     const date = record.fields[HABIT_USAGE_FIELDS.date] ? String(record.fields[HABIT_USAGE_FIELDS.date]) : null
     if (!userId || !methodId || !date) continue
+    if (!(await ensureUserExists(userId))) continue
 
     const result = await dbQuery<{ id: string }>(
       `INSERT INTO habit_usage_pg (user_id, method_id, usage_date, airtable_record_id, updated_at)
@@ -634,13 +658,7 @@ export async function syncHabitUsageFromAirtable(): Promise<number> {
       [userId, methodId, date, record.id]
     )
 
-    await dbQuery(
-      `INSERT INTO airtable_id_map (entity_type, postgres_id, airtable_record_id, last_synced_at)
-       VALUES ('habit_usage', $1, $2, NOW())
-       ON CONFLICT (entity_type, postgres_id)
-       DO UPDATE SET airtable_record_id = EXCLUDED.airtable_record_id, last_synced_at = NOW()`,
-      [result.rows[0].id, record.id]
-    )
+    await upsertAirtableIdMap("habit_usage", result.rows[0].id, record.id)
 
     seenAirtableIds.add(record.id)
     count += 1
@@ -666,6 +684,7 @@ export async function syncPersonalGoalUsageFromAirtable(): Promise<number> {
     const goalId = (record.fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal] as string[] | undefined)?.[0]
     const date = record.fields[PERSONAL_GOAL_USAGE_FIELDS.date] ? String(record.fields[PERSONAL_GOAL_USAGE_FIELDS.date]) : null
     if (!userId || !goalId || !date) continue
+    if (!(await ensureUserExists(userId))) continue
 
     const result = await dbQuery<{ id: string }>(
       `INSERT INTO personal_goal_usage_pg (user_id, personal_goal_id, usage_date, airtable_record_id, updated_at)
@@ -676,13 +695,7 @@ export async function syncPersonalGoalUsageFromAirtable(): Promise<number> {
       [userId, goalId, date, record.id]
     )
 
-    await dbQuery(
-      `INSERT INTO airtable_id_map (entity_type, postgres_id, airtable_record_id, last_synced_at)
-       VALUES ('personal_goal_usage', $1, $2, NOW())
-       ON CONFLICT (entity_type, postgres_id)
-       DO UPDATE SET airtable_record_id = EXCLUDED.airtable_record_id, last_synced_at = NOW()`,
-      [result.rows[0].id, record.id]
-    )
+    await upsertAirtableIdMap("personal_goal_usage", result.rows[0].id, record.id)
 
     seenAirtableIds.add(record.id)
     count += 1
@@ -707,6 +720,7 @@ export async function syncOvertuigingUsageFromAirtable(): Promise<number> {
     const userId = (record.fields[OVERTUIGING_USAGE_FIELDS.user] as string[] | undefined)?.[0]
     const overtuigingId = (record.fields[OVERTUIGING_USAGE_FIELDS.overtuiging] as string[] | undefined)?.[0]
     if (!userId || !overtuigingId) continue
+    if (!(await ensureUserExists(userId))) continue
 
     const programId = (record.fields[OVERTUIGING_USAGE_FIELDS.program] as string[] | undefined)?.[0] || null
     const date = record.fields[OVERTUIGING_USAGE_FIELDS.date] ? String(record.fields[OVERTUIGING_USAGE_FIELDS.date]) : new Date().toISOString().split("T")[0]
@@ -720,13 +734,7 @@ export async function syncOvertuigingUsageFromAirtable(): Promise<number> {
       [userId, overtuigingId, programId, date, record.id]
     )
 
-    await dbQuery(
-      `INSERT INTO airtable_id_map (entity_type, postgres_id, airtable_record_id, last_synced_at)
-       VALUES ('overtuiging_usage', $1, $2, NOW())
-       ON CONFLICT (entity_type, postgres_id)
-       DO UPDATE SET airtable_record_id = EXCLUDED.airtable_record_id, last_synced_at = NOW()`,
-      [result.rows[0].id, record.id]
-    )
+    await upsertAirtableIdMap("overtuiging_usage", result.rows[0].id, record.id)
 
     seenAirtableIds.add(record.id)
     count += 1
@@ -752,6 +760,7 @@ export async function syncGoedeGewoonteUsageFromAirtable(): Promise<number> {
     const goedeGewoonteId = (record.fields[GOEDE_GEWOONTE_GEBRUIK_FIELDS.goedeGewoonte] as string[] | undefined)?.[0]
     const date = record.fields[GOEDE_GEWOONTE_GEBRUIK_FIELDS.date] ? String(record.fields[GOEDE_GEWOONTE_GEBRUIK_FIELDS.date]) : null
     if (!userId || !goedeGewoonteId || !date) continue
+    if (!(await ensureUserExists(userId))) continue
 
     const result = await dbQuery<{ id: string }>(
       `INSERT INTO goede_gewoontes_usage_pg (user_id, goede_gewoonte_id, usage_date, airtable_record_id, updated_at)
@@ -762,13 +771,7 @@ export async function syncGoedeGewoonteUsageFromAirtable(): Promise<number> {
       [userId, goedeGewoonteId, date, record.id]
     )
 
-    await dbQuery(
-      `INSERT INTO airtable_id_map (entity_type, postgres_id, airtable_record_id, last_synced_at)
-       VALUES ('goede_gewoonte_usage', $1, $2, NOW())
-       ON CONFLICT (entity_type, postgres_id)
-       DO UPDATE SET airtable_record_id = EXCLUDED.airtable_record_id, last_synced_at = NOW()`,
-      [result.rows[0].id, record.id]
-    )
+    await upsertAirtableIdMap("goede_gewoonte_usage", result.rows[0].id, record.id)
 
     seenAirtableIds.add(record.id)
     count += 1

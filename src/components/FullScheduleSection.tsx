@@ -146,25 +146,29 @@ export function FullScheduleSection({
                     <div
                       key={session.id}
                       className={`
-                        flex items-start gap-3 p-3 rounded-lg transition-colors
-                        ${isPast ? "bg-muted/30 opacity-60" : "bg-muted/50"}
+                        flex items-start gap-3 p-3.5 rounded-xl transition-colors
+                        ${isSessionComplete
+                          ? "bg-green-50/80 border border-green-200/70 dark:bg-green-900/20 dark:border-green-700/40"
+                          : isPast
+                            ? "bg-muted/30 opacity-70"
+                            : "bg-muted/50"}
                         ${isToday ? "ring-2 ring-primary ring-offset-2" : ""}
                       `}
                     >
                       {/* Completion status */}
                       <div className="mt-0.5">
                         {isSessionComplete ? (
-                          <div className="w-5 h-5 rounded-full bg-green-500 flex items-center justify-center">
-                            <Check className="h-3 w-3 text-white" />
+                          <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center">
+                            <Check className="h-4 w-4 text-white" />
                           </div>
                         ) : completedCount > 0 ? (
-                          <div className="w-5 h-5 rounded-full border-2 border-green-500 flex items-center justify-center">
-                            <span className="text-[10px] font-medium text-green-600">
+                          <div className="w-6 h-6 rounded-full border-2 border-green-500 flex items-center justify-center">
+                            <span className="text-xs font-medium text-green-600">
                               {completedCount}
                             </span>
                           </div>
                         ) : (
-                          <div className={`w-5 h-5 rounded-full border-2 ${
+                          <div className={`w-6 h-6 rounded-full border-2 ${
                             isToday ? "border-primary" : "border-muted-foreground/30"
                           }`} />
                         )}
@@ -192,16 +196,16 @@ export function FullScheduleSection({
                                   type="button"
                                   onClick={() => !isPast && handleMethodClick(m.id, session)}
                                   disabled={isPast}
-                                  className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full transition-colors ${
+                                  className={`inline-flex items-center gap-1.5 text-sm px-3 py-1 rounded-full transition-colors ${
                                     isMethodCompleted
-                                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                                      : "bg-muted text-muted-foreground"
+                                      ? "bg-green-100 text-green-700 border border-green-200 dark:bg-green-900/30 dark:text-green-300 dark:border-green-700/40"
+                                      : "bg-muted text-muted-foreground border border-transparent"
                                   } ${!isPast ? "cursor-pointer hover:bg-primary/20 hover:text-primary" : ""}`}
                                 >
                                   {isMethodCompleted ? (
-                                    <CheckCircle className="h-3 w-3" />
+                                    <CheckCircle className="h-4 w-4" />
                                   ) : (
-                                    <Circle className="h-3 w-3" />
+                                    <Circle className="h-4 w-4" />
                                   )}
                                   {m.name}
                                 </button>

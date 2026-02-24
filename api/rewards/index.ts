@@ -85,7 +85,7 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
   const useStored = hasStoredScores || !hasActivity
 
   const rewards: Record<string, unknown> = {
-    totalPoints: useStored ? user.totalPoints : (methodCount * 10) + (personalGoalCount * 10) + (habitCount * 5) + user.bonusPoints,
+    totalPoints: useStored ? user.totalPoints : (methodCount * 10) + (personalGoalCount * 5) + (habitCount * 5) + user.bonusPoints,
     bonusPoints: user.bonusPoints,
     currentStreak: user.currentStreak,
     longestStreak: user.longestStreak,
@@ -93,7 +93,7 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
     badges,
     level: user.level,
     mentalFitnessScore: useStored ? user.mentalFitnessScore : methodCount * 10 + user.bonusPoints,
-    personalGoalsScore: useStored ? user.personalGoalsScore : personalGoalCount * 10,
+    personalGoalsScore: useStored ? user.personalGoalsScore : personalGoalCount * 5,
     goodHabitsScore: useStored ? user.goodHabitsScore : habitCount * 5
   }
 

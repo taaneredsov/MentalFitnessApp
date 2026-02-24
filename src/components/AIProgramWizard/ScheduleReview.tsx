@@ -97,9 +97,9 @@ export function ScheduleReview({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] max-h-[700px]">
+    <div className="flex flex-col gap-3">
       {/* Fixed header */}
-      <div className="text-center space-y-2 pb-4">
+      <div className="text-center space-y-2 pb-1">
         {programName && (
           <p className="text-sm font-medium text-primary">{programName}</p>
         )}
@@ -111,7 +111,7 @@ export function ScheduleReview({
       </div>
 
       {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pb-2 relative">
+      <div className="overflow-y-auto min-h-0 space-y-6 pb-2 pr-1 max-h-[52vh] sm:max-h-[56vh] relative">
 
         {/* Summary Card */}
         <Card>
@@ -276,7 +276,7 @@ export function ScheduleReview({
       </div>
 
       {/* Fixed footer with buttons */}
-      <div className="border-t pt-4 mt-2">
+      <div className="border-t pt-3">
         <div className="flex gap-3">
           <Button
             variant="outline"

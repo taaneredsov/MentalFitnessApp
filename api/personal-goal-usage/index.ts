@@ -19,7 +19,7 @@ import { awardRewardActivity } from "../_lib/rewards/engine.js"
 const PERSONAL_GOAL_BACKEND_ENV = "DATA_BACKEND_PERSONAL_GOAL_USAGE"
 
 const POINTS = {
-  personalGoal: 10
+  personalGoal: 5
 } as const
 
 const createUsageSchema = z.object({

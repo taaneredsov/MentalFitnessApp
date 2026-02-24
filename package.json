@@ -1,7 +1,7 @@
 {
   "name": "mental-fitness-app",
   "private": true,
-  "version": "1.3.5",
+  "version": "1.3.6",
   "description": "Corporate Mental Fitness PWA with Airtable backend",
   "type": "module",
   "scripts": {
@@ -9,6 +9,7 @@
     "version:bump": "node scripts/bump-version.js",
     "build": "tsc -b && vite build",
     "build:server": "tsc --project tsconfig.server.json",
+    "start:clean": "bash scripts/start-clean.sh",
     "db:migrate": "node tasks/db-migrate.mjs",
     "worker:start": "npm run build:server && node dist-server/api/workers/sync-worker.js",
     "backfill:airtable-to-postgres": "npm run build:server && node dist-server/api/workers/backfill.js",

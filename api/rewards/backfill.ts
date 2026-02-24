@@ -44,7 +44,7 @@ export default async function handler(req: Request, res: Response) {
         if (!stats) continue
 
         const mentalFitnessScore = stats.methodCount * 10 + stats.user.bonusPoints
-        const personalGoalsScore = stats.personalGoalCount * 10
+        const personalGoalsScore = stats.personalGoalCount * 5
         const goodHabitsScore = stats.habitCount * 5
         const totalPoints = mentalFitnessScore + personalGoalsScore + goodHabitsScore
 

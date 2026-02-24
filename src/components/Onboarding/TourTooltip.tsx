@@ -92,13 +92,18 @@ export function TourTooltip({
     return `${Math.max(20, Math.min(arrowOffset, (style.width as number) - 20))}px`
   }, [targetRect, style, arrowPosition])
 
+  const displayedContent = useMemo(() => {
+    if (currentStep === 0) {
+      return "Hier verschijnen je geplande activiteiten. Op trainingsdagen kun je op een oefening tikken om te beginnen."
+    }
+    if (currentStep === 1) {
+      return "Hier zie je je punten en streak. Blijf actief om je score te verhogen!"
+    }
+    return content
+  }, [currentStep, content])
+
   return (
     <>
-      {/* ARIA live region for screen readers */}
-      <div role="status" aria-live="polite" className="sr-only">
-        Stap {currentStep + 1} van {totalSteps}: {content}
-      </div>
-
       {/* Tooltip */}
       <div
         ref={tooltipRef}
@@ -138,7 +143,7 @@ export function TourTooltip({
 
         {/* Content */}
         <p className="text-sm text-foreground mb-4 leading-relaxed">
-          {content}
+          {displayedContent}
         </p>
 
         {/* Progress dots */}

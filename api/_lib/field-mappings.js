@@ -83,7 +83,7 @@ export const USER_FIELDS = {
   level: "fldBp9BHyhbiGxK8V",            // Niveau (Number)
   // Split score fields (all Formula fields)
   mentalFitnessScore: "fldMTUjMC2vcY0HWA",    // Mental Fitness Score (# methodes * 10 + bonuspoints)
-  personalGoalsScore: "fldVDpa3GOFSWTYly",    // Persoonlijke Doelen Score (# completions * 10)
+  personalGoalsScore: "fldVDpa3GOFSWTYly",    // Persoonlijke Doelen Score (# completions * 5)
   goodHabitsScore: "fldpW5r0j9aHREqaK",       // Goede Gewoontes Score (# completions * 5)
   // Magic link fields
   magicLinkToken: "fldjMwmUXqn0AmmXB",   // Magic Link Token (Single line text)
