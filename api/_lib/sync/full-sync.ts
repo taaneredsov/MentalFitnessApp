@@ -210,6 +210,30 @@ async function ensureUserExists(userId: string): Promise<boolean> {
   return true
 }
 
+async function resolvePersonalGoalPostgresId(goalId: string): Promise<string | null> {
+  // Already a Postgres row id
+  const byId = await dbQuery<{ id: string }>(
+    `SELECT id FROM personal_goals_pg WHERE id = $1 LIMIT 1`,
+    [goalId]
+  )
+  if (byId.rows.length > 0) {
+    return byId.rows[0].id
+  }
+
+  // Prefer direct lookup through denormalized Airtable id
+  const byAirtableId = await dbQuery<{ id: string }>(
+    `SELECT id FROM personal_goals_pg WHERE airtable_record_id = $1 LIMIT 1`,
+    [goalId]
+  )
+  if (byAirtableId.rows.length > 0) {
+    return byAirtableId.rows[0].id
+  }
+
+  // Fallback via generic id map
+  const mapped = await findPostgresId("personal_goal", goalId)
+  return mapped || null
+}
+
 export async function syncPersonalGoalsFromAirtable(): Promise<number> {
   const records = await base(tables.personalGoals).select({ returnFieldsByFieldId: true }).all()
   const seenAirtableIds = new Set<string>()
@@ -686,13 +710,23 @@ export async function syncPersonalGoalUsageFromAirtable(): Promise<number> {
     if (!userId || !goalId || !date) continue
     if (!(await ensureUserExists(userId))) continue
 
+    const personalGoalId = await resolvePersonalGoalPostgresId(goalId)
+    if (!personalGoalId) {
+      console.warn("[full-sync] skipping personal_goal_usage; linked personal goal not found", {
+        usageRecordId: record.id,
+        userId,
+        goalId
+      })
+      continue
+    }
+
     const result = await dbQuery<{ id: string }>(
       `INSERT INTO personal_goal_usage_pg (user_id, personal_goal_id, usage_date, airtable_record_id, updated_at)
        VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT (airtable_record_id)
        DO UPDATE SET user_id = EXCLUDED.user_id, personal_goal_id = EXCLUDED.personal_goal_id, usage_date = EXCLUDED.usage_date, updated_at = NOW()
        RETURNING id`,
-      [userId, goalId, date, record.id]
+      [userId, personalGoalId, date, record.id]
     )
 
     await upsertAirtableIdMap("personal_goal_usage", result.rows[0].id, record.id)
