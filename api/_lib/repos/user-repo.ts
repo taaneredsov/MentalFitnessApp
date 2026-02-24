@@ -44,7 +44,11 @@ function mapUserRow(row: Record<string, unknown>): PgUser {
     lastLogin: row.last_login ? String(row.last_login) : null,
     currentStreak: Number(row.current_streak || 0),
     longestStreak: Number(row.longest_streak || 0),
-    lastActiveDate: row.last_active_date ? String(row.last_active_date) : null,
+    lastActiveDate: row.last_active_date
+      ? (row.last_active_date instanceof Date
+          ? row.last_active_date.toISOString().slice(0, 10)
+          : String(row.last_active_date).slice(0, 10))
+      : null,
     bonusPoints: Number(row.bonus_points || 0),
     badges: String(row.badges || '[]'),
     level: Number(row.level || 1),
