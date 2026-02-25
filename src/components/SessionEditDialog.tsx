@@ -208,7 +208,7 @@ export function SessionEditDialog({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex-1 overflow-hidden flex flex-col gap-4 py-4">
+        <div className="flex-1 overflow-y-auto flex flex-col gap-4 py-4">
           {/* Current Methods Section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -217,8 +217,8 @@ export function SessionEditDialog({
                 {totalTime} min totaal
               </span>
             </div>
-            <div className="max-h-[25vh] overflow-y-auto">
-              <div className="space-y-2 pr-4">
+            <div>
+              <div className="space-y-2">
                 {selectedMethods.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic p-3">
                     Geen methodes geselecteerd
@@ -243,8 +243,8 @@ export function SessionEditDialog({
           {/* Add Methods Section */}
           <div className="space-y-2 flex-1 min-h-0">
             <h4 className="text-sm font-medium">Methode toevoegen</h4>
-            <div className="max-h-[25vh] overflow-y-auto">
-              <div className="space-y-2 pr-4">
+            <div>
+              <div className="space-y-2">
                 {methodsToAdd.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic p-3">
                     Alle beschikbare methodes zijn al toegevoegd

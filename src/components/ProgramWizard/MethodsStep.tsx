@@ -102,7 +102,7 @@ export function MethodsStep({
                 {t("wizard.methods.close")}
               </Button>
             </div>
-            <div className="max-h-64 overflow-y-auto space-y-2">
+            <div className="space-y-2">
               {availableMethods.length === 0 ? (
                 <p className="text-sm text-muted-foreground italic">
                   {t("wizard.methods.allSelected")}

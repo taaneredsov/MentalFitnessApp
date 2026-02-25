@@ -110,8 +110,8 @@ export function ScheduleReview({
         />
       </div>
 
-      {/* Scrollable content */}
-      <div className="overflow-y-auto min-h-0 space-y-6 pb-2 pr-1 max-h-[52vh] sm:max-h-[56vh] relative">
+      {/* Content */}
+      <div className="space-y-6 pb-2">
 
         {/* Summary Card */}
         <Card>
@@ -271,12 +271,10 @@ export function ScheduleReview({
           </div>
         )}
 
-        {/* Scroll fade indicator */}
-        <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* Fixed footer with buttons */}
-      <div className="border-t pt-3">
+      {/* Sticky footer with buttons */}
+      <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4">
         <div className="flex gap-3">
           <Button
             variant="outline"

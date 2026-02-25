@@ -68,7 +68,7 @@ export function MethodPicker({
         </div>
 
         {/* Method list */}
-        <div className="flex-1 overflow-y-auto space-y-2 min-h-0 max-h-[40vh]">
+        <div className="flex-1 overflow-y-auto space-y-2 min-h-0">
           {sortedMethods.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-4">
               {t("methodPicker.noResults")}

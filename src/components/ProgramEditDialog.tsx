@@ -430,8 +430,8 @@ export function ProgramEditDialog({
             <p className="text-xs text-muted-foreground">
               Selecteer minimaal 1 doelstelling
             </p>
-            <div className="max-h-[25vh] overflow-y-auto">
-              <div className="space-y-2 pr-2">
+            <div>
+              <div className="space-y-2">
                 {selectableGoals.length === 0 ? (
                   <p className="text-sm text-muted-foreground italic p-3">
                     Geen doelstellingen beschikbaar

@@ -157,9 +157,9 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] max-h-[700px]">
-      {/* Scrollable content */}
-      <div className="flex-1 overflow-y-auto min-h-0 space-y-6 pb-2 relative">
+    <div className="flex flex-col">
+      {/* Content */}
+      <div className="flex-1 space-y-6 pb-2">
         {/* Success Header */}
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-green-100 mb-2">
@@ -403,12 +403,10 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
           </div>
         )}
 
-        {/* Scroll fade indicator */}
-        <div className="pointer-events-none sticky bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* Fixed footer with buttons */}
-      <div className="border-t pt-4 mt-2">
+      {/* Sticky footer with buttons */}
+      <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4">
         <div className="flex gap-3">
           <Button
             onClick={handleSaveAndContinue}

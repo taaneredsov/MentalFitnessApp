@@ -118,7 +118,7 @@ export function AIInputForm({
   }
 
   return (
-    <div className="flex flex-col h-[calc(100vh-12rem)] max-h-[600px]">
+    <div className="flex flex-col">
       {/* Fixed header */}
       <div className="space-y-4 pb-4">
         {/* Step indicator */}
@@ -159,8 +159,8 @@ export function AIInputForm({
         </div>
       </div>
 
-      {/* Scrollable content area */}
-      <div className="flex-1 overflow-y-auto min-h-0 relative">
+      {/* Content area */}
+      <div className="flex-1 relative">
         {/* Step 0: Goals Selection */}
         {state.step === 0 && (
           <div className="space-y-2 pb-2">
@@ -305,12 +305,10 @@ export function AIInputForm({
           </div>
         )}
 
-        {/* Scroll fade indicator */}
-        <div className="pointer-events-none absolute bottom-0 left-0 right-0 h-8 bg-gradient-to-t from-background to-transparent" />
       </div>
 
-      {/* Fixed footer with buttons */}
-      <div className="border-t pt-4 mt-2 bg-background">
+      {/* Sticky footer with buttons */}
+      <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4">
         {state.step === 0 && (
           <div className="flex gap-3">
             <Button variant="outline" onClick={goBack} className="flex-1">
