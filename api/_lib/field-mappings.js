@@ -611,89 +611,6 @@ export function transformProgrammaplanning(record) {
   }
 }
 
-/**
- * Extract reward data from a user record
- */
-export function transformUserRewards(record) {
-  const fields = record.fields
-
-  // Parse badges from JSON string (or default to empty array)
-  let badges = []
-  const badgesField = fields[USER_FIELDS.badges]
-  if (badgesField) {
-    try {
-      badges = typeof badgesField === 'string' ? JSON.parse(badgesField) : badgesField
-    } catch {
-      badges = []
-    }
-  }
-
-  return {
-    totalPoints: fields[USER_FIELDS.totalPoints] || 0,
-    bonusPoints: fields[USER_FIELDS.bonusPoints] || 0,
-    currentStreak: fields[USER_FIELDS.currentStreak] || 0,
-    longestStreak: fields[USER_FIELDS.longestStreak] || 0,
-    lastActiveDate: fields[USER_FIELDS.lastActiveDate] || null,
-    badges,
-    level: fields[USER_FIELDS.level] || 1,
-    // Split scores (all formula fields, read-only)
-    mentalFitnessScore: fields[USER_FIELDS.mentalFitnessScore] || 0,
-    personalGoalsScore: fields[USER_FIELDS.personalGoalsScore] || 0,
-    goodHabitsScore: fields[USER_FIELDS.goodHabitsScore] || 0
-  }
-}
-
-/**
- * Transform Airtable habit usage record to clean HabitUsage object
- */
-export function transformHabitUsage(record) {
-  const fields = record.fields
-  return {
-    id: record.id,
-    userId: fields[HABIT_USAGE_FIELDS.user]?.[0],
-    methodId: fields[HABIT_USAGE_FIELDS.method]?.[0],
-    date: fields[HABIT_USAGE_FIELDS.date]
-  }
-}
-
-/**
- * Transform Airtable personal goal record to clean PersonalGoal object
- */
-export function transformPersonalGoal(record) {
-  const fields = record.fields
-  // Parse scheduleDays from comma-separated string or array
-  let scheduleDays = undefined
-  const rawSchedule = fields[PERSONAL_GOAL_FIELDS.scheduleDays]
-  if (rawSchedule) {
-    if (Array.isArray(rawSchedule)) {
-      scheduleDays = rawSchedule
-    } else if (typeof rawSchedule === 'string') {
-      scheduleDays = rawSchedule.split(',').map(s => s.trim()).filter(Boolean)
-    }
-  }
-  return {
-    id: record.id,
-    name: fields[PERSONAL_GOAL_FIELDS.name],
-    description: fields[PERSONAL_GOAL_FIELDS.description],
-    userId: fields[PERSONAL_GOAL_FIELDS.user]?.[0],
-    status: fields[PERSONAL_GOAL_FIELDS.status] || "Actief",
-    scheduleDays,
-    createdAt: fields[PERSONAL_GOAL_FIELDS.createdAt]
-  }
-}
-
-/**
- * Transform Airtable personal goal usage record to clean PersonalGoalUsage object
- */
-export function transformPersonalGoalUsage(record) {
-  const fields = record.fields
-  return {
-    id: record.id,
-    userId: fields[PERSONAL_GOAL_USAGE_FIELDS.user]?.[0],
-    personalGoalId: fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal]?.[0],
-    date: fields[PERSONAL_GOAL_USAGE_FIELDS.date]
-  }
-}
 
 /**
  * Transform Airtable overtuiging record to clean Overtuiging object
@@ -725,34 +642,6 @@ export function transformMindsetCategory(record) {
   }
 }
 
-/**
- * Transform Airtable persoonlijke overtuiging record
- */
-export function transformPersoonlijkeOvertuiging(record) {
-  const fields = record.fields
-  return {
-    id: record.id,
-    name: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.name],
-    userId: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.user]?.[0],
-    programId: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.program]?.[0],
-    status: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.status] || "Actief",
-    completedDate: fields[PERSOONLIJKE_OVERTUIGING_FIELDS.completedDate]
-  }
-}
-
-/**
- * Transform Airtable overtuigingen gebruik record
- */
-export function transformOvertuigingUsage(record) {
-  const fields = record.fields
-  return {
-    id: record.id,
-    userId: fields[OVERTUIGING_USAGE_FIELDS.user]?.[0],
-    overtuigingId: fields[OVERTUIGING_USAGE_FIELDS.overtuiging]?.[0],
-    programId: fields[OVERTUIGING_USAGE_FIELDS.program]?.[0],
-    date: fields[OVERTUIGING_USAGE_FIELDS.date]
-  }
-}
 
 /**
  * Transform Airtable goede gewoonte record to clean GoedeGewoonte object

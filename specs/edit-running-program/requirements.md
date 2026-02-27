@@ -82,14 +82,14 @@ Without this capability, users are stuck with their initial program configuratio
 - [ ] User can click edit icon on a future session
 - [ ] Dialog opens showing current methods with remove option
 - [ ] User can add methods from available pool
-- [ ] Save updates the session in Airtable
+- [ ] Save updates the session in Postgres (syncs to Airtable via outbox)
 - [ ] UI reflects changes immediately
 - [ ] Past sessions show no edit option
 
 ### AC-2: Program Edit Flow
 - [ ] User can click edit button on program details
 - [ ] Dialog shows editable fields (goals, notes)
-- [ ] Save updates program in Airtable
+- [ ] Save updates program in Postgres (syncs to Airtable via outbox)
 - [ ] Changes reflected in UI
 
 ### AC-3: Error Handling
@@ -101,8 +101,8 @@ Without this capability, users are stuck with their initial program configuratio
 
 - Existing `useProgram` hook for fetching program details
 - Existing `useUpdateProgram` mutation for program-level updates
-- `api/programs/[id].ts` PATCH endpoint (exists, may need enhancement)
-- Airtable Programmaplanning table with field mappings
+- `api/programs/[id].ts` PATCH endpoint
+- Postgres schedules table
 
 ## Out of Scope (Future Enhancements)
 

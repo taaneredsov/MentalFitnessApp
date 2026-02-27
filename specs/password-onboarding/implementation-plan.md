@@ -145,14 +145,14 @@ Add password change functionality to Account page.
 ## Verification
 
 ### First-Time User Flow
-1. Create test user in Airtable with NO password hash AND NO last login
+1. Create test user in Postgres with NO password hash AND NO last login
 2. Go to login page, enter test user email
 3. Should redirect to /set-password page
 4. Set password (min 8 chars, with confirmation)
 5. Should be logged in and redirected to home
 
 ### Edge Case: Invalid Account State
-1. Create test user in Airtable with NO password hash BUT WITH last login date
+1. Create test user in Postgres with NO password hash BUT WITH last login date
 2. Go to login page, enter test user email
 3. Should see error: "Account niet correct geconfigureerd. Neem contact op met beheerder."
 

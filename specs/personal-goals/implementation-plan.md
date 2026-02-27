@@ -16,11 +16,11 @@ Add Airtable configuration and TypeScript types.
 
 ### Technical Details
 
-**Airtable Table IDs (already created):**
-- Personal Goals: `tblbjDv35B50ZKG9w`
-- Personal Goal Usage: `tbl8eJeQtMnIF5EJo`
+**Postgres tables** (synced from/to Airtable via full-sync worker and outbox):
+- `personal_goals_pg` (reference: Airtable `tblbjDv35B50ZKG9w`)
+- `personal_goal_usage_pg` (reference: Airtable `tbl8eJeQtMnIF5EJo`)
 
-**Field mappings to add to `api/_lib/field-mappings.js`:**
+**Field mappings in `api/_lib/field-mappings.js`:**
 ```javascript
 // Add to tables object
 personalGoals: process.env.AIRTABLE_TABLE_PERSONAL_GOALS || "tblbjDv35B50ZKG9w",
@@ -66,8 +66,7 @@ Create CRUD endpoints for personal goals.
 
 **GET /api/personal-goals?userId=xxx**
 ```typescript
-// Filter: user is linked AND status = "Actief"
-filterByFormula: `AND({Gebruiker} = "${userId}", {Status} = "Actief")`
+// Reads from Postgres: personal_goals_pg WHERE user_id = userId AND status = 'Actief'
 // Return: array of PersonalGoal objects
 ```
 
@@ -135,33 +134,8 @@ Track daily completions and award points.
 // Return: { success: true }
 ```
 
-**Streak update logic (copy from `api/habit-usage/index.ts` lines 136-174):**
-```javascript
-const today = new Date(date)
-const lastActive = user.lastActiveDate ? new Date(user.lastActiveDate) : null
-
-let newStreak = user.currentStreak || 0
-if (lastActive) {
-  const daysDiff = Math.floor((today - lastActive) / (1000 * 60 * 60 * 24))
-  if (daysDiff === 0) {
-    // Same day, no change
-  } else if (daysDiff === 1) {
-    newStreak++
-  } else {
-    newStreak = 1
-  }
-} else {
-  newStreak = 1
-}
-
-// Update user fields
-await base(tables.users).update(userId, {
-  [USER_FIELDS.bonusPoints]: (user.bonusPoints || 0) + 10,
-  [USER_FIELDS.currentStreak]: newStreak,
-  [USER_FIELDS.longestStreak]: Math.max(newStreak, user.longestStreak || 0),
-  [USER_FIELDS.lastActiveDate]: date
-})
-```
+**Streak update logic:**
+Streak calculation and user field updates (bonusPoints, currentStreak, longestStreak, lastActiveDate) are handled by the rewards engine via `awardRewardActivity()`. All writes go to Postgres; Airtable is updated via outbox sync.
 
 ## Phase 4: Frontend - Query Infrastructure
 
@@ -260,7 +234,7 @@ During audit remediation, a dedup fix was added to `syncPersonalGoalsFromAirtabl
 
 ### Backend Resilience (added 2026-02-20)
 
-The `awardRewardActivity()` call in the POST handler is wrapped in try/catch. If the reward engine fails (Airtable timeout, rate limit), the usage record creation and count still succeed — only a warning is logged. This applies to both `handlePostPostgres` and `handlePostAirtable`.
+The `awardRewardActivity()` call in the POST handler is wrapped in try/catch. If the reward engine fails (Airtable timeout, rate limit), the usage record creation and count still succeed — only a warning is logged. This applies to the POST handler.
 
 ## Verification Checklist
 

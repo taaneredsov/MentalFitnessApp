@@ -1,15 +1,8 @@
 import type { Request, Response } from "express"
-import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
-import { transformUserRewards, USER_FIELDS } from "../_lib/field-mappings.js"
-import { getDataBackendMode } from "../_lib/data-backend.js"
-import { isPostgresConfigured } from "../_lib/db/client.js"
 import { getUserRewardsData, updateUserRewardFields } from "../_lib/repos/user-repo.js"
 import { diffIsoDays, getTodayLocalDate, normalizeDateString } from "../_lib/rewards/date-utils.js"
-import { shouldUsePostgresRewards } from "../_lib/rewards/engine.js"
-
-const REWARDS_BACKEND_ENV = "DATA_BACKEND_REWARDS"
 
 const INACTIVITY_RESET_DAYS = 90
 const INACTIVITY_WARNING_DAYS = 75
@@ -71,23 +64,31 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
     badges = []
   }
 
+  // Coalesce nullable DB fields to safe defaults
+  const bonusPoints = user.bonusPoints ?? 0
+  const totalPoints = user.totalPoints ?? 0
+  const level = user.level ?? 0
+  const mfScore = user.mentalFitnessScore ?? 0
+  const pgScore = user.personalGoalsScore ?? 0
+  const ghScore = user.goodHabitsScore ?? 0
+
   // Use stored scores from Postgres; fall back to on-the-fly calculation
   // for pre-backfill state (all stored scores are 0 but user has activity)
-  const hasActivity = user.bonusPoints > 0 || methodCount > 0 || habitCount > 0 || personalGoalCount > 0
-  const hasStoredScores = user.totalPoints > 0 || user.mentalFitnessScore > 0 || user.personalGoalsScore > 0 || user.goodHabitsScore > 0
+  const hasActivity = bonusPoints > 0 || methodCount > 0 || habitCount > 0 || personalGoalCount > 0
+  const hasStoredScores = totalPoints > 0 || mfScore > 0 || pgScore > 0 || ghScore > 0
   const useStored = hasStoredScores || !hasActivity
 
   const rewards: Record<string, unknown> = {
-    totalPoints: useStored ? user.totalPoints : (methodPointsSum) + (personalGoalCount * 5) + (habitCount * 5) + user.bonusPoints,
-    bonusPoints: user.bonusPoints,
-    currentStreak: user.currentStreak,
-    longestStreak: user.longestStreak,
+    totalPoints: useStored ? totalPoints : (methodPointsSum) + (personalGoalCount * 5) + (habitCount * 5) + bonusPoints,
+    bonusPoints,
+    currentStreak: user.currentStreak ?? 0,
+    longestStreak: user.longestStreak ?? 0,
     lastActiveDate: user.lastActiveDate,
     badges,
-    level: user.level,
-    mentalFitnessScore: useStored ? user.mentalFitnessScore : methodPointsSum + user.bonusPoints,
-    personalGoalsScore: useStored ? user.personalGoalsScore : personalGoalCount * 5,
-    goodHabitsScore: useStored ? user.goodHabitsScore : habitCount * 5
+    level,
+    mentalFitnessScore: useStored ? mfScore : methodPointsSum + bonusPoints,
+    personalGoalsScore: useStored ? pgScore : personalGoalCount * 5,
+    goodHabitsScore: useStored ? ghScore : habitCount * 5
   }
 
   applyStreakStaleCheck(rewards)
@@ -111,37 +112,6 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
   return sendSuccess(res, { ...rewards, ...inactivityMeta })
 }
 
-async function handleGetAirtable(_req: Request, res: Response, userId: string) {
-  const records = await base(tables.users)
-    .select({
-      filterByFormula: `RECORD_ID() = "${userId}"`,
-      maxRecords: 1,
-      returnFieldsByFieldId: true
-    })
-    .firstPage()
-
-  if (records.length === 0) {
-    return sendError(res, "User not found", 404)
-  }
-
-  const rewards = transformUserRewards(records[0] as { id: string; fields: Record<string, unknown> })
-  const rewardsRecord = rewards as unknown as Record<string, unknown>
-
-  applyStreakStaleCheck(rewardsRecord)
-
-  const inactivityMeta = checkInactivity(rewardsRecord)
-
-  // Persist streak reset to Airtable so it doesn't re-trigger on next request
-  if (inactivityMeta.streakReset) {
-    await base(tables.users).update(userId, {
-      [USER_FIELDS.currentStreak]: 0,
-      // Don't reset scores, badges, or level — they stay forever
-    })
-  }
-
-  return sendSuccess(res, { ...rewardsRecord, ...inactivityMeta })
-}
-
 export default async function handler(req: Request, res: Response) {
   if (req.method !== "GET") {
     return sendError(res, "Method not allowed", 405)
@@ -149,20 +119,7 @@ export default async function handler(req: Request, res: Response) {
 
   try {
     const auth = await requireAuth(req)
-    const mode = getDataBackendMode(REWARDS_BACKEND_ENV)
-    const usePostgres = shouldUsePostgresRewards()
-
-    if (usePostgres) {
-      return handleGetPostgres(req, res, auth.userId)
-    }
-
-    if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
-      void handleGetPostgres(req, res, auth.userId)
-        .then(() => undefined)
-        .catch((error) => console.warn("[rewards] shadow read failed:", error))
-    }
-
-    return handleGetAirtable(req, res, auth.userId)
+    return handleGetPostgres(req, res, auth.userId)
   } catch (error) {
     if (error instanceof AuthError) {
       return sendError(res, error.message, error.status)

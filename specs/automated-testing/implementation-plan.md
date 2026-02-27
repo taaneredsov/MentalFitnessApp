@@ -81,7 +81,7 @@ export default defineConfig({
     { name: 'Mobile Safari', use: { ...devices['iPhone 13'] } },
   ],
   webServer: {
-    command: 'vercel dev --yes --listen 3333',
+    command: 'npm run dev -- --port 3333',
     port: 3333,
     reuseExistingServer: !process.env.CI,
     timeout: 120 * 1000,
@@ -160,7 +160,7 @@ export { renderWithProviders as render }
 
 ## Phase 2: API Utility Tests
 
-Test backend utility functions with mock data.
+Test backend utility functions with mock data. All API endpoints use Postgres; tests mock the database layer.
 
 ### Tasks
 

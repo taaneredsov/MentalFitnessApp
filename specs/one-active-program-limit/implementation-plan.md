@@ -67,20 +67,13 @@ Add server-side validation to prevent program creation via API.
 
 Add validation before creating program:
 ```typescript
-// Check for existing running program
-const existingPrograms = await base(tables.programs)
-  .select({
-    filterByFormula: `{${FIELD_NAMES.program.user}} = "${userId}"`,
-    returnFieldsByFieldId: true
-  })
-  .all()
+// Check for existing running program in Postgres
+const existingPrograms = await programRepo.findByUserId(userId)
 
-const hasRunning = existingPrograms.some(p => {
-  const startDate = p.fields[PROGRAM_FIELDS.startDate]
-  const endDate = p.fields[PROGRAM_FIELDS.endDate]
-  const today = new Date().toISOString().split('T')[0]
-  return startDate <= today && endDate >= today
-})
+const today = new Date().toISOString().split('T')[0]
+const hasRunning = existingPrograms.some(p =>
+  p.startDate <= today && p.endDate >= today
+)
 
 if (hasRunning) {
   return sendError(res, "Je hebt al een actief programma. Voltooi dit eerst.", 409)

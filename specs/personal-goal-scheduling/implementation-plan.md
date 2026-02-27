@@ -47,9 +47,8 @@ ALTER TABLE personal_goals_pg ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFA
 
 - [x] Extend POST `/api/personal-goals` with `scheduleDays` validation
 - [x] Extend GET `/api/personal-goals` with `?include=voltooid`
-- [x] Add Postgres dual-mode to `api/personal-goals/[id].ts` (was Airtable-only)
-- [x] Add `handlePatchPostgres()` and `handleDeletePostgres()` handlers
-- [x] Switch `[id].ts` to `requireAuth()` for Postgres path
+- [x] Add `handlePatch()` and `handleDelete()` handlers to `api/personal-goals/[id].ts`
+- [x] Switch `[id].ts` to `requireAuth()`
 
 ### Technical Details
 

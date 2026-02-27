@@ -1,358 +1,104 @@
-# Implementation Plan: Postgres Intermediate DB + Async Airtable Sync
+# Implementation Plan: Postgres Primary DB + Async Airtable Sync
 
 ## Overview
 
-This plan migrates hot operational paths from Airtable to Postgres, while preserving Airtable as a synchronized system. The rollout is incremental and controlled by feature flags to limit risk.
+All hot operational paths have been migrated from Airtable to Postgres. The data backend toggle system (`DataBackendMode`, `DATA_BACKEND_*` env vars, `getDataBackendMode`, `isPostgresPrimary`, etc.) has been fully removed. All endpoints now use Postgres directly.
 
-## Target Architecture
+## Current Architecture
 
 ```text
-PWA -> API -> Postgres (primary reads/writes)
+PWA -> API -> Postgres (all reads/writes)
              -> Outbox events (same transaction)
 
-Sync Worker -> reads outbox -> Airtable API (async)
+Sync Worker -> reads outbox -> Airtable API (async, outbound)
 
-Airtable Webhook/Poller -> Inbound Sync Handler -> Postgres upsert
+Full-Sync Poller -> Airtable -> Postgres (inbound: users, reference data, translations)
+User Webhook -> Airtable -> Postgres (inbound: fast-lane for user events)
 ```
 
-## Phase 0: Design Lock and Scope
-
-### Tasks
-
-- [ ] Confirm authority matrix per table.
-- [ ] Confirm ORM/tooling choice (Prisma or Drizzle).
-- [ ] Confirm queue implementation (BullMQ on existing Redis, or DB-only worker polling).
-- [ ] Define endpoint migration order and release sequence.
-- [ ] Confirm user fast-lane SLO and alert thresholds.
-
-### Recommended Decision Set
-
-- Postgres + Prisma for schema/migrations.
-- BullMQ for outbox delivery orchestration on existing Redis.
-- Endpoint migration order:
-  - `/api/programs`
-  - `/api/habit-usage`
-  - `/api/method-usage`
-  - `/api/personal-goal-usage`
-
-## Phase 1: Foundation and Infrastructure
-
-### Tasks
-
-- [ ] Add Postgres and ORM dependencies.
-- [ ] Add migration scripts to `package.json`.
-- [ ] Add runtime env vars in `.env.example`.
-- [ ] Add worker start command and deployment wiring.
-- [ ] Add fast-lane queue/env settings for user inbound sync.
-
-### Code Changes
-
-- `package.json`
-  - Add ORM, Postgres driver, queue packages.
-  - Add scripts like `db:migrate`, `db:generate`, `worker:start`.
-- `.env.example`
-  - Add `DATABASE_URL`.
-  - Add `SYNC_QUEUE_NAME`.
-  - Add `SYNC_BATCH_SIZE`.
-  - Add `SYNC_MAX_RETRIES`.
-  - Add `SYNC_USER_FAST_LANE_QUEUE_NAME`.
-  - Add `SYNC_USER_FALLBACK_POLL_SECONDS`.
-- `docker-compose.yml`
-  - Add optional `postgres` service for local dev.
-  - Add `worker` service for sync job processing.
-
-### Notes
-
-- Reuse existing Redis for queue.
-- Keep production secrets file-based, aligned with existing secret loading flow.
-
-## Phase 2: Postgres Schema and Mapping
-
-### Tasks
-
-- [ ] Create baseline schema and migrations.
-- [ ] Create ID mapping strategy for Airtable record IDs.
-- [ ] Add outbox and dead-letter tables.
-- [ ] Add indexes for user/date/program hot queries.
-
-### Proposed Core Tables
-
-- `users`
-- `programs`
-- `program_schedule`
-- `method_usage`
-- `habit_usage`
-- `personal_goal_usage`
-- `personal_goals`
-- `persoonlijke_overtuigingen`
-- `reference_methods`
-- `reference_goals`
-- `reference_days`
-- `reference_companies_pg`
-- `reference_program_prompts_pg`
-- `reference_experience_levels_pg`
-- `magic_link_codes`
-
-### Sync Control Tables
-
-- `airtable_id_map`
-  - `entity_type`, `postgres_id`, `airtable_record_id`, `last_synced_at`
-- `sync_outbox`
-  - `id`, `event_type`, `entity_type`, `entity_id`, `payload`, `status`, `attempt_count`, `next_attempt_at`, `created_at`
-- `sync_checkpoint`
-  - per-table cursor/checkpoint for inbound sync
-- `sync_dead_letter`
-  - failed event snapshot with failure metadata
-
-### Constraints and Indexes
-
-- Unique index on `(entity_type, postgres_id)` and `(entity_type, airtable_record_id)` in mapping table.
-- Unique idempotency key per logical write event in outbox.
-- Compound indexes:
-  - programs by `(user_id, start_date desc)`
-  - habit_usage by `(user_id, usage_date)`
-  - method_usage by `(program_id, used_at desc)`
-
-## Phase 3: Sync Engine (Outbound + Inbound)
-
-### Tasks
-
-- [ ] Implement outbox enqueue helper inside DB transaction boundary.
-- [ ] Implement sync worker with retry and backoff.
-- [ ] Implement Airtable upsert adapters per entity.
-- [ ] Implement inbound sync endpoint (webhook) or poller.
-- [ ] Implement dead-letter and replay tooling.
-- [ ] Implement dedicated high-priority inbound path for `users` events.
-- [ ] Implement user read-through fallback in auth/user lookup flows.
-
-### Outbound Flow
-
-1. API transaction writes business row.
-2. Same transaction writes `sync_outbox` row.
-3. Worker claims due outbox jobs.
-4. Worker maps payload to Airtable fields and writes record.
-5. Worker updates mapping table and marks outbox event as processed.
-
-### Inbound Flow
-
-1. Receive Airtable change event or poll by checkpoint.
-2. Validate signature/secret.
-3. Normalize Airtable record to internal schema.
-4. Upsert into Postgres by `airtable_record_id` mapping.
-5. Advance checkpoint atomically.
-
-### User Fast-Lane Inbound Flow
-
-1. Airtable `users` create/update event enters dedicated high-priority queue.
-2. Worker processes user event immediately (no large batch wait).
-3. User row upserted in Postgres and mapping table updated.
-4. If webhook fails, periodic fallback poll (`SYNC_USER_FALLBACK_POLL_SECONDS`) catches missed records.
-
-### User Read-Through Fallback
-
-If login/user lookup does not find the user in Postgres:
-
-1. Perform direct Airtable lookup for that specific user/email.
-2. If found, upsert into Postgres synchronously.
-3. Continue request using Postgres user model.
-4. Emit metric for fallback-hit rate (should trend to low values after steady state).
-
-### Conflict Policy
-
-- Postgres-authoritative entities:
-  - Outbound wins by default.
-  - Inbound updates ignored except metadata fields.
-- Airtable-authoritative entities:
-  - Inbound updates overwrite Postgres projection.
-- Mixed entities:
-  - Field-level policy per column with explicit source-of-truth markers.
-
-### Idempotency
-
-- Outbox events use deterministic idempotency keys.
-- Worker writes include request fingerprinting to avoid duplicate Airtable writes after retries.
-- Inbound handler upserts by stable mapping keys and ignores stale timestamps.
-
-## Phase 4: Repository Integration
-
-### Tasks
-
-- [ ] Create DB layer in `api/_lib/db/`.
-- [ ] Create repository modules in `api/_lib/repos/`.
-- [ ] Create sync modules in `api/_lib/sync/`.
-- [ ] Add worker entrypoint in `tasks/` or `api/workers/`.
-
-### Suggested File Additions
-
-- `api/_lib/db/client.ts`
-- `api/_lib/db/schema.ts`
-- `api/_lib/repos/program-repo.ts`
-- `api/_lib/repos/habit-usage-repo.ts`
-- `api/_lib/repos/method-usage-repo.ts`
-- `api/_lib/sync/outbox.ts`
-- `api/_lib/sync/airtable-writers.ts`
-- `api/_lib/sync/inbound-handler.ts`
-- `tasks/sync-worker.ts`
-
-### Endpoint Refactor Plan
-
-1. `api/programs/index.ts`
-   - Replace full Airtable reads with repository queries.
-   - Persist writes to Postgres and enqueue outbox events.
-2. `api/habit-usage/index.ts`
-   - Replace date-range Airtable scans with indexed Postgres queries.
-   - Keep user streak updates transactional in Postgres.
-3. `api/method-usage/index.ts`
-   - Move create and patch operations to Postgres.
-4. `api/personal-goal-usage/index.ts`
-   - Move usage writes and reads to Postgres.
-5. `api/methods/index.ts`
-   - Postgres routing added during audit remediation (2026-02-20).
-6. `api/overtuigingen/index.ts`
-   - Postgres routing added during audit remediation (2026-02-20).
-7. `api/persoonlijke-overtuigingen/index.ts`
-   - Postgres routing added during audit remediation (2026-02-20).
-8. `api/programs/[id]/methods` (GET)
-   - Postgres routing added during audit remediation (2026-02-20).
-9. `api/auth/login.ts`, `api/auth/me.ts`, and user lookup paths
-   - Use Postgres as primary source.
-   - Add user read-through fallback to Airtable when missing.
-10. `api/goals/index.ts`
-   - Postgres routing added during resilience hardening (2026-02-24).
-11. `api/days/index.ts`
-   - Postgres routing added during resilience hardening (2026-02-24).
-12. `api/mindset-categories/index.ts`
-   - Postgres routing added during resilience hardening (2026-02-24).
-13. `api/companies/lookup.ts`
-   - Postgres routing added during resilience hardening (2026-02-24).
-14. `api/programs/[id].ts`
-   - Postgres detail expansion — resolves linked record names from Postgres reference tables (2026-02-24).
-15. `api/programs/generate.ts`
-   - Postgres reference data via shared `loadProgramGenerationData()` helper (2026-02-24).
-16. `api/programs/preview.ts`
-   - Postgres reference data via shared `loadProgramGenerationData()` helper (2026-02-24).
-17. `api/programs/confirm.ts`
-   - `handleConfirmPostgres()` Postgres primary path (2026-02-24).
-18. `api/auth/magic-link.ts`
-   - Postgres magic link codes via `magic_link_codes` table (2026-02-24).
-19. `api/auth/verify-code.ts`
-   - Postgres code verification (2026-02-24).
-20. `api/auth/set-password.ts`
-   - Postgres password updates (2026-02-24).
-21. `api/translations/[lang].ts`
-   - Already had Postgres-first pattern; Airtable fallback wrapped in try/catch (2026-02-24).
-
-## Phase 5: Data Migration and Backfill
-
-### Tasks
-
-- [ ] Build one-time import scripts from Airtable to Postgres.
-- [ ] Import reference tables first.
-- [ ] Import operational tables in dependency order.
-- [ ] Validate row counts and key samples.
-
-### Backfill Order
-
-1. users
-2. reference tables (methods, goals, days)
-3. programs
-4. program_schedule
-5. usage tables
-
-### Validation Rules
-
-- Record counts match within expected tolerance.
-- Random sample verification by user/program/date.
-- Derived progress parity checks between old and new path.
-
-## Phase 6: Cutover Strategy
-
-### Tasks
-
-- [x] Add per-endpoint data backend flags.
-- [ ] Enable shadow reads for parity checks.
-- [x] Enable Postgres primary for one endpoint at a time. *(All endpoints switched to `postgres_primary` on 2026-02-20, including `DATA_BACKEND_OVERTUIGINGEN` and `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN` added during audit remediation)*
-- [ ] Monitor and rollback quickly if divergence appears.
-- [x] Enable user fast-lane before migrating auth/user endpoints.
-
-### Feature Flags
-
-Per-endpoint backend flags (values: `airtable_only` | `postgres_shadow_read` | `postgres_primary`):
-
-| Flag | Production Value (as of 2026-02-24) |
-|------|-------------------------------------|
-| `DATA_BACKEND_PROGRAMS` | `postgres_primary` |
-| `DATA_BACKEND_HABIT_USAGE` | `postgres_primary` |
-| `DATA_BACKEND_METHOD_USAGE` | `postgres_primary` |
-| `DATA_BACKEND_PERSONAL_GOAL_USAGE` | `postgres_primary` |
-| `DATA_BACKEND_OVERTUIGING_USAGE` | `postgres_primary` |
-| `DATA_BACKEND_REWARDS` | `postgres_primary` |
-| `DATA_BACKEND_METHODS` | `postgres_primary` |
-| `DATA_BACKEND_PERSONAL_GOALS` | `postgres_primary` |
-| `DATA_BACKEND_OVERTUIGINGEN` | `postgres_primary` *(switched from `airtable_only` during audit remediation 2026-02-20)* |
-| `DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN` | `postgres_primary` *(added during audit remediation 2026-02-20)* |
-| `DATA_BACKEND_GOALS` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
-| `DATA_BACKEND_DAYS` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
-| `DATA_BACKEND_MINDSET_CATEGORIES` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
-| `DATA_BACKEND_COMPANIES` | `postgres_primary` *(added during resilience hardening 2026-02-24)* |
-
-Boolean flags:
-- `USER_FAST_LANE_ENABLED`
-- `USER_READTHROUGH_FALLBACK_ENABLED`
-- `FULL_AIRTABLE_POLL_SYNC_ENABLED`
-
-### Rollback
-
-- Switch endpoint flag back to `airtable_only`.
-- Keep outbox processing paused or running based on incident context.
-- Reconcile drift from outbox/dead-letter before reattempting cutover.
-
-## Phase 7: Testing and Observability
-
-### Tasks
-
-- [ ] Add unit tests for repositories and mappers.
-- [ ] Add integration tests for endpoint behavior parity.
-- [ ] Add worker tests for retry/idempotency/dead-letter.
-- [ ] Add dashboards and alerts.
-
-### Observability Requirements
-
-- API latency p50/p95 by endpoint and backend mode.
-- Outbox queue depth.
-- Outbox processing rate.
-- Sync lag (oldest unprocessed event age).
-- Dead-letter count and rate.
-- Airtable API error rate by status code.
-- User fast-lane lag (Airtable timestamp to Postgres availability).
-- User provisioning SLO compliance (<=15s p95, <=60s p99).
-- User read-through fallback hit rate.
-
-## Phase 8: Post-Cutover Cleanup
-
-### Tasks
-
-- [ ] Remove unused Airtable read paths from migrated endpoints.
-- [ ] Keep Airtable adapters only for sync layer and authoritative reference data.
-- [ ] Update documentation in `docs/architecture/overview.md`.
-- [ ] Revisit Redis cache TTL strategy after Postgres migration.
-
-## Risks and Mitigations
-
-- Risk: Data divergence between systems.
-  - Mitigation: outbox + idempotency + reconciliation jobs + shadow reads.
-- Risk: Airtable rate limiting during catch-up.
-  - Mitigation: worker throttling, batch sizing, backoff.
-- Risk: Higher operational complexity.
-  - Mitigation: runbooks, alerts, controlled rollout flags.
-- Risk: Incorrect authority boundaries.
-  - Mitigation: explicit table/field ownership document and code guards.
-- Risk: Newly created Airtable users not immediately available in app.
-  - Mitigation: dedicated user fast-lane + auth read-through fallback + periodic safety poll.
-
-## Definition of Done
-
-- Migrated endpoints serve production traffic from Postgres in `postgres_primary`.
-- P95 latency for migrated endpoints is materially improved.
-- Sync success rate is stable with monitored, low dead-letter volume.
-- Runbooks and rollback procedures are documented and tested.
+## Completed Phases
+
+### Phase 1-2: Foundation & Schema (DONE)
+- `pg` v8.18.0 with direct parameterized queries (no ORM)
+- Docker Compose with Postgres 16, Redis 7, worker service
+- Migrations 001-013 covering all tables + indexes
+- `api/_lib/db/client.ts` with pool management, `withDbTransaction()`, SSL
+
+### Phase 3: Sync Engine (DONE)
+- **Outbound:** Outbox pattern with idempotency keys, `enqueueSyncEvent()` in same transaction
+- **Worker:** Poll-based `FOR UPDATE SKIP LOCKED`, exponential backoff, dead-letter after max retries
+- **Airtable Writers:** Entity-specific upserts for all types with `RetryableSyncError` classification
+- **Inbound - User Fast-Lane:** Webhook at `/api/sync/inbound.ts` with shared-secret auth, dedup via `sync_inbox_events`
+- **Inbound - Full Sync:** Periodic poll (120s default) for users, reference data, translations
+- **Dead-Letter Auto-Replay:** Worker replays dead-letter events when Airtable recovers (throttled by `DEAD_LETTER_REPLAY_SECONDS`)
+- **Safe Outbox:** `enqueueSyncEventSafe()` fire-and-forget wrapper
+
+### Phase 4: Repository Layer (DONE - 9 repos)
+- `program-repo.ts`, `user-repo.ts`, `habit-usage-repo.ts`, `method-usage-repo.ts`
+- `personal-goal-usage-repo.ts`, `overtuiging-usage-repo.ts`, `reference-repo.ts`
+- `magic-link-repo.ts`, `streak-utils.ts`
+- Shared helper: `program-generation-data.ts` (`loadProgramGenerationData()`)
+
+### Phase 5: API Migration (DONE - all endpoints)
+
+All endpoints use Postgres directly:
+
+- `api/programs/index.ts` (GET, POST)
+- `api/programs/[id].ts` (GET, PATCH, DELETE) - resolves linked names from reference tables
+- `api/programs/[id]/schedule/[planningId].ts`
+- `api/programs/[id]/methods` (GET)
+- `api/programs/generate.ts`, `preview.ts`, `confirm.ts` - via `loadProgramGenerationData()`
+- `api/habit-usage/index.ts` (GET, POST, DELETE)
+- `api/method-usage/index.ts` (POST, PATCH)
+- `api/method-usage/by-program.ts` (GET)
+- `api/personal-goal-usage/index.ts`
+- `api/overtuiging-usage/index.ts` (GET, POST)
+- `api/rewards/index.ts` (GET)
+- `api/methods/index.ts` (GET)
+- `api/overtuigingen/index.ts` (GET)
+- `api/persoonlijke-overtuigingen/index.ts` (GET, POST, PATCH, DELETE)
+- `api/goals/index.ts`, `api/days/index.ts`, `api/mindset-categories/index.ts`
+- `api/companies/lookup.ts`
+- `api/auth/login.ts`, `me.ts`, `refresh.ts`, `set-password.ts`
+- `api/auth/magic-link.ts`, `verify-code.ts`
+- `api/translations/[lang].ts`
+
+### Phase 6: Cutover & Cleanup (DONE)
+- All `DATA_BACKEND_*` env vars and toggle system removed.
+- `data-backend.ts` (`DataBackendMode`, `getDataBackendMode`, `isPostgresPrimary`, `isPostgresShadowRead`) deleted.
+- All `handleGetAirtable`/`handlePostAirtable` code paths removed from endpoints.
+- `cachedSelect` and `cached-airtable.ts` deleted.
+- `shouldUsePostgresRewards` removed; rewards engine always uses Postgres.
+
+### Phase 7: Testing & Observability (GAPS)
+- Existing tests cover field-mappings, JWT, security, program utilities
+- No tests for repositories, sync engine, worker, outbox
+- Health endpoint reports DB status, outbox stats, dead-letter count
+- No metrics dashboards or alerting
+
+## Remaining Work
+
+1. Write integration tests for sync worker (claim, retry, dead-letter)
+2. Write unit tests for repositories
+3. Add observability dashboard (outbox depth, sync lag, dead-letter trends)
+4. Implement checkpoint-based incremental sync (replace full polls)
+5. Add structured logging with correlation IDs
+6. Create operational runbooks
+7. Set up CI/CD pipeline with migration validation
+
+## Architecture Decisions
+
+| Decision | Actual |
+|-|-|
+| ORM | None - raw `pg` queries |
+| Queue | Poll-based from `sync_outbox` table (no BullMQ dependency) |
+| Inbound sync | Webhook (users) + periodic poll (all) |
+| ID strategy | UUID primary keys + `airtable_id_map` |
+| User auth | Read-through fallback to Airtable when user missing in Postgres |
+
+## Schema Overview
+
+**Operational:** `users_pg`, `programs_pg`, `program_schedule_pg`, `method_usage_pg`, `habit_usage_pg`, `personal_goals_pg`, `personal_goal_usage_pg`, `persoonlijke_overtuigingen_pg`
+**Reference:** `reference_methods_pg`, `reference_goals_pg`, `reference_days_pg`, `reference_companies_pg`, `reference_program_prompts_pg`, `reference_experience_levels_pg`
+**Auth:** `magic_link_codes`
+**Sync:** `airtable_id_map`, `sync_outbox`, `sync_dead_letter`, `sync_checkpoint`, `sync_inbox_events`

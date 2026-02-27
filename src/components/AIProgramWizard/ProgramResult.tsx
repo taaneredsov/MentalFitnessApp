@@ -285,35 +285,34 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                 value={newGoalInput}
                 onChange={(e) => setNewGoalInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                className="border-0 p-0 h-auto text-sm focus-visible:ring-0 shadow-none"
+                className="border-0 px-2 py-2 h-auto text-sm focus-visible:ring-0 shadow-none w-full"
               />
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex flex-wrap gap-1">
-                  {DAY_CHIPS.map(({ key, label }) => (
-                    <button
-                      key={key}
-                      type="button"
-                      onClick={() => toggleNewGoalDay(key)}
-                      className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                        newGoalSchedule.includes(key)
-                          ? "bg-orange-500 text-white border-orange-500"
-                          : "bg-white text-muted-foreground border-gray-200 hover:border-orange-300"
-                      }`}
-                    >
-                      {label}
-                    </button>
-                  ))}
-                </div>
-                <Button
-                  size="sm"
-                  onClick={handleAddGoal}
-                  disabled={!newGoalInput.trim()}
-                  className="shrink-0"
-                >
-                  <Plus className="mr-1 h-4 w-4" />
-                  {t("personalGoals.add", "Toevoegen")}
-                </Button>
+              <div className="flex gap-1">
+                {DAY_CHIPS.map(({ key, label }) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => toggleNewGoalDay(key)}
+                    className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                      newGoalSchedule.includes(key)
+                        ? "bg-orange-500 text-white border-orange-500"
+                        : "bg-white text-muted-foreground border-gray-200 hover:border-orange-300"
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
               </div>
+              <Button
+                type="button"
+                size="sm"
+                onClick={handleAddGoal}
+                disabled={!newGoalInput.trim()}
+                className="w-full"
+              >
+                <Plus className="mr-1 h-4 w-4" />
+                {t("personalGoals.add", "Toevoegen")}
+              </Button>
             </div>
           </CardContent>
         </Card>

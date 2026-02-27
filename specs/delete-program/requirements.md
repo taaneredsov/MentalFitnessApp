@@ -45,15 +45,12 @@ Users accumulate programs over time that are no longer relevant - test programs,
   - Each deleted schedule record
   - The program record itself
 
-### FR-3: Backend - Airtable Path
-- Soft-delete by setting program status to "Afgewerkt"
-
-### FR-4: API Endpoint
+### FR-3: API Endpoint
 - `DELETE /api/programs/[id]` handler in existing `api/programs/[id].ts`
 - Requires authentication (`requireAuth()`)
 - Returns deleted entity IDs for client-side cache invalidation
 
-### FR-5: Frontend Implementation
+### FR-4: Frontend Implementation
 - `programs.delete(id)` method in API client
 - `useDeleteProgram()` React Query mutation hook with cache invalidation
 - Delete button in `ProgramEditDialog` footer (red ghost button, Trash2 icon)

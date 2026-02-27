@@ -149,8 +149,8 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
-        {isLoading ? (
-          <p className="text-muted-foreground">Laden...</p>
+        {isLoading && goals.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Voeg je eerste persoonlijke doel toe</p>
         ) : (
           sortedGoals.map(goal => {
             const counts = goalCounts[goal.id] || { today: 0, total: 0 }

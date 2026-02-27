@@ -17,73 +17,7 @@ Create a dedicated API endpoint to fetch good habit methods.
 
 ### Technical Details
 
-**New file: `api/methods/habits.ts`**
-```typescript
-import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, handleApiError } from "../_lib/api-utils.js"
-import { METHOD_FIELDS, GOAL_FIELDS } from "../_lib/field-mappings.js"
-
-/**
- * GET /api/methods/habits
- * Returns methods linked to the "Goede gewoontes" goal
- */
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return res.status(405).json({ error: "Method not allowed" })
-  }
-
-  try {
-    // First, find the "Goede gewoontes" goal ID
-    const goalRecords = await base(tables.goals)
-      .select({
-        filterByFormula: `{${GOAL_FIELDS.name}} = "Goede gewoontes"`,
-        maxRecords: 1,
-        returnFieldsByFieldId: true
-      })
-      .firstPage()
-
-    if (goalRecords.length === 0) {
-      return sendSuccess(res, [])
-    }
-
-    const goodHabitsGoalId = goalRecords[0].id
-
-    // Fetch all methods and filter by linked goal
-    // (Airtable linked record filters are unreliable with formulas)
-    const methodRecords = await base(tables.methods)
-      .select({ returnFieldsByFieldId: true })
-      .all()
-
-    const habits = methodRecords
-      .filter(record => {
-        const linkedGoals = record.fields[METHOD_FIELDS.linkedGoals] as string[] | undefined
-        return linkedGoals?.includes(goodHabitsGoalId)
-      })
-      .map(record => ({
-        id: record.id,
-        name: record.fields[METHOD_FIELDS.name] as string,
-        description: record.fields[METHOD_FIELDS.description] as string | undefined
-      }))
-
-    return sendSuccess(res, habits)
-  } catch (error) {
-    return handleApiError(res, error)
-  }
-}
-```
-
-**Add to `server.ts`:**
-```typescript
-const { default: habitsHandler } = await import("./api/methods/habits.js")
-app.get("/api/methods/habits", wrapVercelHandler(habitsHandler))
-```
-
-**Goal name field ID** (from field-mappings.js):
-- `GOAL_FIELDS.name` = `fldgLmhiCydWQgjUi` (Doelstelling Naam)
-
-**Method linked goals field ID**:
-- `METHOD_FIELDS.linkedGoals` = `fldymisqDYdypLbUc` (Doelstellingen gekoppeld)
+The endpoint reads from Postgres (`reference_goede_gewoontes_pg` table, synced from Airtable). Returns the user's selected goede gewoontes, or all available habits as fallback.
 
 ## Phase 2: Frontend Integration
 

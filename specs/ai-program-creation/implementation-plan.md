@@ -27,7 +27,7 @@ npm install openai
 // Add to TABLES object:
 programPrompts: "tblHmI6cSujof3KHu"
 
-// Add new field mappings (get actual IDs from Airtable):
+// Field mappings (used for Airtable outbox sync):
 export const PROGRAM_PROMPT_FIELDS = {
   name: "fldXXX",
   prompt: "fldXXX",
@@ -84,8 +84,7 @@ export interface AIProgramResponse {
 **API Endpoint (api/programs/generate.ts):**
 - POST handler with JWT verification
 - Request body: { userId, goals[], startDate, duration, daysOfWeek[] }
-- Fetch prompts from programPrompts table filtered by selected goals
-- Fetch all methods with details
+- Fetch prompts and methods from Postgres reference tables
 - Fetch selected days names
 - Build system prompt with:
   - Goal descriptions
@@ -97,7 +96,7 @@ export interface AIProgramResponse {
 - Call GPT-4o with response_format: { type: "json_object" }
 - Parse and validate response
 - Extract unique method IDs from schedule
-- Create program in Airtable
+- Create program in Postgres (syncs to Airtable via outbox)
 - Return { program, aiSchedule, totalSessionTime, weeklySessionTime, recommendations }
 
 ---
@@ -288,15 +287,7 @@ onOpenChange={(open) => {
 ### Tasks
 
 - [x] Update .env.example with OPENAI_API_KEY
-- [x] Add OPENAI_API_KEY to Vercel environment variables [manual]
-
-### Technical Details
-
-**.env.example:**
-```bash
-# OpenAI Configuration
-OPENAI_API_KEY=sk-...
-```
+- [x] Add OPENAI_API_KEY to Docker secrets on Hetzner
 
 ---
 
@@ -311,7 +302,7 @@ Enhanced the AI program generation to use OpenAI's Structured Outputs feature, i
 | Basic `json_object` response format | Structured Outputs with JSON Schema |
 | Methods without frequency info | Include "Optimale frequentie" field |
 | Weekly template schedule | Specific dates for each training day |
-| Schedule not persisted | Store in Programmaplanning table |
+| Schedule not persisted | Store in Postgres schedules table (syncs to Airtable via outbox) |
 
 ### Tasks Completed
 
@@ -338,39 +329,22 @@ The AI respects the "Optimale frequentie" field from Methodes:
 - "Meermaals per dag": Can appear multiple times per day
 - "Ad-hoc": Flexible placement
 
-### Programmaplanning Table (tbl2PHUaonvs1MYRx)
+### Programmaplanning (Schedules) Table
 
-Records created for each training date:
-- `fldTPzVYhmSBxYRa3` - Mentale Fitnessprogramma (link)
-- `fldvqnZDdjaVxB25H` - Datum (date)
-- `fldxC8uxRqMdS7InU` - Dag van de week (link)
-- `fldxQn8r2ySIFs4pg` - Beoogde methodes (link)
-- `fld2Xyx6dzgSMR7Yy` - Doelstelling(en) (link)
-- `fldnY9fKqbItJVxel` - Beschrijving van sessie(s) (text)
+Records created in Postgres `schedules` table for each training date, containing:
+- Program link, date, day of week, target methods, goals, session description.
+- Synced to Airtable Programmaplanning table via outbox.
 
 ---
 
 ## Verification
 
-1. Set OPENAI_API_KEY in .env.local
-2. Run `vercel dev --yes --listen 3333`
+1. Set OPENAI_API_KEY in environment
+2. Run dev server
 3. Navigate to /programs
-4. Click "Nieuw Programma"
-5. Select "AI Programma (Aanbevolen)"
-6. Select 1-2 goals
-7. Set start date to tomorrow
-8. Select "4 weken" duration
-9. Select 2 days (e.g., Mon, Wed)
-10. Click "Genereer Mijn Programma"
-11. Verify loading animation appears with cycling messages
-12. Wait for generation (5-15 seconds)
-13. Verify result shows:
-    - Success message
-    - Program summary
-    - Date-based schedule with week headers (8 entries for 4 weeks × 2 days)
-    - Recommendations list
-14. Click "Bekijk Programma"
-15. Verify program detail page shows correct data
-16. Check Airtable Programmaplanning table for created records (8 records)
-17. Verify records are linked to correct program, dates, methods
-18. Test error handling by disconnecting network during generation
+4. Click "Nieuw Programma" > "AI Programma (Aanbevolen)"
+5. Select goals, start date, duration, days
+6. Click "Genereer Mijn Programma"
+7. Verify loading animation, result schedule, recommendations
+8. Check Postgres schedules table for created records
+9. Verify outbox sync creates matching Airtable records

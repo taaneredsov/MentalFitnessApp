@@ -4,7 +4,7 @@ Manual steps that must be completed by a human.
 
 ## Before Implementation
 
-- [ ] **Ensure test user exists in Airtable** - E2E tests require a test user (test@example.com with password testpassword123). Verify this user exists or create one.
+- [ ] **Ensure test user exists in Postgres** - E2E tests require a test user (test@example.com with password testpassword123). Verify this user exists or create one.
 
 ## During Implementation
 
@@ -18,4 +18,4 @@ None required - all implementation is automated.
 
 ---
 
-> **Note:** The E2E tests use a real test user against the real Airtable database. Ensure the test user has appropriate test data (programs, etc.) for meaningful test results.
+> **Note:** The E2E tests use a real test user against the Postgres database. Ensure the test user has appropriate test data (programs, etc.) for meaningful test results.

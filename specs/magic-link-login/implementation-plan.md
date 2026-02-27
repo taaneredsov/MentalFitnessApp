@@ -6,14 +6,13 @@ Implement passwordless authentication using magic links and 6-digit codes. Users
 
 ## Phase 1: Infrastructure Setup
 
-Set up email service and Airtable schema for storing magic link tokens.
+Set up email service and Postgres table for storing magic link tokens.
 
 ### Tasks
 
 - [x] Install Resend package for email sending
 - [x] Create `api/_lib/email.ts` utility for sending emails
-- [x] Add magic link fields to Airtable Users table (manual)
-- [x] Add field IDs to `api/_lib/field-mappings.js`
+- [x] Create `magic_link_codes` Postgres table (migration applied)
 
 ### Technical Details
 
@@ -27,12 +26,13 @@ npm install resend
 RESEND_API_KEY=re_xxxxxxxxxxxxx
 ```
 
-**New Airtable Fields on Gebruikers (Users) table:**
-| Field Name (Dutch) | Field ID | Type | Description |
-|-------------------|----------|------|-------------|
-| Magic Link Token | `fldXXX` | Single line text | Hashed token for verification |
-| Magic Link Code | `fldXXX` | Single line text | 6-digit code (stored plain) |
-| Magic Link Expiry | `fldXXX` | Date (with time) | Expiration timestamp |
+**Postgres table `magic_link_codes`:**
+- `id` (serial PK)
+- `user_id` (FK to users_pg)
+- `token_hash` (text, hashed token)
+- `code` (text, 6-digit code)
+- `expires_at` (timestamptz)
+- `created_at` (timestamptz)
 
 **api/_lib/email.ts:**
 ```typescript
@@ -80,18 +80,11 @@ function getMagicLinkEmailTemplate(link: string, code: string): string {
 }
 ```
 
-**Add to field-mappings.js USER_FIELDS:**
-```javascript
-magicLinkToken: "fldXXX",
-magicLinkCode: "fldXXX",
-magicLinkExpiry: "fldXXX"
-```
-
 ---
 
 ## Phase 2: API Endpoints
 
-Create the three magic link API endpoints.
+Create the three magic link API endpoints. All endpoints use Postgres for user lookup and magic link token storage.
 
 ### Tasks
 
@@ -102,259 +95,7 @@ Create the three magic link API endpoints.
 
 ### Technical Details
 
-**POST /api/auth/magic-link**
-Request: `{ email: string }`
-Response: `{ success: true }` or `{ error: "..." }`
-
-```typescript
-// api/auth/magic-link.ts
-import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { z } from "zod"
-import crypto from "crypto"
-import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { sendMagicLinkEmail } from "../_lib/email.js"
-import { USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
-
-const schema = z.object({
-  email: z.string().email()
-})
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return sendError(res, "Method not allowed", 405)
-  }
-
-  try {
-    const { email } = schema.parse(parseBody(req))
-
-    // Find user by email
-    const records = await base(tables.users)
-      .select({
-        filterByFormula: `{${FIELD_NAMES.user.email}} = "${escapeFormulaValue(email)}"`,
-        maxRecords: 1,
-        returnFieldsByFieldId: true
-      })
-      .firstPage()
-
-    if (records.length === 0) {
-      // Don't reveal if email exists - return success anyway
-      return sendSuccess(res, { message: "If this email exists, you will receive a login link" })
-    }
-
-    const user = records[0]
-
-    // Generate token and code
-    const token = crypto.randomBytes(32).toString('hex')
-    const code = String(Math.floor(100000 + Math.random() * 900000)) // 6 digits
-    const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString() // 15 minutes
-
-    // Hash token for storage (code stored plain for simplicity)
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-
-    // Store in Airtable
-    await base(tables.users).update(user.id, {
-      [USER_FIELDS.magicLinkToken]: hashedToken,
-      [USER_FIELDS.magicLinkCode]: code,
-      [USER_FIELDS.magicLinkExpiry]: expiry
-    })
-
-    // Send email
-    const baseUrl = process.env.APP_URL || 'https://mfa.drvn.be'
-    const magicLink = `${baseUrl}/auth/verify?token=${token}`
-
-    await sendMagicLinkEmail(email, magicLink, code)
-
-    return sendSuccess(res, { message: "If this email exists, you will receive a login link" })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return sendError(res, error.issues[0].message, 400)
-    }
-    return handleApiError(res, error)
-  }
-}
-```
-
-**GET /api/auth/verify?token=xxx**
-Response: Sets cookies and returns `{ user, accessToken }` or `{ error: "..." }`
-
-```typescript
-// api/auth/verify.ts
-import type { VercelRequest, VercelResponse } from "@vercel/node"
-import crypto from "crypto"
-import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
-import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
-import { transformUser, USER_FIELDS, FIELD_NAMES } from "../_lib/field-mappings.js"
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "GET") {
-    return sendError(res, "Method not allowed", 405)
-  }
-
-  try {
-    const { token } = req.query
-
-    if (!token || typeof token !== "string") {
-      return sendError(res, "Token is required", 400)
-    }
-
-    // Hash the token to compare with stored hash
-    const hashedToken = crypto.createHash('sha256').update(token).digest('hex')
-
-    // Find user with this token
-    const records = await base(tables.users)
-      .select({
-        filterByFormula: `{${FIELD_NAMES.user.magicLinkToken}} = "${hashedToken}"`,
-        maxRecords: 1,
-        returnFieldsByFieldId: true
-      })
-      .firstPage()
-
-    if (records.length === 0) {
-      return sendError(res, "Invalid or expired link", 401)
-    }
-
-    const user = records[0] as any
-    const expiry = user.fields[USER_FIELDS.magicLinkExpiry]
-
-    // Check expiry
-    if (!expiry || new Date(expiry) < new Date()) {
-      // Clear expired token
-      await base(tables.users).update(user.id, {
-        [USER_FIELDS.magicLinkToken]: null,
-        [USER_FIELDS.magicLinkCode]: null,
-        [USER_FIELDS.magicLinkExpiry]: null
-      })
-      return sendError(res, "Link expired. Please request a new one.", 401)
-    }
-
-    // Clear magic link fields (one-time use)
-    await base(tables.users).update(user.id, {
-      [USER_FIELDS.magicLinkToken]: null,
-      [USER_FIELDS.magicLinkCode]: null,
-      [USER_FIELDS.magicLinkExpiry]: null,
-      [USER_FIELDS.lastLogin]: new Date().toISOString().split("T")[0]
-    })
-
-    // Generate session tokens
-    const accessToken = await signAccessToken({
-      userId: user.id,
-      email: user.fields[USER_FIELDS.email]
-    })
-
-    const refreshToken = await signRefreshToken({
-      userId: user.id,
-      email: user.fields[USER_FIELDS.email]
-    })
-
-    // Set refresh token cookie
-    res.setHeader("Set-Cookie", [
-      `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}`
-    ])
-
-    return sendSuccess(res, {
-      user: transformUser(user),
-      accessToken
-    })
-  } catch (error) {
-    return handleApiError(res, error)
-  }
-}
-```
-
-**POST /api/auth/verify-code**
-Request: `{ email: string, code: string }`
-Response: `{ user, accessToken }` or `{ error: "..." }`
-
-```typescript
-// api/auth/verify-code.ts
-import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { z } from "zod"
-import { base, tables } from "../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
-import { signAccessToken, signRefreshToken } from "../_lib/jwt.js"
-import { transformUser, USER_FIELDS, FIELD_NAMES, escapeFormulaValue } from "../_lib/field-mappings.js"
-
-const schema = z.object({
-  email: z.string().email(),
-  code: z.string().length(6).regex(/^\d+$/)
-})
-
-export default async function handler(req: VercelRequest, res: VercelResponse) {
-  if (req.method !== "POST") {
-    return sendError(res, "Method not allowed", 405)
-  }
-
-  try {
-    const { email, code } = schema.parse(parseBody(req))
-
-    // Find user by email
-    const records = await base(tables.users)
-      .select({
-        filterByFormula: `{${FIELD_NAMES.user.email}} = "${escapeFormulaValue(email)}"`,
-        maxRecords: 1,
-        returnFieldsByFieldId: true
-      })
-      .firstPage()
-
-    if (records.length === 0) {
-      return sendError(res, "Invalid code", 401)
-    }
-
-    const user = records[0] as any
-    const storedCode = user.fields[USER_FIELDS.magicLinkCode]
-    const expiry = user.fields[USER_FIELDS.magicLinkExpiry]
-
-    // Check if code matches and is not expired
-    if (!storedCode || storedCode !== code) {
-      return sendError(res, "Invalid code", 401)
-    }
-
-    if (!expiry || new Date(expiry) < new Date()) {
-      await base(tables.users).update(user.id, {
-        [USER_FIELDS.magicLinkToken]: null,
-        [USER_FIELDS.magicLinkCode]: null,
-        [USER_FIELDS.magicLinkExpiry]: null
-      })
-      return sendError(res, "Code expired. Please request a new one.", 401)
-    }
-
-    // Clear magic link fields (one-time use)
-    await base(tables.users).update(user.id, {
-      [USER_FIELDS.magicLinkToken]: null,
-      [USER_FIELDS.magicLinkCode]: null,
-      [USER_FIELDS.magicLinkExpiry]: null,
-      [USER_FIELDS.lastLogin]: new Date().toISOString().split("T")[0]
-    })
-
-    // Generate session tokens
-    const accessToken = await signAccessToken({
-      userId: user.id,
-      email: user.fields[USER_FIELDS.email]
-    })
-
-    const refreshToken = await signRefreshToken({
-      userId: user.id,
-      email: user.fields[USER_FIELDS.email]
-    })
-
-    res.setHeader("Set-Cookie", [
-      `refreshToken=${refreshToken}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${7 * 24 * 60 * 60}`
-    ])
-
-    return sendSuccess(res, {
-      user: transformUser(user),
-      accessToken
-    })
-  } catch (error) {
-    if (error instanceof z.ZodError) {
-      return sendError(res, error.issues[0].message, 400)
-    }
-    return handleApiError(res, error)
-  }
-}
-```
+> **Note:** Detailed code samples omitted. The actual implementation queries Postgres `magic_link_codes` table for token/code storage and `users_pg` for user lookup. See `api/auth/magic-link.ts`, `api/auth/verify.ts`, and `api/auth/verify-code.ts` for current code.
 
 **Add to server.ts:**
 ```typescript

@@ -26,7 +26,7 @@ See `specs/reward-system/implementation-review-2026-02-13.md` for verified findi
 
 ## Phase 1: Data Infrastructure
 
-Set up Airtable schema and backend API for rewards.
+Set up Postgres schema, Airtable sync, and backend API for rewards.
 
 ### Tasks
 

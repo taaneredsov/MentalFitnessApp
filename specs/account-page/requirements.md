@@ -17,11 +17,11 @@ As an authenticated user, I want to see my account details so that I can verify 
 2. **Account Page Content**
    - Display user's full name
    - Display user's email address
-   - Display linked company name(s) (resolved from Airtable linked records)
+   - Display linked company name(s) (resolved from Postgres)
    - Show appropriate placeholder if company is not linked
 
 3. **Data Requirements**
-   - Company names must be fetched from Airtable (not just IDs)
+   - Company names fetched from Postgres
    - Handle users with no linked company gracefully
    - Handle users with multiple linked companies
 
@@ -33,7 +33,7 @@ As an authenticated user, I want to see my account details so that I can verify 
 ## Dependencies
 
 - Existing auth system (AuthContext, useAuth hook)
-- Airtable Companies/Bedrijf table (linked from Users)
+- Postgres company data
 - shadcn/ui components (Card, Button)
 
 ## Out of Scope

@@ -1,42 +1,23 @@
 # Action Required: Activity-based Program Progress
 
-Manual steps that must be completed by a human before implementation.
+Manual steps that must be completed by a human.
 
-## Prerequisites
+## Outstanding
 
-This spec depends on **method-usage-tracking** being updated first:
+- [ ] **Verify Programmaplanning link in method-usage-tracking**
+  - Depends on Airtable schema change in `specs/method-usage-tracking/action-required.md`
+  - Once the Programmaplanning link field is added, outbox sync will propagate it to Airtable
 
-- [ ] **Complete method-usage-tracking Airtable changes**
-  - Add Programmaplanning link to Method Usage table
-  - Verify bidirectional link with Programmaplanning.methodUsage
-  - See `specs/method-usage-tracking/action-required.md`
-
-## Before Implementation
-
-- [ ] **Verify Programmaplanning table has methodUsage field**
-  - Table: Programmaplanning (tbl2PHUaonvs1MYRx)
-  - Field: Methodegebruik (`fldoxGlLYZ5NI60hl`)
-  - Should link to Method Usage table
-
-- [ ] **Verify Programs have Programmaplanning records**
-  - AI-generated programs should have Programmaplanning records
-  - Check a sample program to confirm schedule exists
-
-## During Implementation
-
-None required - all implementation is automated.
-
-## After Implementation
-
-- [ ] **Test progress calculation**
+- [ ] **Test progress calculation end-to-end**
   1. Create a program with AI-generated schedule
   2. Verify progress shows 0% initially
   3. Complete a method from the schedule
-  4. Verify progress increases appropriately
-  5. Verify "X van Y sessies voltooid" text is accurate
+  4. Verify progress increases and "X van Y sessies voltooid" is accurate
 
----
+## Completed
 
-> **Note:** Implementation order:
-> 1. First: `method-usage-tracking` (Airtable changes + code)
-> 2. Then: `activity-based-progress` (depends on above)
+- [x] Session counts (`totalSessions`, `completedSessions`) returned from Postgres in program API responses.
+- [x] `getSessionProgress()` utility function implemented.
+- [x] HomePage and ProgramCard use activity-based progress.
+- [x] ProgramDetailPage shows schedule with completion status.
+- [x] All schedule/progress reads come from Postgres (no Airtable direct reads).

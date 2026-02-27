@@ -42,11 +42,15 @@ Allow users to create their own personal goals (e.g., "speaking up during a meet
 - [ ] Empty state when no goals created
 - [ ] Loading states during data fetch
 
+## Architecture
+
+All API endpoints read from and write to Postgres exclusively (Postgres-first with outbox sync to Airtable). No direct Airtable reads from API endpoints.
+
 ## Dependencies
 
 - Existing rewards system (bonusPoints, streak tracking)
 - Existing Good Habits pattern for UI reference
-- Airtable tables (already created)
+- Postgres tables (synced from/to Airtable via worker)
 
 ## Out of Scope
 

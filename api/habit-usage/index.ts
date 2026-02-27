@@ -64,8 +64,7 @@ async function handlePost(req: Request, res: Response, tokenUserId: string) {
   await awardRewardActivity({
     userId: body.userId,
     activityType: "habit",
-    activityDate: body.date,
-    forcePostgres: true
+    activityDate: body.date
   })
 
   return sendSuccess(res, { id: created.id, pointsAwarded: POINTS.habit }, 201)

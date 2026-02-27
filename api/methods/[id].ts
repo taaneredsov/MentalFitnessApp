@@ -1,13 +1,9 @@
 import type { Request, Response } from "express"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError } from "../_lib/api-utils.js"
-import { transformMethod, transformMedia } from "../_lib/field-mappings.js"
-import { getDataBackendMode } from "../_lib/data-backend.js"
-import { isPostgresConfigured } from "../_lib/db/client.js"
+import { transformMedia } from "../_lib/field-mappings.js"
 import { getMethodById } from "../_lib/repos/reference-repo.js"
 import type { AirtableRecord } from "../_lib/types.js"
-
-const METHODS_BACKEND_ENV = "DATA_BACKEND_METHODS"
 
 /**
  * Fetch media details from Airtable for a list of media record IDs.
@@ -24,67 +20,30 @@ async function fetchMediaDetails(mediaIds: string[]): Promise<Record<string, unk
   return mediaRecords.map(r => transformMedia({ id: r.id, fields: r.fields } as AirtableRecord))
 }
 
-async function handleGetPostgres(req: Request, res: Response) {
-  const id = req.params.id
-  if (!id || typeof id !== "string") {
-    return sendError(res, "Method ID is required", 400)
-  }
-
-  const method = await getMethodById(id)
-  if (!method) {
-    return sendError(res, "Method not found", 404)
-  }
-
-  // Fetch media from Airtable (media stays Airtable-only)
-  const mediaDetails = await fetchMediaDetails((method.media as string[]) || [])
-
-  return sendSuccess(res, { ...method, mediaDetails })
-}
-
-async function handleGetAirtable(req: Request, res: Response) {
-  const id = req.params.id
-  if (!id || typeof id !== "string") {
-    return sendError(res, "Method ID is required", 400)
-  }
-
-  const records = await base(tables.methods)
-    .select({
-      filterByFormula: `RECORD_ID() = '${id}'`,
-      maxRecords: 1,
-      returnFieldsByFieldId: true
-    })
-    .firstPage()
-
-  if (!records || records.length === 0) {
-    return sendError(res, "Method not found", 404)
-  }
-
-  const record = records[0]
-  const method = transformMethod({ id: record.id, fields: record.fields } as AirtableRecord)
-  const mediaDetails = await fetchMediaDetails((method.media as string[]) || [])
-
-  return sendSuccess(res, { ...method, mediaDetails })
-}
-
+/**
+ * GET /api/methods/:id
+ * Returns a single method with its media details
+ */
 export default async function handler(req: Request, res: Response) {
   if (req.method !== "GET") {
     return sendError(res, "Method not allowed", 405)
   }
 
   try {
-    const mode = getDataBackendMode(METHODS_BACKEND_ENV)
-
-    if (mode === "postgres_primary" && isPostgresConfigured()) {
-      return handleGetPostgres(req, res)
+    const id = req.params.id
+    if (!id || typeof id !== "string") {
+      return sendError(res, "Method ID is required", 400)
     }
 
-    if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
-      void handleGetPostgres(req, res)
-        .then(() => undefined)
-        .catch((error) => console.warn("[methods/id] shadow read failed:", error))
+    const method = await getMethodById(id)
+    if (!method) {
+      return sendError(res, "Method not found", 404)
     }
 
-    return handleGetAirtable(req, res)
+    // Fetch media from Airtable (media stays Airtable-only)
+    const mediaDetails = await fetchMediaDetails((method.media as string[]) || [])
+
+    return sendSuccess(res, { ...method, mediaDetails })
   } catch (error) {
     return handleApiError(res, error)
   }

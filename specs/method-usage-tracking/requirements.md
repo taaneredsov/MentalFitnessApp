@@ -98,8 +98,8 @@ When a method usage is recorded, the method usage handler now triggers reward aw
 
 - Existing MethodDetailPage with MediaPlayer component
 - Authenticated user context (AuthContext)
-- Airtable Method Usage table (tblktNOXF3yPPavXU)
-- Airtable Programmaplanning table (tbl2PHUaonvs1MYRx)
+- Postgres `method_usage_pg` table (outbox sync to Airtable)
+- Postgres `program_schedule_pg` table (outbox sync to Airtable)
 - React Router navigation state for Programmaplanning context
 
 ## Related Tables
@@ -127,10 +127,10 @@ When a method usage is recorded, the method usage handler now triggers reward aw
 
 ## Migration Notes
 
-### Airtable Changes Required
+### Sync Layer (Airtable outbox)
 
-1. **Method Usage table**: Ensure Programmaplanning link exists and is used when available
-2. **Verify bidirectional link**: Programmaplanning.methodUsage should auto-update when Method Usage links to it
+1. **Method Usage table**: Ensure Programmaplanning link field exists in Airtable for outbox sync
+2. **Verify bidirectional link**: Programmaplanning.methodUsage should auto-update when outbox sync writes the link
 
 ### Code Changes
 

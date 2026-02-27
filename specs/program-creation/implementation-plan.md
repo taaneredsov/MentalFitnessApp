@@ -6,72 +6,14 @@ Build a multi-step wizard for creating mental fitness programs. The wizard will 
 
 ## Phase 1: API Endpoints
 
-Create the necessary API endpoints to fetch reference data and create programs.
+Create the necessary API endpoints to fetch reference data and create programs. All reads from Postgres; writes to Postgres with outbox sync to Airtable.
 
 ### Tasks
 
-- [x] Create GET `/api/goals` endpoint to fetch all goals from Doelstellingen table
-- [x] Create GET `/api/days` endpoint to fetch all days from Dagen van de week table
+- [x] Create GET `/api/goals` endpoint to fetch all goals
+- [x] Create GET `/api/days` endpoint to fetch all days
 - [x] Create POST `/api/programs` endpoint to create a new program
 - [x] Create GET `/api/programs/:id/methods` endpoint to poll for auto-suggested methods
-
-### Technical Details
-
-**File: `api/goals/index.ts`**
-```typescript
-// GET /api/goals - Fetch all goals
-export default async function handler(req, res) {
-  const records = await base(tables.goals)
-    .select({ returnFieldsByFieldId: true })
-    .all()
-  const goals = records.map(r => transformGoal(r))
-  return sendSuccess(res, goals)
-}
-```
-
-**File: `api/days/index.ts`**
-```typescript
-// GET /api/days - Fetch all days of the week
-export default async function handler(req, res) {
-  const records = await base(tables.daysOfWeek)
-    .select({ returnFieldsByFieldId: true })
-    .all()
-  const days = records.map(r => transformDay(r))
-  return sendSuccess(res, days)
-}
-```
-
-**File: `api/programs/index.ts`** (add POST handler)
-```typescript
-// POST /api/programs - Create a new program
-const createSchema = z.object({
-  userId: z.string(),
-  startDate: z.string(),
-  duration: z.string(),
-  goals: z.array(z.string()).optional(),
-  daysOfWeek: z.array(z.string()),
-  methods: z.array(z.string()).optional(),
-  notes: z.string().optional()
-})
-```
-
-**Field IDs for Program Creation:**
-```javascript
-const fields = {
-  [PROGRAM_FIELDS.user]: [body.userId],
-  [PROGRAM_FIELDS.startDate]: body.startDate,
-  [PROGRAM_FIELDS.duration]: body.duration,
-  [PROGRAM_FIELDS.goals]: body.goals || [],
-  [PROGRAM_FIELDS.daysOfWeek]: body.daysOfWeek,
-  [PROGRAM_FIELDS.methods]: body.methods || [],
-  [PROGRAM_FIELDS.notes]: body.notes
-}
-```
-
-**Tables:**
-- Goals: `tbl6ngkyNrv0LFzGb`
-- Days of Week: `tblS3gleG8cSlWOJ3`
-- Programs: `tblqW4xeCx1tprNgX`
 
 ## Phase 2: API Client & Types
 
@@ -189,7 +131,7 @@ const DURATION_OPTIONS = [
 **Polling for methods (after step 3):**
 ```typescript
 // Save program without methods after step 3
-// Then poll for Airtable automation to populate methods
+// Then poll for methods to be populated
 const pollForMethods = async (programId: string, maxAttempts = 10) => {
   for (let i = 0; i < maxAttempts; i++) {
     const methods = await api.programs.getMethods(programId)
@@ -290,7 +232,7 @@ Handle edge cases and improve UX.
 
 - [x] Add loading states for each step's data fetching
 - [x] Add error handling for API failures
-- [x] Handle Airtable automation timeout (show manual method selection)
+- [x] Handle method suggestion timeout (show manual method selection)
 - [x] Add form validation for required fields
 - [x] Add step progress indicator
 - [x] Make wizard mobile-responsive

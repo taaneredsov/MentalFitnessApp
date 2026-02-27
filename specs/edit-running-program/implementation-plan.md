@@ -24,19 +24,13 @@ Create backend endpoints for updating Programmaplanning records.
 // Request body: { methods: string[], goals?: string[], notes?: string }
 // Response: Updated Programmaplanning object
 
-import type { VercelRequest, VercelResponse } from "@vercel/node"
-import { base, tables } from "../../../_lib/airtable.js"
-import { sendSuccess, sendError, handleApiError, parseBody } from "../../../_lib/api-utils.js"
-import { verifyToken } from "../../../_lib/jwt.js"
-import { PROGRAM_FIELDS, PROGRAMMAPLANNING_FIELDS, transformProgrammaplanning } from "../../../_lib/field-mappings.js"
-
 // Key validation logic:
 // 1. Verify JWT token
-// 2. Fetch program, verify user owns it
+// 2. Fetch program from Postgres, verify user owns it
 // 3. Fetch planning record, verify it belongs to program
 // 4. Check date > today (cannot edit past)
 // 5. Validate methods array not empty
-// 6. Update Airtable record
+// 6. Update Postgres record (syncs to Airtable via outbox)
 ```
 
 **Validation Rules:**
@@ -53,15 +47,11 @@ const sessionDescription = methods
   .join("\n")
 ```
 
-**Airtable Update Fields:**
-```javascript
-{
-  [PROGRAMMAPLANNING_FIELDS.methods]: methodIds,  // Array of record IDs
-  [PROGRAMMAPLANNING_FIELDS.goals]: goalIds,      // Optional
-  [PROGRAMMAPLANNING_FIELDS.sessionDescription]: sessionDescription,
-  [PROGRAMMAPLANNING_FIELDS.notes]: notes         // Optional
-}
-```
+**Postgres Update Fields:**
+- `method_ids`: Array of method record IDs
+- `goal_ids`: Optional array of goal record IDs
+- `session_description`: Auto-generated from method names
+- `notes`: Optional text
 
 ## Phase 2: Frontend Types & API Client ✅ COMPLETE
 
@@ -344,7 +334,7 @@ After implementation, verify:
 - [x] Edit dialog opens with current methods pre-selected
 - [x] Can remove methods (but not below 1)
 - [x] Can add methods from available pool
-- [x] Save updates Airtable and refreshes UI
+- [x] Save updates Postgres (syncs to Airtable via outbox) and refreshes UI
 - [x] Program edit dialog shows current goals and notes
 - [x] Both "Actief" and "Gepland" programs show edit options
 - [x] Error states handled gracefully

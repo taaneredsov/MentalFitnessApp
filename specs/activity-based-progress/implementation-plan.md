@@ -20,7 +20,7 @@ Add the session counts to the program data returned by the API.
 
 - [x] Add `totalMethods` and `completedMethods` fields to Program type (method-based approach)
 - [x] Create API endpoint to fetch method usage data
-- [x] Calculate completed count (methodUsageCount from Airtable)
+- [x] Calculate completed count from Postgres
 - [x] Return counts in program response
 - [ ] **Future**: Add session-based progress (totalSessions/completedSessions)
 
@@ -54,22 +54,17 @@ Create `api/programs/[id]/progress.ts`:
 
 **API Implementation:**
 ```typescript
-// In api/programs/[id].ts or similar
-import { base, tables } from "../_lib/airtable.js"
-import { PROGRAMMAPLANNING_FIELDS } from "../_lib/field-mappings.js"
+// In api/programs/[id].ts - all reads from Postgres
+const scheduleRows = await db.query(
+  `SELECT id, session_date, is_completed
+   FROM program_schedule_pg
+   WHERE program_id = $1
+   ORDER BY session_date`,
+  [programId]
+)
 
-// Fetch Programmaplanning for this program
-const scheduleRecords = await base(tables.programmaplanning)
-  .select({
-    filterByFormula: `{Mentale Fitnessprogramma} = "${programId}"`,
-    returnFieldsByFieldId: true
-  })
-  .all()
-
-const totalSessions = scheduleRecords.length
-const completedSessions = scheduleRecords.filter(record =>
-  (record.fields[PROGRAMMAPLANNING_FIELDS.methodUsage] || []).length > 0
-).length
+const totalSessions = scheduleRows.rows.length
+const completedSessions = scheduleRows.rows.filter(r => r.is_completed).length
 
 // Include in response
 return {
@@ -256,20 +251,18 @@ interface ProgramDetail extends Program {
 }
 ```
 
-**Transformation in field-mappings.js:**
-```javascript
-export function transformProgrammaplanningWithStatus(record) {
-  const fields = record.fields
-  const methodUsageIds = fields[PROGRAMMAPLANNING_FIELDS.methodUsage] || []
-
-  return {
-    id: record.id,
-    date: fields[PROGRAMMAPLANNING_FIELDS.date],
-    dayOfWeekId: fields[PROGRAMMAPLANNING_FIELDS.dayOfWeek]?.[0],
-    isCompleted: methodUsageIds.length > 0,
-    methodIds: fields[PROGRAMMAPLANNING_FIELDS.methods] || []
-  }
-}
+**Schedule query from Postgres:**
+```typescript
+// All schedule reads come from Postgres
+const schedule = await db.query(
+  `SELECT ps.id, ps.session_date, ps.is_completed,
+          rm.id as method_id, rm.name as method_name, rm.duration
+   FROM program_schedule_pg ps
+   LEFT JOIN reference_methods_pg rm ON rm.id = ps.method_id
+   WHERE ps.program_id = $1
+   ORDER BY ps.session_date`,
+  [programId]
+)
 ```
 
 ---

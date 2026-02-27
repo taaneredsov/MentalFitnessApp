@@ -2,12 +2,12 @@
 
 ## Overview
 
-Enable users to create personalized mental fitness programs using AI (OpenAI GPT-4o). The AI generates a schedule with specific methods assigned to specific days based on user goals, available time, and prompt instructions from Airtable.
+Enable users to create personalized mental fitness programs using AI (OpenAI GPT-4o). The AI generates a schedule with specific methods assigned to specific days based on user goals, available time, and prompt instructions from the database.
 
 ## Problem Statement
 
-Currently, program creation relies on Airtable automations to suggest methods after goals are selected. This process:
-- Requires polling and waiting for automation
+Previously, program creation relied on manual automations to suggest methods after goals are selected. That approach:
+- Required polling and waiting for automation
 - Doesn't provide day-specific method assignments
 - Lacks personalized recommendations
 
@@ -29,7 +29,7 @@ Replace the polling-based approach with direct AI generation that:
 6. User selects available days of the week
 7. User clicks "Genereer Mijn Programma"
 8. Loading animation shows: "We zijn bezig uw mentale fitness programma samen te stellen"
-9. AI generates schedule and program is created in Airtable
+9. AI generates schedule; program created in Postgres (synced to Airtable via outbox)
 10. User sees result with weekly schedule and recommendations
 11. User can view program details or create another
 
@@ -44,7 +44,7 @@ Replace the polling-based approach with direct AI generation that:
 - [ ] All required fields must be filled before generation
 - [ ] Loading animation displays during AI processing
 - [ ] AI returns methods assigned to specific selected days
-- [ ] Program is created in Airtable with all details
+- [ ] Program is created in Postgres (synced to Airtable via outbox)
 - [ ] User sees weekly schedule showing which methods on which days
 - [ ] User receives personalized recommendations from AI
 - [ ] User can navigate to view the created program
@@ -69,10 +69,10 @@ From user:
 - Duration string (e.g., "4 weken")
 - Selected day of week IDs (1 or more)
 
-From Airtable:
-- Goal details and prompts from tblHmI6cSujof3KHu
-- Available methods from tblB0QvbGg3zWARt4 (including "Optimale frequentie" field)
-- Day names from tblS3gleG8cSlWOJ3
+From Postgres reference tables (synced from Airtable):
+- Goal details and prompts (original Airtable source: tblHmI6cSujof3KHu)
+- Available methods including "Optimale frequentie" field (original: tblB0QvbGg3zWARt4)
+- Day names (original: tblS3gleG8cSlWOJ3)
 
 Calculated:
 - Training dates: all specific dates across the program duration based on start date, weeks, and selected days
@@ -85,17 +85,18 @@ AI returns (via OpenAI Structured Outputs):
 - Personalized recommendations
 - Program summary
 
-Created in Airtable:
+Created in Postgres (synced to Airtable via outbox):
 - Program record linked to user, goals, days, methods
 - Methods field contains all unique methods from schedule
-- Programmaplanning records for each training date (tbl2PHUaonvs1MYRx)
+- Programmaplanning (schedule) records for each training date
   - Linked to program, day of week, goals
   - Contains date, methods, and session description
 
 ## Dependencies
 
 - OpenAI API (GPT-4o model)
-- Existing Airtable integration
+- Postgres database (reads and writes)
+- Outbox sync to Airtable for user-generated data
 - Existing authentication system
 - React Query for caching
 

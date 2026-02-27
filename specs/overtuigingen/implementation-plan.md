@@ -6,7 +6,7 @@ Add a complete "Overtuigingen" feature with browse page, program wizard integrat
 
 ## Phase 1: Field Mappings & Types [NO RISK]
 
-Add all Airtable configuration. Zero impact on existing functionality.
+Add Airtable field mappings (used by full-sync worker and outbox writer) and Postgres types. Zero impact on existing functionality.
 
 ### Tasks
 
@@ -32,7 +32,7 @@ persoonlijkeOvertuigingen: process.env.AIRTABLE_TABLE_PERSOONLIJKE_OVERTUIGINGEN
 overtuigingenGebruik: process.env.AIRTABLE_TABLE_OVERTUIGINGEN_GEBRUIK || "tblXXX"
 ```
 
-Field constants (replace `fldXXX` with real IDs from Airtable Meta API):
+Field constants (used by full-sync worker for Airtable→Postgres sync; replace `fldXXX` with real IDs from Airtable Meta API):
 ```js
 export const OVERTUIGING_FIELDS = {
   name: "fldXXX",              // Naam (single line text)
@@ -245,24 +245,19 @@ New files only. No existing code changes except route registration.
 
 **File: `api/overtuigingen/index.ts`** (pattern: `api/goals/index.ts`)
 
-> **Note (2026-02-20):** As part of audit remediation, Postgres-primary routing was added to this endpoint via `DATA_BACKEND_OVERTUIGINGEN`. When the flag is `postgres_primary`, it reads from the `reference_methods_pg`-style cached query on Postgres instead of Airtable. The Airtable path is preserved as fallback.
+All API endpoints read from Postgres. Reference data (overtuigingen, mindset categories) is synced from Airtable to Postgres via the full-sync worker. Writes go through Postgres with outbox sync to Airtable.
 
 ```ts
 import type { VercelRequest, VercelResponse } from "@vercel/node"
 import { sendSuccess, handleApiError } from "../_lib/api-utils.js"
-import { transformOvertuiging } from "../_lib/field-mappings.js"
-import { cachedSelect } from "../_lib/cached-airtable.js"
+import { listAllOvertuigingen } from "../_lib/repos/reference-repo.js"
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== "GET") {
     return res.status(405).json({ success: false, error: "Method not allowed" })
   }
   try {
-    const overtuigingen = await cachedSelect(
-      "overtuigingen",
-      {},
-      (records) => records.map(r => transformOvertuiging(r as any))
-    )
+    const overtuigingen = await listAllOvertuigingen()
     return sendSuccess(res, overtuigingen)
   } catch (error) {
     return handleApiError(res, error)
@@ -636,21 +631,17 @@ import { OvertuigingenSection } from "@/components/OvertuigingenSection"
 <OvertuigingenSection programId={program.id} showManageLink={status === "running"} />
 ```
 
-**File: `api/programs/[id].ts`** — In GET handler, after goalDetails fetch (line ~79), add overtuigingen resolution:
+**File: `api/programs/[id].ts`** — In GET handler, after goalDetails fetch, add overtuigingen resolution from Postgres:
 ```ts
-// Fetch related overtuigingen
+// Fetch related overtuigingen from Postgres
 let overtuigingDetails: any[] = []
 const validOvertuigingen = (program.overtuigingen || []).filter(oid => isValidRecordId(oid))
 if (validOvertuigingen.length > 0) {
-  const overtuigingFormula = `OR(${validOvertuigingen.map(oid => `RECORD_ID() = "${oid}"`).join(",")})`
-  const overtuigingRecords = await base(tables.overtuigingen)
-    .select({ filterByFormula: overtuigingFormula, returnFieldsByFieldId: true })
-    .all()
-  overtuigingDetails = overtuigingRecords.map(r => transformOvertuiging(r as any))
+  overtuigingDetails = await lookupOvertuigingenByIds(validOvertuigingen)
 }
 ```
 
-Add `overtuigingDetails` to the response object (line ~184).
+Add `overtuigingDetails` to the response object.
 
 Update `ProgramDetail` interface in `src/types/program.ts`:
 ```ts
@@ -740,27 +731,21 @@ This is the same logic as `OvertuigingenStep` in the manual wizard but executed 
 **File: `api/programs/preview.ts`** — After AI call, before returning response:
 ```ts
 // Auto-select up to 3 overtuigingen based on goals (via mindset categories)
-const categoryRecords = await base(tables.mindsetCategories)
-  .select({ returnFieldsByFieldId: true }).all()
-const categories = categoryRecords.map(r => transformMindsetCategory(r as any))
+// All reads from Postgres (synced from Airtable via full-sync worker)
+const categories = await listAllMindsetCategories()
 const matchingCategories = categories.filter(cat =>
   cat.goalIds.some(gid => body.goals.includes(gid))
 )
 const overtuigingIds = [...new Set(
   matchingCategories.flatMap(cat => cat.overtuigingIds)
 )]
-// Fetch and select top 3 by order
 let suggestedOvertuigingen = []
 if (overtuigingIds.length > 0) {
-  const formula = `OR(${overtuigingIds.map(id => `RECORD_ID() = "${id}"`).join(",")})`
-  const records = await base(tables.overtuigingen)
-    .select({ filterByFormula: formula, returnFieldsByFieldId: true }).all()
-  suggestedOvertuigingen = records
-    .map(r => transformOvertuiging(r as any))
+  const all = await lookupOvertuigingenByIds(overtuigingIds)
+  suggestedOvertuigingen = all
     .sort((a, b) => a.order - b.order)
     .slice(0, 3)
 }
-// Include in response
 return sendSuccess(res, { ...existingFields, suggestedOvertuigingen })
 ```
 

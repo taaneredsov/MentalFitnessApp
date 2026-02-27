@@ -97,17 +97,12 @@ Rules:
 
 - Existing authentication system (useAuth hook)
 - Existing API client pattern (api-client.ts)
-- Existing field-mappings.js for Airtable field IDs
 - UI components: Card, Button from shadcn/ui
 - Program extend endpoint (`POST /api/programs/[id]/extend`) for extend action
 
-## Related Tables (Airtable)
+## Data Storage
 
-- Programs: `tblqW4xeCx1tprNgX`
-- Programmaplanning: `tbl2PHUaonvs1MYRx` (scheduled sessions)
-- Days of Week: `tblS3gleG8cSlWOJ3`
-- Goals: `tbl6ngkyNrv0LFzGb`
-- Methods: `tblB0QvbGg3zWARt4`
+All program data is read from and written to Postgres. Writes sync to Airtable via the outbox pattern. Key Postgres tables: `programs`, `schedules`, `goals`, `methods`, `days_of_week`.
 
 ## Integration with Other Specs
 

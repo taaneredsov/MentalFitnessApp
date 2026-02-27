@@ -1,11 +1,7 @@
 import type { Request, Response } from "express"
 import { z } from "zod"
-import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
-import { METHOD_USAGE_FIELDS, transformMethodUsage, isValidRecordId } from "../_lib/field-mappings.js"
-import { getDataBackendMode } from "../_lib/data-backend.js"
-import { isPostgresConfigured } from "../_lib/db/client.js"
 import { isEntityId } from "../_lib/db/id-utils.js"
 import {
   createMethodUsage,
@@ -18,9 +14,6 @@ import { getProgramByAnyId, getProgramSessionByAnyId } from "../_lib/repos/progr
 import { syncNotificationJobsForUser } from "../_lib/notifications/planner.js"
 import { awardRewardActivity } from "../_lib/rewards/engine.js"
 import { getMethodPointsValue } from "../_lib/repos/reference-repo.js"
-import type { AirtableRecord } from "../_lib/types.js"
-
-const METHOD_USAGE_BACKEND_ENV = "DATA_BACKEND_METHOD_USAGE"
 
 const updateRemarkSchema = z.object({
   remark: z.string().min(1, "Remark is required")
@@ -40,24 +33,17 @@ const createUsageSchema = z.object({
  */
 export default async function handler(req: Request, res: Response) {
   if (req.method === "PATCH") {
-    if (getDataBackendMode(METHOD_USAGE_BACKEND_ENV) === "postgres_primary" && isPostgresConfigured()) {
-      return handlePatchPostgres(req, res)
-    }
-    return handlePatchAirtable(req, res)
+    return handlePatch(req, res)
   }
 
   if (req.method !== "POST") {
     return sendError(res, "Method not allowed", 405)
   }
 
-  if (getDataBackendMode(METHOD_USAGE_BACKEND_ENV) === "postgres_primary" && isPostgresConfigured()) {
-    return handlePostPostgres(req, res)
-  }
-
-  return handlePostAirtable(req, res)
+  return handlePost(req, res)
 }
 
-async function handlePostPostgres(req: Request, res: Response) {
+async function handlePost(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
     const body = createUsageSchema.parse(parseBody(req))
@@ -124,8 +110,7 @@ async function handlePostPostgres(req: Request, res: Response) {
       await awardRewardActivity({
         userId: auth.userId,
         activityType: "method",
-        activityDate: new Date().toISOString().slice(0, 10),
-        forcePostgres: true
+        activityDate: new Date().toISOString().slice(0, 10)
       })
       pointsAwarded = methodPoints
     } catch (err) {
@@ -144,7 +129,7 @@ async function handlePostPostgres(req: Request, res: Response) {
   }
 }
 
-async function handlePatchPostgres(req: Request, res: Response) {
+async function handlePatch(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
     const { id } = req.params
@@ -187,99 +172,6 @@ async function handlePatchPostgres(req: Request, res: Response) {
     await syncNotificationJobsForUser(auth.userId)
 
     return sendSuccess(res, toApiMethodUsage(updated))
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return sendError(res, error.message, error.status)
-    }
-    if (error instanceof z.ZodError) {
-      return sendError(res, error.issues[0].message, 400)
-    }
-    return handleApiError(res, error)
-  }
-}
-
-async function handlePostAirtable(req: Request, res: Response) {
-  try {
-    const auth = await requireAuth(req)
-    const rawBody = parseBody(req)
-    const body = createUsageSchema.parse(rawBody)
-
-    if (body.userId !== auth.userId) {
-      return sendError(res, "Cannot create method usage for another user", 403)
-    }
-
-    const fields: Record<string, unknown> = {
-      [METHOD_USAGE_FIELDS.user]: [body.userId],
-      [METHOD_USAGE_FIELDS.method]: [body.methodId],
-      [METHOD_USAGE_FIELDS.usedAt]: new Date().toISOString().split("T")[0]
-    }
-
-    if (body.programmaplanningId) {
-      fields[METHOD_USAGE_FIELDS.programmaplanning] = [body.programmaplanningId]
-    } else if (body.programId) {
-      fields[METHOD_USAGE_FIELDS.program] = [body.programId]
-    }
-
-    if (body.remark) {
-      fields[METHOD_USAGE_FIELDS.remark] = body.remark
-    }
-
-    const record = await base(tables.methodUsage).create(fields, { typecast: true })
-    const usage = transformMethodUsage(record as AirtableRecord)
-
-    let pointsAwarded = 0
-    try {
-      const methodPoints = await getMethodPointsValue(body.methodId)
-      await awardRewardActivity({
-        userId: auth.userId,
-        activityType: "method",
-        activityDate: new Date().toISOString().slice(0, 10)
-      })
-      pointsAwarded = methodPoints
-    } catch (err) {
-      console.error("[method-usage] awardRewardActivity failed:", err)
-    }
-
-    return sendSuccess(res, { ...usage, pointsAwarded }, 201)
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return sendError(res, error.message, error.status)
-    }
-    if (error instanceof z.ZodError) {
-      return sendError(res, error.issues[0].message, 400)
-    }
-    return handleApiError(res, error)
-  }
-}
-
-async function handlePatchAirtable(req: Request, res: Response) {
-  try {
-    const auth = await requireAuth(req)
-
-    const { id } = req.params
-    if (!id || typeof id !== "string") {
-      return sendError(res, "Method usage ID is required", 400)
-    }
-
-    if (!isValidRecordId(id)) {
-      return sendError(res, "Invalid method usage ID format", 400)
-    }
-
-    const body = updateRemarkSchema.parse(parseBody(req))
-
-    const record = await base(tables.methodUsage).find(id)
-    const userId = (record.fields[METHOD_USAGE_FIELDS.user] as string[])?.[0]
-
-    if (userId !== auth.userId) {
-      return sendError(res, "Cannot update another user's method usage", 403)
-    }
-
-    const updated = await base(tables.methodUsage).update(id, {
-      [METHOD_USAGE_FIELDS.remark]: body.remark
-    })
-
-    const usage = transformMethodUsage(updated as AirtableRecord)
-    return sendSuccess(res, usage)
   } catch (error) {
     if (error instanceof AuthError) {
       return sendError(res, error.message, error.status)

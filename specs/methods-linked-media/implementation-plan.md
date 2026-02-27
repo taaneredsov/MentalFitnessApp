@@ -50,44 +50,18 @@ export function transformMedia(record) {
 
 ## Phase 2: Update Methods API
 
-Modify the methods API to fetch linked media records from the Media table.
+Modify the methods API to fetch linked media records from Postgres.
 
 ### Tasks
 
-- [x] Update `api/methods/[id].ts` to fetch linked media records from Media table
+- [x] Update `api/methods/[id].ts` to fetch linked media records from Postgres
 - [x] Update transformMethod to return media as linked record IDs
 
 ### Technical Details
 
 **File: `api/methods/[id].ts`**
 
-Update to fetch media from linked table:
-```typescript
-import { transformMethod, transformMedia, MEDIA_FIELDS } from "../_lib/field-mappings.js"
-
-// In handler:
-const method = transformMethod({ id: record.id, fields: record.fields } as any)
-
-// Fetch media details if there are linked media
-let mediaDetails: any[] = []
-const mediaIds = method.media
-if (mediaIds && mediaIds.length > 0) {
-  const mediaRecords = await Promise.all(
-    mediaIds.map((mediaId: string) =>
-      base(tables.media).find(mediaId).catch(() => null)
-    )
-  )
-
-  mediaDetails = mediaRecords
-    .filter(Boolean)
-    .map(r => transformMedia({ id: r!.id, fields: r!.fields } as any))
-}
-
-return sendSuccess(res, {
-  ...method,
-  mediaDetails
-})
-```
+The endpoint reads from Postgres. Media records are synced from Airtable to Postgres via the full-sync worker. The API fetches method + linked media from Postgres repos and returns a combined response.
 
 **File: `api/_lib/field-mappings.js`**
 

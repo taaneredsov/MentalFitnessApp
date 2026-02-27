@@ -14,6 +14,10 @@ import {
 } from "../security.js"
 
 describe("Security utilities", () => {
+  // hashCode uses HMAC with JWT_SECRET
+  beforeEach(() => {
+    process.env.JWT_SECRET = "test-secret-for-hmac"
+  })
   describe("generateSecureToken", () => {
     it("generates a 64-character hex string by default (32 bytes)", () => {
       const token = generateSecureToken()

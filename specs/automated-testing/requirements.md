@@ -26,7 +26,7 @@ As a developer, I want:
 |-------|------|-------|
 | Unit Tests | Vitest | Pure functions, utilities, type transformations |
 | Component Tests | Vitest + React Testing Library | React components with mocked dependencies |
-| API Tests | Vitest | Serverless functions with mocked Airtable |
+| API Tests | Vitest | API handlers with mocked Postgres |
 | E2E Tests | Playwright | Full user flows in browser |
 
 ## Acceptance Criteria
@@ -54,14 +54,14 @@ As a developer, I want:
 
 1. **Test behavior, not implementation** - Tests should survive refactors
 2. **Keep tests focused** - One logical assertion per test
-3. **Mock external services** - Airtable, OpenAI, external APIs
+3. **Mock external services** - Postgres, OpenAI, external APIs
 4. **Mirror source structure** - Test files live next to source files or in `__tests__` folders
 5. **Prefer accessible queries** - Use role, text, label over test IDs
 
 ## Dependencies
 
 - Existing React 19 + Vite + TypeScript setup
-- Existing Vercel Serverless Functions
+- Existing Express API with Postgres backend
 - Existing AuthContext and React Query setup
 
 ## Future Extensibility

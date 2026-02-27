@@ -274,7 +274,7 @@ export function ScheduleReview({
       </div>
 
       {/* Sticky footer with buttons */}
-      <div className="sticky bottom-0 pt-4 pb-2 bg-gradient-to-t from-background via-background to-transparent -mx-4 px-4">
+      <div className="sticky bottom-0 pt-4 pb-2 bg-background -mx-4 px-4">
         <div className="flex gap-3">
           <Button
             variant="outline"
@@ -288,16 +288,16 @@ export function ScheduleReview({
           <Button
             onClick={onConfirm}
             disabled={isConfirming || editedSchedule.every(d => d.methods.length === 0)}
-            className="flex-1 min-w-0"
+            className="flex-1 min-w-0 gap-2"
           >
             {isConfirming ? (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <Loader2 className="h-4 w-4 animate-spin" />
                 {t("wizard.review.saving")}
               </>
             ) : (
               <>
-                <Check className="mr-2 h-4 w-4" />
+                <Check className="h-4 w-4" />
                 {t("wizard.review.confirm")}
               </>
             )}

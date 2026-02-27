@@ -6,7 +6,7 @@ Build a complete programs feature: API endpoints, programs listing page, detail 
 
 ## Phase 1: Programs API Layer
 
-Build the backend API to fetch programs data from Airtable.
+Build the backend API to fetch programs data from Postgres.
 
 ### Tasks
 
@@ -18,66 +18,7 @@ Build the backend API to fetch programs data from Airtable.
 
 ### Technical Details
 
-**Field Mappings (api/_lib/field-mappings.js):**
-```javascript
-// Programs table field IDs (Mentale Fitnessprogramma's)
-export const PROGRAM_FIELDS = {
-  id: "fldzeEtEfVRM3qXzp",              // ID (AutoNumber)
-  user: "fldDc1mJUjBl2y7Hy",            // Gebruiker (Link)
-  startDate: "fldY5UGS0XSd1eUxu",       // Startdatum
-  duration: "fld3mrRTtqPX2a1fX",        // Duur van programma
-  endDate: "fld2zTiRAKOXTenP4",         // Einddatum Programma (Formula)
-  daysOfWeek: "fldC9mH8v5UjLSPVU",      // Dagen van de week (Link)
-  frequency: "fldIGX4ZfG9LyYgMt",       // Frequentie per week (Count)
-  goals: "fldo1Lc26dqEkUkwU",           // Doelstellingen (Link)
-  methods: "fldvcpSF78ATEk12U",         // Mentale methode (Link)
-  sessionTime: "fldEWZ3BpI7ueG9ai",     // Tijd per sessie (Rollup)
-  notes: "fldAUf1ENHtF8NRPl"            // Notities
-}
-
-// Goals table field IDs (Doelstellingen)
-export const GOAL_FIELDS = {
-  name: "fldgLmhiCydWQgjUi",             // Doelstelling Naam
-  description: "fldb1q8hRJyfFglYV",      // Beschrijving
-  status: "fldjVOkLDqCsAdvft",           // Status (Actief/Afgerond/Gepland)
-  methods: "fldZM72fiIX2SA4Cl",          // Methodes (Link)
-  user: "fld7SlWpDzIhxzW5A",             // Gebruiker (Link)
-  programs: "fldHVkXMs8gQkpbr5"          // Mentale Fitnessprogramma's (Link)
-}
-
-// Methods table field IDs (Methodes)
-export const METHOD_FIELDS = {
-  name: "fldXP3qNngK3oXEjR",             // Methode Naam
-  duration: "fldg3pJ3mtwBTVtd8",         // Duur (minuten)
-  description: "fldW7tdp7AJoeKerd",      // Beschrijving
-  experienceLevel: "fldKppvap3PVPlMq8",  // Ervaringsniveau
-  photo: "fldT64jU7CfcgTe0y",            // Foto
-  users: "fldizDnwdWMO7UfSz",            // Gebruikers (Link)
-  programs: "fld36JCBhGcXYurrp"          // Mentale Fitnessprogramma's (Link)
-}
-
-// Days of Week table field IDs (Dagen van de week)
-export const DAY_FIELDS = {
-  name: "fldj61ALcQp8OYO1u",             // Name (Maandag, Dinsdag, etc.)
-  programs: "fldoml9PLaWNLT59y"          // Mentale Fitnessprogramma's (Link)
-}
-
-export const FIELD_NAMES = {
-  // ... existing user/company fields ...
-  program: {
-    user: "Gebruiker",
-    startDate: "Startdatum",
-    duration: "Duur van programma",
-    endDate: "Einddatum Programma",
-    daysOfWeek: "Dagen van de week",
-    frequency: "Frequentie per week",
-    goals: "Doelstellingen",
-    methods: "Mentale methode",
-    sessionTime: "Tijd per sessie (min)",
-    notes: "Notities"
-  }
-}
-```
+**Architecture**: All program reads come from Postgres. Writes go to Postgres first, then sync to Airtable via the outbox pattern.
 
 **API Endpoint - GET /api/programs (api/programs/index.ts):**
 ```typescript

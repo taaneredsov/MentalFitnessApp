@@ -1,28 +1,11 @@
 import { base, tables } from "../airtable.js"
-import {
-  METHOD_USAGE_FIELDS,
-  GOEDE_GEWOONTE_GEBRUIK_FIELDS,
-  PERSONAL_GOAL_USAGE_FIELDS,
-  OVERTUIGING_USAGE_FIELDS,
-  PROGRAM_FIELDS,
-  USER_FIELDS,
-  transformUserRewards
-} from "../field-mappings.js"
-import { getDataBackendMode } from "../data-backend.js"
+import { PROGRAM_FIELDS } from "../field-mappings.js"
 import { isPostgresConfigured } from "../db/client.js"
 import { enqueueSyncEvent } from "../sync/outbox.js"
 import { getUserRewardStats, updateUserRewardFields, getScheduledSessionStreak } from "../repos/user-repo.js"
 import { diffIsoDays, getTodayLocalDate, normalizeDateString } from "./date-utils.js"
 import { getProgramByAnyId } from "../repos/program-repo.js"
 import { isAirtableRecordId } from "../db/id-utils.js"
-
-const REWARD_BACKEND_ENVS = [
-  "DATA_BACKEND_REWARDS",
-  "DATA_BACKEND_METHOD_USAGE",
-  "DATA_BACKEND_HABIT_USAGE",
-  "DATA_BACKEND_PERSONAL_GOAL_USAGE",
-  "DATA_BACKEND_OVERTUIGING_USAGE"
-] as const
 
 const LEVELS = [
   { level: 1, points: 0 },
@@ -99,7 +82,6 @@ export interface AwardRewardInput {
   activityDate?: string
   milestone?: number
   programId?: string
-  forcePostgres?: boolean
 }
 
 export interface AwardRewardResult {
@@ -241,105 +223,6 @@ function parseBadgesField(value: unknown): string[] {
     }
   }
   return []
-}
-
-async function getAirtableRewardStateAndCounts(userId: string): Promise<{ state: RewardState; counts: RewardCounts }> {
-  const userRecords = await base(tables.users)
-    .select({
-      filterByFormula: `RECORD_ID() = "${userId}"`,
-      maxRecords: 1,
-      returnFieldsByFieldId: true
-    })
-    .firstPage()
-
-  if (userRecords.length === 0) {
-    throw new Error("User not found")
-  }
-
-  const transformed = transformUserRewards(userRecords[0] as { id: string; fields: Record<string, unknown> }) as RewardState
-  const state: RewardState = {
-    totalPoints: Number(transformed.totalPoints || 0),
-    bonusPoints: Number(transformed.bonusPoints || 0),
-    currentStreak: Number(transformed.currentStreak || 0),
-    longestStreak: Number(transformed.longestStreak || 0),
-    lastActiveDate: normalizeDateString(transformed.lastActiveDate),
-    badges: Array.isArray(transformed.badges) ? transformed.badges : [],
-    level: Number(transformed.level || 1)
-  }
-
-  const [methodUsageRecords, habitUsageRecords, personalGoalUsageRecords, overtuigingUsageRecords, programRecords] = await Promise.all([
-    base(tables.methodUsage).select({ returnFieldsByFieldId: true }).all(),
-    base(tables.goedeGewoonteGebruik).select({ returnFieldsByFieldId: true }).all(),
-    base(tables.personalGoalUsage).select({ returnFieldsByFieldId: true }).all(),
-    base(tables.overtuigingenGebruik).select({ returnFieldsByFieldId: true }).all(),
-    base(tables.programs).select({ returnFieldsByFieldId: true }).all()
-  ])
-
-  const methodCount = methodUsageRecords.filter((record) => {
-    const field = (record.fields as Record<string, unknown>)[METHOD_USAGE_FIELDS.user] as string[] | undefined
-    return field?.includes(userId)
-  }).length
-
-  const userHabitRecords = habitUsageRecords.filter((record) => {
-    const field = (record.fields as Record<string, unknown>)[GOEDE_GEWOONTE_GEBRUIK_FIELDS.user] as string[] | undefined
-    return field?.includes(userId)
-  })
-  const habitCount = userHabitRecords.length
-  const habitDays = new Set(
-    userHabitRecords
-      .map((record) => normalizeDateString((record.fields as Record<string, unknown>)[GOEDE_GEWOONTE_GEBRUIK_FIELDS.date] as string | undefined))
-      .filter((value): value is string => !!value)
-  )
-
-  const personalGoalCount = personalGoalUsageRecords.filter((record) => {
-    const field = (record.fields as Record<string, unknown>)[PERSONAL_GOAL_USAGE_FIELDS.user] as string[] | undefined
-    return field?.includes(userId)
-  }).length
-
-  const overtuigingCount = overtuigingUsageRecords.filter((record) => {
-    const field = (record.fields as Record<string, unknown>)[OVERTUIGING_USAGE_FIELDS.user] as string[] | undefined
-    return field?.includes(userId)
-  }).length
-
-  const programsCompleted = programRecords.filter((record) => {
-    const fields = record.fields as Record<string, unknown>
-    const userField = fields[PROGRAM_FIELDS.user] as string[] | undefined
-    const status = fields[PROGRAM_FIELDS.status] as string | undefined
-    return userField?.includes(userId) && status === "Afgewerkt"
-  }).length
-
-  const monthsActive = new Set(
-    methodUsageRecords
-      .filter((record) => {
-        const field = (record.fields as Record<string, unknown>)[METHOD_USAGE_FIELDS.user] as string[] | undefined
-        return field?.includes(userId)
-      })
-      .map((record) => {
-        const date = normalizeDateString((record.fields as Record<string, unknown>)[METHOD_USAGE_FIELDS.usedAt] as string | undefined)
-        return date ? date.slice(0, 7) : null
-      })
-      .filter((v): v is string => !!v)
-  ).size
-
-  const programsStarted = programRecords.filter((record) => {
-    const userField = (record.fields as Record<string, unknown>)[PROGRAM_FIELDS.user] as string[] | undefined
-    return userField?.includes(userId)
-  }).length
-
-  return {
-    state,
-    counts: {
-      methodCount,
-      methodPointsSum: methodCount * 10,
-      habitCount,
-      personalGoalCount,
-      overtuigingCount,
-      habitDaysCount: habitDays.size,
-      programsCompleted,
-      monthsActive,
-      programsStarted
-    }
-  }
 }
 
 async function updateProgramMilestoneAirtable(programId: string, milestone: number): Promise<void> {
@@ -500,12 +383,12 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
 
   const state: RewardState = {
     totalPoints: toBaseTotalPoints(stats),
-    bonusPoints: stats.user.bonusPoints,
+    bonusPoints: stats.user.bonusPoints ?? 0,
     currentStreak: programStreak,
     longestStreak,
     lastActiveDate: normalizeDateString(stats.user.lastActiveDate),
     badges,
-    level: stats.user.level
+    level: stats.user.level ?? 0
   }
 
   let milestone = input.milestone
@@ -577,55 +460,6 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
   return result
 }
 
-async function awardAirtable(input: AwardRewardInput): Promise<AwardRewardResult> {
-  const { state, counts } = await getAirtableRewardStateAndCounts(input.userId)
-  const activityDate = normalizeDateString(input.activityDate) || getTodayLocalDate()
-
-  let milestone = input.milestone
-  let resolvedProgramId: string | null = null
-  if (input.activityType === "programMilestone" && input.programId && input.milestone) {
-    resolvedProgramId = await resolveProgramAirtableId(input.programId, input.userId)
-    if (resolvedProgramId) {
-      const alreadyAwarded = await getProgramMilestonesAirtable(resolvedProgramId)
-      if (alreadyAwarded.includes(String(input.milestone))) {
-        milestone = undefined
-      }
-    }
-  }
-
-  const { nextState, result } = buildAwardResult({
-    state,
-    counts,
-    activityType: input.activityType,
-    activityDate,
-    milestone
-  })
-
-  await base(tables.users).update(input.userId, {
-    [USER_FIELDS.badges]: JSON.stringify(nextState.badges),
-    [USER_FIELDS.bonusPoints]: nextState.bonusPoints,
-    [USER_FIELDS.currentStreak]: nextState.currentStreak,
-    [USER_FIELDS.longestStreak]: nextState.longestStreak,
-    [USER_FIELDS.lastActiveDate]: nextState.lastActiveDate,
-    [USER_FIELDS.level]: nextState.level
-  })
-
-  if (input.activityType === "programMilestone" && resolvedProgramId && milestone) {
-    await updateProgramMilestoneAirtable(resolvedProgramId, milestone)
-  }
-
-  return result
-}
-
-export function shouldUsePostgresRewards(forcePostgres = false): boolean {
-  if (!isPostgresConfigured()) return false
-  if (forcePostgres) return true
-  return REWARD_BACKEND_ENVS.some((envKey) => getDataBackendMode(envKey) === "postgres_primary")
-}
-
 export async function awardRewardActivity(input: AwardRewardInput): Promise<AwardRewardResult> {
-  if (shouldUsePostgresRewards(input.forcePostgres)) {
-    return awardPostgres(input)
-  }
-  return awardAirtable(input)
+  return awardPostgres(input)
 }

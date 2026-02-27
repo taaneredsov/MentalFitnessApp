@@ -95,9 +95,9 @@ The dual approach (link + code) ensures all users can authenticate regardless of
 - Rate limiting on request endpoint
 
 ### Storage
-- Use existing Airtable Users table
-- New fields: `magicLinkToken`, `magicLinkCode`, `magicLinkExpiry`
-- Clear fields after successful login or expiry
+- Magic link tokens stored in Postgres `magic_link_codes` table
+- Fields: token hash, 6-digit code, expiry timestamp, user ID
+- Cleared after successful login or expiry
 
 ### Email Service
 - Use Resend (simple API, good deliverability)
@@ -108,7 +108,7 @@ The dual approach (link + code) ensures all users can authenticate regardless of
 
 - Resend account and API key
 - Domain verification for sending emails
-- Airtable schema update (3 new fields on Users table)
+- Postgres `magic_link_codes` table (migration already applied)
 
 ## Out of Scope
 

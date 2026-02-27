@@ -22,17 +22,6 @@ services:
       - REDIS_URL=redis://mfa_redis:6379
       # Postgres configuration
       - DATABASE_URL_FILE=/run/secrets/database_url
-      # Data backend feature flags
-      - DATA_BACKEND_PROGRAMS=postgres_primary
-      - DATA_BACKEND_HABIT_USAGE=postgres_primary
-      - DATA_BACKEND_METHOD_USAGE=postgres_primary
-      - DATA_BACKEND_PERSONAL_GOAL_USAGE=postgres_primary
-      - DATA_BACKEND_OVERTUIGING_USAGE=postgres_primary
-      - DATA_BACKEND_REWARDS=postgres_primary
-      - DATA_BACKEND_METHODS=postgres_primary
-      - DATA_BACKEND_OVERTUIGINGEN=postgres_primary
-      - DATA_BACKEND_PERSONAL_GOALS=postgres_primary
-      - DATA_BACKEND_PERSOONLIJKE_OVERTUIGINGEN=postgres_primary
       - USER_FAST_LANE_ENABLED=true
       - USER_READTHROUGH_FALLBACK_ENABLED=true
       # User webhook sync

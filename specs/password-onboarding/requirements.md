@@ -6,7 +6,7 @@ Enable users to set their own password during first login (onboarding) and chang
 
 ## Background
 
-Users are created in Airtable by administrators without a password. They receive a link to the app URL. When they first access the app, they need to set up their own password.
+Users are provisioned (via admin workflow, synced to Postgres) without a password. They receive a link to the app URL. When they first access the app, they need to set up their own password.
 
 ### First-Time User Detection
 
@@ -28,7 +28,7 @@ This dual condition ensures:
 - [ ] The Set Password page requires me to enter a password and confirm it
 - [ ] Password must be at least 8 characters
 - [ ] After setting my password, I'm automatically logged in
-- [ ] My password hash is stored in Airtable
+- [ ] My password hash is stored in Postgres (synced to Airtable via outbox)
 
 ### Password Change
 **As an existing user**, I want to change my password from the Account page, so that I can maintain security.
@@ -43,8 +43,8 @@ This dual condition ensures:
 ## Technical Requirements
 
 - Passwords are hashed using bcrypt (already implemented in `api/_lib/password.js`)
-- Password hash stored in Airtable `Paswoord Hash` field (ID: `fldjzJzy8mvpU39Jz`)
-- Last login stored in Airtable `Laatste login` field (ID: `fldMlP3KCqMwJeXbN`)
+- Password hash stored in Postgres `users_pg.password_hash` column
+- Last login stored in Postgres `users_pg.last_login` column
 - First-time user detection: no password hash AND no last login
 - Minimum password length: 8 characters
 - Password confirmation required for both set and change flows
@@ -52,7 +52,7 @@ This dual condition ensures:
 ## Dependencies
 
 - Existing auth system (login, JWT tokens)
-- Existing Airtable integration
+- Postgres `users_pg` table
 - bcryptjs for password hashing
 
 ## Edge Cases

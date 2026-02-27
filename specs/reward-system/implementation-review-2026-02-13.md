@@ -31,11 +31,10 @@ The reward UI is present and points/streak values are shown, but the badge and r
 - No caller sends `programsCompleted`, and no dedicated program-complete award path is used in frontend.
 - `checkProgramMilestones` can return `100`, but `eerste_programma` is not unlocked from milestone threshold directly.
 
-### 3) Reward write path is Airtable-only, while read paths support backend mode switching
+### 3) [RESOLVED] Reward backend is now Postgres-only
 
-- `api/rewards/index.ts` supports backend mode (`airtable_only`, `postgres_shadow_read`, `postgres_primary`).
-- `api/rewards/award.ts` always reads/writes Airtable directly.
-- Impact in `postgres_primary`: reward writes bypass Postgres-first flow and can drift from other reward updates that go through repos/outbox.
+- All data backend toggle systems have been removed.
+- All reward reads and writes go through Postgres exclusively. Airtable is updated via the outbox sync pattern.
 
 ### 4) Multiple reward update pathways create inconsistent behavior
 
@@ -70,9 +69,8 @@ The reward UI is present and points/streak values are shown, but the badge and r
    - Derive counters in backend from repo/DB/Airtable counts.
    - Keep request payload minimal (`activityType`, entity IDs, date).
 
-3. Add backend-mode support to reward awarding:
-   - Add `postgres_primary` path to `api/rewards/award.ts` (or move to repos/service layer).
-   - Keep Airtable path for `airtable_only`.
+3. [DONE] Backend consolidation:
+   - All reward paths now use Postgres exclusively. Airtable synced via outbox. All toggle systems removed.
 
 4. Normalize date model:
    - Use a single canonical activity date source (prefer explicit date from caller in local timezone context).
@@ -81,5 +79,4 @@ The reward UI is present and points/streak values are shown, but the badge and r
 5. Add tests before refactor completion:
    - Badge unlock integration tests.
    - Streak edge-case tests around timezone/day changes.
-   - Backend-mode parity tests (Airtable vs Postgres paths).
 

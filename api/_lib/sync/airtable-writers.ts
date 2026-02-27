@@ -239,6 +239,7 @@ async function upsertMethodUsage(entityId: string, payload: Record<string, unkno
 
   const record = await base(tables.methodUsage).create(fields, { typecast: true })
   await upsertAirtableIdMap("method_usage", entityId, record.id)
+  await dbQuery(`UPDATE method_usage_pg SET airtable_record_id = $1 WHERE id = $2`, [record.id, entityId])
 }
 
 async function upsertHabitUsage(entityId: string, payload: Record<string, unknown>): Promise<void> {
@@ -257,6 +258,7 @@ async function upsertHabitUsage(entityId: string, payload: Record<string, unknow
 
   const record = await base(tables.habitUsage).create(fields, { typecast: true })
   await upsertAirtableIdMap("habit_usage", entityId, record.id)
+  await dbQuery(`UPDATE habit_usage_pg SET airtable_record_id = $1 WHERE id = $2`, [record.id, entityId])
 }
 
 async function upsertPersonalGoalUsage(entityId: string, payload: Record<string, unknown>): Promise<void> {
@@ -279,6 +281,7 @@ async function upsertPersonalGoalUsage(entityId: string, payload: Record<string,
 
   const record = await base(tables.personalGoalUsage).create(fields, { typecast: true })
   await upsertAirtableIdMap("personal_goal_usage", entityId, record.id)
+  await dbQuery(`UPDATE personal_goal_usage_pg SET airtable_record_id = $1 WHERE id = $2`, [record.id, entityId])
 }
 
 async function upsertOvertuigingUsage(entityId: string, payload: Record<string, unknown>): Promise<void> {
@@ -301,6 +304,7 @@ async function upsertOvertuigingUsage(entityId: string, payload: Record<string, 
 
   const record = await base(tables.overtuigingenGebruik).create(fields, { typecast: true })
   await upsertAirtableIdMap("overtuiging_usage", entityId, record.id)
+  await dbQuery(`UPDATE overtuiging_usage_pg SET airtable_record_id = $1 WHERE id = $2`, [record.id, entityId])
 }
 
 async function upsertGoedeGewoonteUsage(entityId: string, payload: Record<string, unknown>): Promise<void> {
@@ -319,6 +323,7 @@ async function upsertGoedeGewoonteUsage(entityId: string, payload: Record<string
 
   const record = await base(tables.goedeGewoonteGebruik).create(fields, { typecast: true })
   await upsertAirtableIdMap("goede_gewoonte_usage", entityId, record.id)
+  await dbQuery(`UPDATE goede_gewoontes_usage_pg SET airtable_record_id = $1 WHERE id = $2`, [record.id, entityId])
 }
 
 async function upsertPersonalGoal(entityId: string, payload: Record<string, unknown>): Promise<void> {

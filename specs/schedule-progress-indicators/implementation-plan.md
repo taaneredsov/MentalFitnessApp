@@ -9,42 +9,13 @@ All tasks have been completed.
 ### 1. API Enhancement (`api/programs/[id].ts`)
 
 **Added `completedMethodIds` to each session:**
-```typescript
-// Fetch Method Usage records to get the completed method IDs
-const allMethodUsageIds = rawSchedule.flatMap(s => s.methodUsageIds || [])
-let methodUsageToMethodMap = new Map<string, string>()
-
-if (allMethodUsageIds.length > 0) {
-  const usageRecords = await base(tables.methodUsage)
-    .select({ filterByFormula: usageFormula, returnFieldsByFieldId: true })
-    .all()
-
-  for (const record of usageRecords) {
-    const methodIds = record.fields[METHOD_USAGE_FIELDS.method] as string[] | undefined
-    if (methodIds?.[0]) {
-      methodUsageToMethodMap.set(record.id, methodIds[0])
-    }
-  }
-}
-
-// Add completedMethodIds to each session
-const schedule = rawSchedule.map(session => ({
-  ...session,
-  completedMethodIds: (session.methodUsageIds || [])
-    .map(usageId => methodUsageToMethodMap.get(usageId))
-    .filter((id): id is string => !!id)
-}))
-```
+- Fetches method usage records from Postgres via `methodUsageRepo`
+- Maps usage records to identify which methods have been completed per session
+- Adds `completedMethodIds` array to each schedule entry
 
 **Fixed `completedSessions` calculation:**
-```typescript
-// A session is complete when all its scheduled methods have been completed
-const completedSessions = schedule.filter(s => {
-  const methodCount = s.methodIds?.length || 0
-  const completedCount = s.completedMethodIds?.length || 0
-  return methodCount > 0 && completedCount >= methodCount
-}).length
-```
+- A session is complete when all its scheduled methods have corresponding method usage records
+- `completedSessions = schedule.filter(s => s.completedMethodIds.length >= s.methodIds.length).length`
 
 ### 2. TypeScript Types (`src/types/program.ts`)
 

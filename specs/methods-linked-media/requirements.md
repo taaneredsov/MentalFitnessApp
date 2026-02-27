@@ -58,10 +58,14 @@ Update the Methodes feature to fetch media from a separate linked Media table (`
 - [ ] Video files (type: "video") are playable with video controls
 - [ ] Multiple media items per method are supported
 
+## Architecture
+
+All API endpoints read from Postgres. Media reference data is synced from Airtable to Postgres via the full-sync worker. Writes go through Postgres with outbox sync to Airtable.
+
 ## Dependencies
 
 - Existing Methods feature (already created)
-- Airtable base with Media table (`tblwzDUwtnhFKw4kA`)
+- Media table in Airtable (`tblwzDUwtnhFKw4kA`), synced to Postgres
 
 ## Related Features
 

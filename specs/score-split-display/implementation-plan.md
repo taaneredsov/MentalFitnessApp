@@ -13,42 +13,9 @@ Key implementation changes:
 
 Implement three separate score categories (Mental Fitness, Personal Goals, Good Habits) displayed as widgets on the HomePage, with corresponding Airtable schema updates.
 
-## Phase 1: Airtable Schema Updates [ACTION REQUIRED]
+## Phase 1: Schema Setup [DONE]
 
-Add new fields to store the three score categories separately.
-
-### Tasks
-
-- [ ] Add `Mental Fitness Score` field to Gebruikers table
-- [ ] Add `Personal Goals Score` field to Gebruikers table
-- [ ] Add `Good Habits Score` field to Gebruikers table
-- [ ] Update `Totaal Punten` formula to sum all three scores
-- [ ] Update field mappings in code
-
-### Technical Details
-
-**Airtable Fields to Add (Gebruikers table):**
-
-| Field Name (Dutch) | Field ID | Type | Default |
-|-------------------|----------|------|---------|
-| Mental Fitness Score | TBD | Number | 0 |
-| Persoonlijke Doelen Score | TBD | Number | 0 |
-| Goede Gewoontes Score | TBD | Number | 0 |
-
-**Update `api/_lib/field-mappings.js`:**
-```javascript
-export const USER_FIELDS = {
-  // ... existing fields
-  mentalFitnessScore: "fldXXX",      // Mental Fitness Score
-  personalGoalsScore: "fldXXX",      // Persoonlijke Doelen Score
-  goodHabitsScore: "fldXXX",         // Goede Gewoontes Score
-}
-```
-
-**Update `Totaal Punten` formula in Airtable:**
-```
-{Mental Fitness Score} + {Persoonlijke Doelen Score} + {Goede Gewoontes Score} + {Bonus Punten}
-```
+Three score category fields have been added to Postgres (and synced to Airtable via outbox). Field mappings are configured in the codebase. All reads and writes go through Postgres exclusively.
 
 ## Phase 2: API Updates
 

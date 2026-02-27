@@ -1,20 +1,13 @@
 # Specs Status Matrix
 
-Status meanings:
-- `active`: feature spec still maps to current app behavior
-- `historical`: foundational/completed initiative kept for reference
-- `archive`: review/history material, not implementation scope
+All specs are active and reflect current app architecture (Postgres-first, outbox sync to Airtable).
 
 | Spec Folder | Status |
-|---|---|
-| `_feedback` | archive |
+|-|-|
 | `about-this-app` | active |
 | `account-page` | active |
 | `activity-based-progress` | active |
 | `ai-program-creation` | active |
-| `api-layer` | historical |
-| `app-shell` | historical |
-| `auth-system` | historical |
 | `automated-testing` | active |
 | `cache-busting-strategy` | active |
 | `delete-program` | active |
@@ -35,11 +28,10 @@ Status meanings:
 | `personal-goals` | active |
 | `postgres-airtable-async-sync` | active |
 | `program-creation` | active |
-| `project-setup` | historical |
 | `pull-to-refresh` | active |
 | `push-notifications` | active |
 | `react-query-caching` | active |
-| `reward-system` | active - redesigning |
+| `reward-system` | active |
 | `schedule-progress-indicators` | active |
 | `score-split-display` | active |
 | `user-nuke` | active |

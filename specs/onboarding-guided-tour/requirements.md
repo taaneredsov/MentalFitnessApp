@@ -29,44 +29,16 @@ This creates a "take users by the hand" experience that reduces confusion and im
 
 ### Content Structure
 
-```
-┌─────────────────────────────────────┐
-│                                     │
-│         [App Logo/Icon]             │
-│                                     │
-│   Welkom bij je Mental Fitness reis │
-│                                     │
-│   In een paar stappen maken we      │
-│   samen een programma dat bij       │
-│   jou past.                         │
-│                                     │
-│  ┌─────────────────────────────┐    │
-│  │ 🎯  Stap 1                  │    │
-│  │     Vertel ons wat je wilt  │    │
-│  │     bereiken                │    │
-│  └─────────────────────────────┘    │
-│              │                      │
-│  ┌─────────────────────────────┐    │
-│  │ 📅  Stap 2                  │    │
-│  │     Kies wanneer het jou    │    │
-│  │     uitkomt                 │    │
-│  └─────────────────────────────┘    │
-│              │                      │
-│  ┌─────────────────────────────┐    │
-│  │ ✨  Stap 3                  │    │
-│  │     Krijg je persoonlijke   │    │
-│  │     plan                    │    │
-│  └─────────────────────────────┘    │
-│                                     │
-│  Geen zorgen - je kunt je keuzes    │
-│  later altijd aanpassen.            │
-│                                     │
-│  Dit duurt ongeveer 2 minuten.      │
-│                                     │
-│        [Start mijn programma]       │
-│                                     │
-└─────────────────────────────────────┘
-```
+**Layout:**
+- App Logo/Icon (centered)
+- Headline: "Welkom bij je Mental Fitness reis"
+- Subtext: "In een paar stappen maken we samen een programma dat bij jou past."
+- Step 1: "Vertel ons wat je wilt bereiken"
+- Step 2: "Kies wanneer het jou uitkomt"
+- Step 3: "Krijg je persoonlijke plan"
+- Reassurance: "Geen zorgen - je kunt je keuzes later altijd aanpassen."
+- Time estimate: "Dit duurt ongeveer 2 minuten."
+- CTA button: "Start mijn programma"
 
 ### Design Requirements
 - Full-screen overlay or dedicated page

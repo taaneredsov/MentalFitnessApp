@@ -59,11 +59,15 @@ The current app focuses on methods (exercises) and personal goals, but lacks a m
 9. `npm run build` passes with zero errors
 10. All existing tests continue to pass
 
+## Architecture
+
+All API endpoints read from Postgres exclusively (Postgres-first with outbox sync to Airtable). Reference data (overtuigingen, mindset categories) is synced from Airtable to Postgres via the full-sync worker. User-generated data (usage, personal overtuigingen) is written to Postgres and synced to Airtable via the outbox.
+
 ## Dependencies
 
 - Airtable tables must be created manually before coding begins
 - Field IDs must be recorded via Airtable Meta API
-- Existing tables: Overtuigingen, Mindset Categorien (already exist in Airtable)
+- Existing tables: Overtuigingen, Mindset Categorien (already exist in Airtable, synced to Postgres)
 - New table: Overtuigingen Gebruik (must be created)
 - Modified tables: Programs (add overtuigingen link), Persoonlijke Overtuigingen (add program link + fields)
 

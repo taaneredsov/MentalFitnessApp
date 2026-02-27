@@ -2,32 +2,25 @@
 
 ## Overview
 
-Transform Tab 3 into a full Account page that displays user details (name, email, company). Requires adding an API endpoint to resolve company IDs to names from Airtable linked records.
+Transform Tab 3 into a full Account page that displays user details (name, email, company). Company data is served from Postgres.
 
 ## Phase 1: Company Lookup API
 
-Add an API endpoint to fetch company names by their Airtable record IDs.
+Add an API endpoint to fetch company names by record IDs from Postgres.
 
 ### Tasks
 
-- [x] Add company table configuration to Airtable client
+- [x] Add company lookup query to Postgres
 - [x] Create GET /api/companies/lookup endpoint
 - [x] Add company lookup function to frontend API client
 
 ### Technical Details
 
-**Update `api/_lib/airtable.js`** - Add companies table:
-```javascript
-export const tables = {
-  users: process.env.AIRTABLE_USER_TABLE_ID || "Users",
-  companies: process.env.AIRTABLE_COMPANY_TABLE_ID || "Bedrijf"
-}
-```
-
-**Create `api/companies/lookup.ts`**:
+**`api/companies/lookup.ts`**:
 ```typescript
 // GET /api/companies/lookup?ids=rec123,rec456
 // Returns: { success: true, data: { rec123: "Company A", rec456: "Company B" } }
+// Queries Postgres companies table
 ```
 
 The endpoint accepts comma-separated record IDs and returns a map of ID to company name.

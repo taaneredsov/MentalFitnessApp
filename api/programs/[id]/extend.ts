@@ -1,25 +1,13 @@
 import type { Request, Response } from "express"
-import { base, tables } from "../../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../../_lib/auth.js"
-import { getDataBackendMode } from "../../_lib/data-backend.js"
-import { isPostgresConfigured, withDbTransaction } from "../../_lib/db/client.js"
-import { isEntityId, isAirtableRecordId } from "../../_lib/db/id-utils.js"
-import {
-  transformProgram,
-  transformMethod,
-  transformDay,
-  PROGRAM_FIELDS,
-  PROGRAMMAPLANNING_FIELDS,
-  isValidRecordId
-} from "../../_lib/field-mappings.js"
+import { withDbTransaction } from "../../_lib/db/client.js"
+import { isEntityId } from "../../_lib/db/id-utils.js"
 import { getProgramByAnyId, toApiProgram } from "../../_lib/repos/program-repo.js"
 import { lookupDaysByIds, lookupMethodsByIds } from "../../_lib/repos/reference-repo.js"
 import { enqueueSyncEvent } from "../../_lib/sync/outbox.js"
 import { syncNotificationJobsForUser } from "../../_lib/notifications/planner.js"
-import type { AirtableRecord } from "../../_lib/types.js"
 
-const PROGRAMS_BACKEND_ENV = "DATA_BACKEND_PROGRAMS"
 const DAY_NAME_TO_WEEKDAY: Record<string, number> = {
   Zondag: 0,
   Maandag: 1,
@@ -155,83 +143,6 @@ function distributeMethodsEvenly(
   return schedule
 }
 
-async function fetchDays(dayIds: string[]): Promise<Array<{ id: string; name: string }>> {
-  const airtableDayIds = dayIds.filter(isAirtableRecordId)
-  if (airtableDayIds.length === 0) return []
-  const formula = `OR(${airtableDayIds.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
-  const records = await base(tables.daysOfWeek)
-    .select({
-      filterByFormula: formula,
-      returnFieldsByFieldId: true
-    })
-    .all()
-  return records.map((record) => transformDay(record as AirtableRecord))
-}
-
-async function fetchMethods(methodIds: string[]): Promise<Array<{ id: string; name: string; duration: number }>> {
-  const airtableMethodIds = methodIds.filter(isAirtableRecordId)
-  if (airtableMethodIds.length === 0) {
-    return methodIds.map((id) => ({ id, name: id, duration: 0 }))
-  }
-
-  const formula = `OR(${airtableMethodIds.map((id) => `RECORD_ID() = "${id}"`).join(",")})`
-  const records = await base(tables.methods)
-    .select({
-      filterByFormula: formula,
-      returnFieldsByFieldId: true
-    })
-    .all()
-
-  const detailsById = new Map<string, ReturnType<typeof transformMethod>>()
-  for (const record of records) {
-    detailsById.set(record.id, transformMethod(record as AirtableRecord))
-  }
-
-  return methodIds.map((id) => {
-    const details = detailsById.get(id)
-    if (!details) return { id, name: id, duration: 0 }
-    return {
-      id,
-      name: details.name,
-      duration: details.duration
-    }
-  })
-}
-
-async function createProgramplanningRecords(
-  programId: string,
-  goalIds: string[],
-  schedule: ScheduleDay[]
-): Promise<number> {
-  if (schedule.length === 0) return 0
-
-  const records: Array<{ fields: Record<string, unknown> }> = schedule.map((day) => {
-    const methodIds = day.methods.map((m) => m.methodId)
-    const sessionDescription = day.methods
-      .map((m) => `${m.methodName} (${m.duration} min)`)
-      .join("\n")
-
-    return {
-      fields: {
-        [PROGRAMMAPLANNING_FIELDS.program]: [programId],
-        [PROGRAMMAPLANNING_FIELDS.date]: day.date,
-        [PROGRAMMAPLANNING_FIELDS.dayOfWeek]: [day.dayId],
-        [PROGRAMMAPLANNING_FIELDS.methods]: methodIds,
-        [PROGRAMMAPLANNING_FIELDS.goals]: goalIds,
-        [PROGRAMMAPLANNING_FIELDS.sessionDescription]: sessionDescription
-      }
-    }
-  })
-
-  const BATCH_SIZE = 10
-  for (let i = 0; i < records.length; i += BATCH_SIZE) {
-    const batch = records.slice(i, i + BATCH_SIZE)
-    await base(tables.programmaplanning).create(batch, { typecast: true })
-  }
-
-  return records.length
-}
-
 function parseExtendRequest(body: Record<string, unknown>) {
   const weeksRaw = body.weeks
   if (weeksRaw === undefined) return { weeks: 4 }
@@ -241,83 +152,11 @@ function parseExtendRequest(body: Record<string, unknown>) {
   return { weeks: weeksRaw }
 }
 
-async function handlePostAirtable(req: Request, res: Response) {
-  try {
-    const auth = await requireAuth(req)
-    const { id } = req.params
-    if (!id || typeof id !== "string" || !isValidRecordId(id)) {
-      return sendError(res, "Invalid program ID", 400)
-    }
-
-    const parsed = parseExtendRequest(parseBody(req))
-    if ("error" in parsed) return sendError(res, parsed.error, 400)
-
-    const programRecords = await base(tables.programs)
-      .select({
-        filterByFormula: `RECORD_ID() = "${id}"`,
-        maxRecords: 1,
-        returnFieldsByFieldId: true
-      })
-      .firstPage()
-    if (programRecords.length === 0) {
-      return sendError(res, "Program not found", 404)
-    }
-
-    const ownerId = (programRecords[0].fields[PROGRAM_FIELDS.user] as string[] | undefined)?.[0]
-    if (ownerId !== auth.userId) {
-      return sendError(res, "Forbidden: You don't own this program", 403)
-    }
-
-    const program = transformProgram(programRecords[0] as AirtableRecord)
-    if (!Array.isArray(program.daysOfWeek) || program.daysOfWeek.length === 0) {
-      return sendError(res, "Program has no training days configured", 400)
-    }
-    if (!Array.isArray(program.methods) || program.methods.length === 0) {
-      return sendError(res, "Program has no methods configured", 400)
-    }
-    if (!program.endDate) {
-      return sendError(res, "Program has no end date", 400)
-    }
-
-    const today = getLocalDateStr(new Date())
-    const extensionStart = maxDate(addDays(program.endDate, 1), today)
-    const newEndDate = addDays(extensionStart, (parsed.weeks * 7) - 1)
-    const newDurationWeeks = calculateTotalWeeksFromStart(program.startDate, newEndDate)
-    const newDuration = `${newDurationWeeks} weken`
-    const newStatus = getProgramStatusByDates(program.startDate, newEndDate, today)
-
-    await base(tables.programs).update(
-      id,
-      {
-        [PROGRAM_FIELDS.duration]: newDuration,
-        [PROGRAM_FIELDS.status]: newStatus
-      },
-      { typecast: true }
-    )
-
-    const days = await fetchDays(program.daysOfWeek)
-    const methods = await fetchMethods(program.methods)
-    const trainingDates = calculateTrainingDates(extensionStart, newEndDate, days)
-    const newSchedule = distributeMethodsEvenly(methods, trainingDates)
-    const createdSessions = await createProgramplanningRecords(id, program.goals || [], newSchedule)
-
-    const refreshed = await base(tables.programs).find(id)
-    const updatedProgram = transformProgram(refreshed as AirtableRecord)
-    return sendSuccess(res, {
-      program: updatedProgram,
-      createdSessions,
-      extensionStart,
-      newEndDate
-    })
-  } catch (error) {
-    if (error instanceof AuthError) {
-      return sendError(res, error.message, error.status)
-    }
-    return handleApiError(res, error)
+export default async function handler(req: Request, res: Response) {
+  if (req.method !== "POST") {
+    return sendError(res, "Method not allowed", 405)
   }
-}
 
-async function handlePostPostgres(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
     const { id } = req.params
@@ -473,16 +312,4 @@ async function handlePostPostgres(req: Request, res: Response) {
     }
     return handleApiError(res, error)
   }
-}
-
-export default async function handler(req: Request, res: Response) {
-  if (req.method !== "POST") {
-    return sendError(res, "Method not allowed", 405)
-  }
-
-  const mode = getDataBackendMode(PROGRAMS_BACKEND_ENV)
-  if (mode === "postgres_primary" && isPostgresConfigured()) {
-    return handlePostPostgres(req, res)
-  }
-  return handlePostAirtable(req, res)
 }

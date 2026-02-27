@@ -4,20 +4,9 @@
 
 Implement media progress tracking in the MethodDetailPage, create an API endpoint to record completed sessions, add a feedback modal after media completion, and **link usage to Programmaplanning** when navigating from a program schedule.
 
-## Pre-requisites: Airtable Schema Update
+## Architecture Note
 
-Before implementation, the Airtable schema needs to be updated:
-
-### Required Airtable Changes
-
-1. **Method Usage table (tblktNOXF3yPPavXU)**:
-   - Add new field "Programmaplanning" (link to Programmaplanning table)
-   - **OR** rename existing "Mentale Fitnessprogramma's" field to link to Programmaplanning instead
-   - Get the new field ID for `METHOD_USAGE_FIELDS.programmaplanning`
-
-2. **Verify bidirectional link**:
-   - Programmaplanning table already has `methodUsage` field (`fldoxGlLYZ5NI60hl`)
-   - Ensure it's configured as the bidirectional link to Method Usage
+All method usage reads and writes go through Postgres. Airtable receives updates asynchronously via the outbox sync pattern. Airtable table IDs are referenced below for the sync layer field mappings only.
 
 ---
 
@@ -50,9 +39,9 @@ Add the Method Usage table field mappings and create the API endpoint.
 ```typescript
 // Request body
 {
-  userId: string              // Airtable user record ID
-  methodId: string            // Airtable method record ID
-  programmaplanningId?: string // Optional: Airtable Programmaplanning record ID
+  userId: string              // Postgres user ID
+  methodId: string            // Postgres method ID
+  programmaplanningId?: string // Optional: Postgres schedule record ID
   remark?: string             // Optional feedback text
 }
 
@@ -255,7 +244,7 @@ const isFullyCompleted = programmaplanning.methodIds.every(methodId =>
 ## Verification
 
 1. Play audio/video to 80% - verify completion triggers
-2. Check Airtable Method Usage table for new record
+2. Check Postgres `method_usage_pg` table for new record
 3. Verify record has correct user, method, and timestamp
 4. Submit feedback - verify Opmerking field is populated
 5. Skip feedback - verify record is still created without remark

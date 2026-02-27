@@ -3,9 +3,6 @@ import { z } from "zod"
 import { base, tables } from "../_lib/airtable.js"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
-import { PERSONAL_GOAL_USAGE_FIELDS, isValidRecordId } from "../_lib/field-mappings.js"
-import { getDataBackendMode } from "../_lib/data-backend.js"
-import { isPostgresConfigured } from "../_lib/db/client.js"
 import {
   countGoalUsageForUserGoalDate,
   createPersonalGoalUsage,
@@ -15,8 +12,6 @@ import {
 } from "../_lib/repos/personal-goal-usage-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { awardRewardActivity } from "../_lib/rewards/engine.js"
-
-const PERSONAL_GOAL_BACKEND_ENV = "DATA_BACKEND_PERSONAL_GOAL_USAGE"
 
 const POINTS = {
   personalGoal: 5
@@ -55,7 +50,7 @@ async function ensurePersonalGoalForUser(personalGoalId: string, userId: string)
   }
 }
 
-async function handleGetPostgres(req: Request, res: Response, tokenUserId: string) {
+async function handleGet(req: Request, res: Response, tokenUserId: string) {
   const { userId, date } = req.query
   const targetUserId = (typeof userId === "string" && userId) ? userId : tokenUserId
 
@@ -70,7 +65,7 @@ async function handleGetPostgres(req: Request, res: Response, tokenUserId: strin
   return sendSuccess(res, counts)
 }
 
-async function handlePostPostgres(req: Request, res: Response, tokenUserId: string) {
+async function handlePost(req: Request, res: Response, tokenUserId: string) {
   const body = createUsageSchema.parse(parseBody(req))
 
   if (body.userId !== tokenUserId) {
@@ -107,11 +102,10 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
     await awardRewardActivity({
       userId: body.userId,
       activityType: "personalGoal",
-      activityDate: body.date,
-      forcePostgres: true
+      activityDate: body.date
     })
   } catch (err) {
-    console.error("[personal-goal-usage] awardRewardActivity failed (postgres):", err)
+    console.error("[personal-goal-usage] awardRewardActivity failed:", err)
     pointsAwarded = 0
   }
 
@@ -123,135 +117,15 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
   }, 201)
 }
 
-async function handleGetAirtable(req: Request, res: Response, tokenUserId: string) {
-  const { userId, date } = req.query
-  const targetUserId = (typeof userId === "string" && userId) ? userId : tokenUserId
-
-  if (targetUserId !== tokenUserId) {
-    return sendError(res, "Cannot view another user's personal goal usage", 403)
-  }
-
-  if (!date || typeof date !== "string") {
-    return sendError(res, "date is required", 400)
-  }
-
-  if (!isValidRecordId(targetUserId)) {
-    return sendError(res, "Invalid user ID format", 400)
-  }
-
-  const allRecords = await base(tables.personalGoalUsage)
-    .select({
-      returnFieldsByFieldId: true
-    })
-    .all()
-
-  const counts: Record<string, { today: number; total: number }> = {}
-  allRecords.forEach(r => {
-    const fields = r.fields as Record<string, unknown>
-    const userField = fields[PERSONAL_GOAL_USAGE_FIELDS.user] as string[] | undefined
-    if (!userField?.includes(targetUserId)) return
-
-    const goalField = fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal] as string[] | undefined
-    const recordDate = fields[PERSONAL_GOAL_USAGE_FIELDS.date] as string | undefined
-    const goalId = goalField?.[0]
-    if (!goalId) return
-    if (!counts[goalId]) counts[goalId] = { today: 0, total: 0 }
-    counts[goalId].total += 1
-    if (recordDate === date) counts[goalId].today += 1
-  })
-
-  return sendSuccess(res, counts)
-}
-
-async function handlePostAirtable(req: Request, res: Response, tokenUserId: string) {
-  const body = createUsageSchema.parse(parseBody(req))
-
-  if (body.userId !== tokenUserId) {
-    return sendError(res, "Cannot create personal goal usage for another user", 403)
-  }
-  if (!isValidRecordId(body.userId) || !isValidRecordId(body.personalGoalId)) {
-    return sendError(res, "Invalid ID format", 400)
-  }
-
-  try {
-    const goalRecord = await base(tables.personalGoals).find(body.personalGoalId)
-    const goalFields = goalRecord.fields as Record<string, unknown>
-    const goalUserIds = goalFields["Gebruikers"] as string[] | undefined
-    if (!goalUserIds?.includes(tokenUserId)) {
-      return sendError(res, "Cannot complete another user's personal goal", 403)
-    }
-  } catch {
-    return sendError(res, "Personal goal not found", 404)
-  }
-
-  const record = await base(tables.personalGoalUsage).create({
-    [PERSONAL_GOAL_USAGE_FIELDS.user]: [body.userId],
-    [PERSONAL_GOAL_USAGE_FIELDS.personalGoal]: [body.personalGoalId],
-    [PERSONAL_GOAL_USAGE_FIELDS.date]: body.date
-  }, {
-    typecast: true
-  })
-
-  const allRecords = await base(tables.personalGoalUsage)
-    .select({
-      returnFieldsByFieldId: true
-    })
-    .all()
-
-  let todayCount = 0
-  let totalCount = 0
-  allRecords.forEach(r => {
-    const fields = r.fields as Record<string, unknown>
-    const userField = fields[PERSONAL_GOAL_USAGE_FIELDS.user] as string[] | undefined
-    const goalField = fields[PERSONAL_GOAL_USAGE_FIELDS.personalGoal] as string[] | undefined
-    const recordDate = fields[PERSONAL_GOAL_USAGE_FIELDS.date] as string | undefined
-    if (!userField?.includes(body.userId)) return
-    if (goalField?.[0] !== body.personalGoalId) return
-    totalCount += 1
-    if (recordDate === body.date) todayCount += 1
-  })
-
-  let pointsAwarded: number = POINTS.personalGoal
-  try {
-    await awardRewardActivity({
-      userId: body.userId,
-      activityType: "personalGoal",
-      activityDate: body.date
-    })
-  } catch (err) {
-    console.error("[personal-goal-usage] awardRewardActivity failed (airtable):", err)
-    pointsAwarded = 0
-  }
-
-  return sendSuccess(res, {
-    id: record.id,
-    pointsAwarded,
-    todayCount,
-    totalCount
-  }, 201)
-}
-
 export default async function handler(req: Request, res: Response) {
   try {
     const auth = await requireAuth(req)
-    const mode = getDataBackendMode(PERSONAL_GOAL_BACKEND_ENV)
-    const usePostgres = mode === "postgres_primary" && isPostgresConfigured()
 
     switch (req.method) {
       case "GET":
-        if (usePostgres) {
-          return handleGetPostgres(req, res, auth.userId)
-        }
-        if (mode === "postgres_shadow_read" && isPostgresConfigured()) {
-          void handleGetPostgres(req, res, auth.userId)
-            .then(() => undefined)
-            .catch((error) => console.warn("[personal-goal-usage] shadow read failed:", error))
-        }
-        return handleGetAirtable(req, res, auth.userId)
+        return handleGet(req, res, auth.userId)
       case "POST":
-        return usePostgres
-          ? handlePostPostgres(req, res, auth.userId)
-          : handlePostAirtable(req, res, auth.userId)
+        return handlePost(req, res, auth.userId)
       default:
         return sendError(res, "Method not allowed", 405)
     }

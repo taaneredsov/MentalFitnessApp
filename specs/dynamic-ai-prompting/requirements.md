@@ -2,15 +2,15 @@
 
 ## Overview
 
-AI program generation prompts are data-driven and stored in the database-backed reference layer, with Airtable as source-of-truth and Postgres cache tables for resilience.
+AI program generation prompts are data-driven and stored in Postgres reference tables, synced from Airtable. All API reads come from Postgres exclusively.
 
 ## Current Implementation
 
-1. Prompt content is modeled in Airtable table `programPrompts` (`tables.programPrompts`).
-2. Prompt records are synced into Postgres reference table `reference_program_prompts_pg`.
+1. Prompt content is authored in Airtable table `programPrompts` (`tables.programPrompts`).
+2. Prompt records are synced into Postgres reference table `reference_program_prompts_pg` (Airtable -> Postgres sync).
 3. Experience level records are synced into `reference_experience_levels_pg`.
-4. Program generation loads prompts through `loadProgramGenerationData()` and builds runtime system prompts and goal-specific prompt blocks.
-5. If Postgres load fails, the code falls back to direct Airtable reads.
+4. Program generation loads prompts from Postgres through `loadProgramGenerationData()` and builds runtime system prompts and goal-specific prompt blocks.
+5. All reads come from Postgres. No direct Airtable reads from API endpoints.
 
 ## Verified Evidence
 

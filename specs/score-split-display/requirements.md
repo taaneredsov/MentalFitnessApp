@@ -63,7 +63,7 @@ Split the gamification score into **3 separate categories** displayed as distinc
 - Update `Total Points` formula to sum all three
 
 ### FR-3: Score Calculation
-- Mental Fitness: Sum of each method's `points_value` (1-10 per method, from Airtable `Punten waarde` field)
+- Mental Fitness: Sum of each method's `points_value` (1-10 per method, from `Punten waarde` field / `fldcyKMc8Q02H2QGN`)
 - Personal Goals: Count of personal goal completions * 5
 - Good Habits: Count of habit completions * 5
 - Overtuiging: +1 bonus to total (not a separate category)
@@ -79,26 +79,24 @@ Split the gamification score into **3 separate categories** displayed as distinc
 ## UI/UX Design
 
 ### Widget Layout
-```
-┌─────────────────┐ ┌─────────────────┐ ┌─────────────────┐
-│ 🧠 Mental       │ │ 🎯 Personal     │ │ ✓ Good         │
-│    Fitness      │ │    Goals        │ │   Habits       │
-│    ────────     │ │    ────────     │ │    ────────    │
-│    250 pts      │ │    120 pts      │ │    85 pts      │
-└─────────────────┘ └─────────────────┘ └─────────────────┘
-```
+
+Three cards in a horizontal row, each showing: category icon, category name, score value. See `ScoreWidgets.tsx` component in `specs/score-split-display/implementation-plan.md`.
 
 ### Icons
 - Mental Fitness: Brain icon (🧠)
 - Personal Goals: Target icon (🎯)
 - Good Habits: Check circle (✓)
 
+## Architecture
+
+All API endpoints read from and write to Postgres exclusively (Postgres-first with outbox sync to Airtable). Score fields are stored in Postgres and synced to Airtable user records via the outbox. The reward engine uses Postgres only.
+
 ## Dependencies
 
 - Personal Goals feature (completed)
 - Good Habits feature (completed)
 - Reward system (completed)
-- Airtable User table schema
+- Postgres user table with score fields (synced to Airtable via outbox)
 
 ## Out of Scope
 

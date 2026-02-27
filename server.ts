@@ -8,9 +8,6 @@ import { fileURLToPath } from "url"
 import { loadSecrets } from "./api/_lib/secrets.js"
 loadSecrets()
 
-// Warn if production has DATABASE_URL but backend keys still point at Airtable
-import { validateProductionConfig } from "./api/_lib/data-backend.js"
-validateProductionConfig()
 
 const __filename = fileURLToPath(import.meta.url)
 const __dirname = path.dirname(__filename)

@@ -8,8 +8,8 @@ This feature adds:
 2. **Dedicated webhook endpoint** for Airtable-driven user upsert/delete events.
 
 ## Problem Statement
-- Current architecture is Postgres-first for app responsiveness.
-- Some users are still created in Airtable first.
+- All API endpoints read from Postgres exclusively (Postgres-first with outbox sync to Airtable).
+- Some users are still created in Airtable first (admin workflow).
 - If user records are not yet synced to Postgres, login can fail or be delayed.
 - Background polling alone is insufficient for first-login correctness.
 
@@ -65,13 +65,13 @@ This feature adds:
 - Auth path read-through should not add more than ~300ms p95 for miss cases under normal Airtable/API conditions.
 - Endpoint and auth flows must degrade gracefully when Airtable is unavailable:
   - Existing Postgres users must still log in.
-  - Airtable-first users receive clear transient error.
+  - Users not yet synced from Airtable receive clear transient error.
 - Security:
   - Reject unsigned/invalid webhook payloads.
   - Avoid leaking existence details in auth error responses.
 
 ## Acceptance Criteria
-- [ ] Airtable-first user can log in immediately without waiting for background sync.
+- [ ] User created in Airtable can log in immediately without waiting for background sync.
 - [ ] Concurrent first-login attempts do not create duplicate Postgres user rows.
 - [ ] Webhook endpoint accepts valid signed events and upserts user to Postgres.
 - [ ] Replayed webhook event is idempotent (no duplicate side effects).
