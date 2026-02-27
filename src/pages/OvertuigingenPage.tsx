@@ -1,11 +1,12 @@
 import { useState, useMemo, useCallback } from "react"
-import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging, useCreatePersoonlijkeOvertuiging, useDeletePersoonlijkeOvertuiging } from "@/hooks/queries"
+import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging, useCreatePersoonlijkeOvertuiging, useDeletePersoonlijkeOvertuiging, usePrograms, useUpdateProgram } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import type { OvertuigingUsageMap, MindsetCategory } from "@/types/program"
+import { getRunningProgram } from "@/types/program"
 import { Loader2, Search, X, Lightbulb, Check, Star, ChevronDown, Plus, Trash2 } from "lucide-react"
 
 const EXCLUDED_SYSTEM_CATEGORY_NAME = "mijn eigen overtuigingen"
@@ -19,7 +20,8 @@ function OvertuigingCard({
   onComplete,
   isPending,
   recentlyCompleted,
-  onDelete
+  onDelete,
+  onAddToProgram
 }: {
   title: string
   categoryName?: string
@@ -28,6 +30,7 @@ function OvertuigingCard({
   isPending: boolean
   recentlyCompleted: boolean
   onDelete?: () => void
+  onAddToProgram?: () => void
 }) {
   return (
     <Card className="overflow-hidden">
@@ -61,6 +64,15 @@ function OvertuigingCard({
               <Star className="h-3 w-3" />
               +{POINTS.overtuiging}
             </span>
+          )}
+          {onAddToProgram && !completed && (
+            <button
+              onClick={onAddToProgram}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-300 hover:text-primary hover:bg-primary/10 transition-colors"
+              aria-label="Toevoegen aan programma"
+            >
+              <Plus className="h-4 w-4" />
+            </button>
           )}
           {onDelete && !completed && (
             <button
@@ -105,10 +117,19 @@ export function OvertuigingenPage() {
 
   const [newOvertuigingName, setNewOvertuigingName] = useState("")
 
+  const { data: programs = [] } = usePrograms(user?.id)
+  const runningProgram = useMemo(() => getRunningProgram(programs), [programs])
+
   const completeOvertuigingMutation = useCompleteOvertuiging()
   const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()
   const createPersoonlijkeMutation = useCreatePersoonlijkeOvertuiging()
   const deletePersoonlijkeMutation = useDeletePersoonlijkeOvertuiging()
+  const updateProgramMutation = useUpdateProgram()
+
+  const programOvertuigingIds = useMemo(
+    () => new Set(runningProgram?.overtuigingen || []),
+    [runningProgram?.overtuigingen]
+  )
 
   const isLoading = overtuigingenLoading || categoriesLoading || persoonlijkeLoading
   const error = overtuigingenError
@@ -162,6 +183,17 @@ export function OvertuigingenPage() {
   const handleDeletePersoonlijke = (id: string) => {
     if (!accessToken) return
     deletePersoonlijkeMutation.mutate({ id, accessToken })
+  }
+
+  const handleAddToProgram = (overtuigingId: string) => {
+    if (!accessToken || !runningProgram) return
+    const currentIds = runningProgram.overtuigingen || []
+    if (currentIds.includes(overtuigingId)) return
+    updateProgramMutation.mutate({
+      id: runningProgram.id,
+      data: { overtuigingen: [...currentIds, overtuigingId] },
+      accessToken
+    })
   }
 
   const excludedCategoryIds = useMemo(() => {
@@ -411,6 +443,7 @@ export function OvertuigingenPage() {
               onComplete={() => handleComplete(overtuiging.id)}
               isPending={completeOvertuigingMutation.isPending}
               recentlyCompleted={recentlyCompletedId === `system:${overtuiging.id}`}
+              onAddToProgram={runningProgram && !programOvertuigingIds.has(overtuiging.id) ? () => handleAddToProgram(overtuiging.id) : undefined}
             />
           ))}
 
