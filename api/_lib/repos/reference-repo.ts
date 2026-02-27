@@ -33,6 +33,12 @@ export async function getMethodById(id: string): Promise<Record<string, unknown>
   return transformMethod({ id: row.id, fields: row.payload })
 }
 
+export async function getMethodPointsValue(methodId: string): Promise<number> {
+  const method = await getMethodById(methodId)
+  if (!method) return 5 // safe default
+  return Number((method as Record<string, unknown>).pointsValue) || 5
+}
+
 export async function getMethodsByGoalId(goalId: string): Promise<Record<string, unknown>[]> {
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
     `SELECT id, payload FROM reference_methods_pg`

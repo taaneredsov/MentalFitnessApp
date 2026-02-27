@@ -146,7 +146,8 @@ export const METHOD_FIELDS = {
   media: "fldobaP1oS9uZKTh2",            // Media (Link to Media table)
   users: "fldizDnwdWMO7UfSz",            // Gebruikers (Link)
   programs: "fld36JCBhGcXYurrp",          // Mentale Fitnessprogramma's (Link)
-  techniek: "fldW7tdp7AJoeKerd"           // Techniek (Rich text)
+  techniek: "fldW7tdp7AJoeKerd",          // Techniek (Rich text)
+  pointsValue: "fldcyKMc8Q02H2QGN",       // Punten waarde (1-10)
 }
 
 // Experience Levels table field IDs (Ervaringsniveaus - tblt5lzx2Msw1aKxv)
@@ -515,7 +516,8 @@ export function transformMethod(record) {
     linkedGoalIds: fields[METHOD_FIELDS.linkedGoals] || [],           // Linked record IDs to Goals
     techniek: fields[METHOD_FIELDS.techniek],
     photo: fields[METHOD_FIELDS.photo]?.[0]?.thumbnails?.large?.url || fields[METHOD_FIELDS.photo]?.[0]?.url,
-    media: fields[METHOD_FIELDS.media] || []  // Linked record IDs to Media table
+    media: fields[METHOD_FIELDS.media] || [],  // Linked record IDs to Media table
+    pointsValue: Number(fields[METHOD_FIELDS.pointsValue]) || 5  // default 5 if unset
   }
 }
 
