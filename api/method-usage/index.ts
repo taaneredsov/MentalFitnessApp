@@ -16,6 +16,8 @@ import {
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { getProgramByAnyId, getProgramSessionByAnyId } from "../_lib/repos/program-repo.js"
 import { syncNotificationJobsForUser } from "../_lib/notifications/planner.js"
+import { awardRewardActivity } from "../_lib/rewards/engine.js"
+import { getMethodPointsValue } from "../_lib/repos/reference-repo.js"
 import type { AirtableRecord } from "../_lib/types.js"
 
 const METHOD_USAGE_BACKEND_ENV = "DATA_BACKEND_METHOD_USAGE"
@@ -116,7 +118,21 @@ async function handlePostPostgres(req: Request, res: Response) {
 
     await syncNotificationJobsForUser(auth.userId)
 
-    return sendSuccess(res, toApiMethodUsage(usage), 201)
+    let pointsAwarded = 0
+    try {
+      const methodPoints = await getMethodPointsValue(body.methodId)
+      await awardRewardActivity({
+        userId: auth.userId,
+        activityType: "method",
+        activityDate: new Date().toISOString().slice(0, 10),
+        forcePostgres: true
+      })
+      pointsAwarded = methodPoints
+    } catch (err) {
+      console.error("[method-usage] awardRewardActivity failed:", err)
+    }
+
+    return sendSuccess(res, { ...toApiMethodUsage(usage), pointsAwarded }, 201)
   } catch (error) {
     if (error instanceof AuthError) {
       return sendError(res, error.message, error.status)
@@ -210,7 +226,21 @@ async function handlePostAirtable(req: Request, res: Response) {
 
     const record = await base(tables.methodUsage).create(fields, { typecast: true })
     const usage = transformMethodUsage(record as AirtableRecord)
-    return sendSuccess(res, usage, 201)
+
+    let pointsAwarded = 0
+    try {
+      const methodPoints = await getMethodPointsValue(body.methodId)
+      await awardRewardActivity({
+        userId: auth.userId,
+        activityType: "method",
+        activityDate: new Date().toISOString().slice(0, 10)
+      })
+      pointsAwarded = methodPoints
+    } catch (err) {
+      console.error("[method-usage] awardRewardActivity failed:", err)
+    }
+
+    return sendSuccess(res, { ...usage, pointsAwarded }, 201)
   } catch (error) {
     if (error instanceof AuthError) {
       return sendError(res, error.message, error.status)
