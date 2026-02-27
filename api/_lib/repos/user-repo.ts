@@ -427,6 +427,32 @@ export async function updateUserGoedeGewoontes(userId: string, goedeGewoonteIds:
   )
 }
 
+/**
+ * Count consecutive completed scheduled sessions (backward from today).
+ * A session is "completed" when it has method_usage_ids populated.
+ * Only considers sessions with planned_date <= today.
+ */
+export async function getScheduledSessionStreak(userId: string): Promise<number> {
+  const result = await dbQuery<{ planned_date: string; is_completed: boolean }>(
+    `SELECT ps.planned_date,
+            (ps.method_usage_ids IS NOT NULL AND array_length(ps.method_usage_ids, 1) > 0) as is_completed
+     FROM program_schedule_pg ps
+     JOIN programs_pg p ON p.id = ps.program_id
+     WHERE p.user_id = $1 AND ps.planned_date <= CURRENT_DATE
+     ORDER BY ps.planned_date DESC`,
+    [userId]
+  )
+  let streak = 0
+  for (const row of result.rows) {
+    if (row.is_completed) {
+      streak++
+    } else {
+      break
+    }
+  }
+  return streak
+}
+
 export async function getUserGoedeGewoontes(userId: string): Promise<string[]> {
   const result = await dbQuery<{ goede_gewoontes: string }>(
     `SELECT goede_gewoontes FROM users_pg WHERE id = $1 LIMIT 1`,

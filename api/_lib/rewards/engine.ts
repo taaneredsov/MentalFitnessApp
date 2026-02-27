@@ -11,7 +11,7 @@ import {
 import { getDataBackendMode } from "../data-backend.js"
 import { isPostgresConfigured } from "../db/client.js"
 import { enqueueSyncEvent } from "../sync/outbox.js"
-import { getUserRewardStats, updateUserRewardFields } from "../repos/user-repo.js"
+import { getUserRewardStats, updateUserRewardFields, getScheduledSessionStreak } from "../repos/user-repo.js"
 import { diffIsoDays, getTodayLocalDate, normalizeDateString } from "./date-utils.js"
 import { getProgramByAnyId } from "../repos/program-repo.js"
 import { isAirtableRecordId } from "../db/id-utils.js"
@@ -408,16 +408,24 @@ function buildAwardResult(input: {
   activityType: RewardActivityType
   activityDate: string
   milestone?: number
+  precomputedStreak?: { currentStreak: number; longestStreak: number }
 }): {
   nextState: RewardState
   result: AwardRewardResult
 } {
-  const streak = computeStreak({
-    currentStreak: input.state.currentStreak,
-    longestStreak: input.state.longestStreak,
-    lastActiveDate: input.state.lastActiveDate,
-    activityDate: input.activityDate
-  })
+  const streak = input.precomputedStreak
+    ? {
+        currentStreak: input.precomputedStreak.currentStreak,
+        longestStreak: input.precomputedStreak.longestStreak,
+        lastActiveDate: input.state.lastActiveDate,
+        streakUpdated: true
+      }
+    : computeStreak({
+        currentStreak: input.state.currentStreak,
+        longestStreak: input.state.longestStreak,
+        lastActiveDate: input.state.lastActiveDate,
+        activityDate: input.activityDate
+      })
 
   const bonusAwarded = calculateBonusAward({
     activityType: input.activityType,
@@ -486,11 +494,15 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
   }
 
   const activityDate = normalizeDateString(input.activityDate) || getTodayLocalDate()
+
+  const programStreak = await getScheduledSessionStreak(input.userId)
+  const longestStreak = Math.max(stats.user.longestStreak, programStreak)
+
   const state: RewardState = {
     totalPoints: toBaseTotalPoints(stats),
     bonusPoints: stats.user.bonusPoints,
-    currentStreak: stats.user.currentStreak,
-    longestStreak: stats.user.longestStreak,
+    currentStreak: programStreak,
+    longestStreak,
     lastActiveDate: normalizeDateString(stats.user.lastActiveDate),
     badges,
     level: stats.user.level
@@ -513,8 +525,11 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
     counts: stats,
     activityType: input.activityType,
     activityDate,
-    milestone
+    milestone,
+    precomputedStreak: { currentStreak: programStreak, longestStreak }
   })
+
+  nextState.lastActiveDate = activityDate
 
   const mentalFitnessScore = stats.methodPointsSum + nextState.bonusPoints
   const personalGoalsScore = stats.personalGoalCount * 5
