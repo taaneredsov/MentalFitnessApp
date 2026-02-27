@@ -610,6 +610,13 @@ export function useCompletePersonalGoal() {
       }))
       // Invalidate rewards to reconcile with server (POST has completed, server data is fresh)
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+    },
+    onSettled: (_data, _error, variables) => {
+      // Safety net: force refetch to ensure UI is always in sync
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.personalGoalUsage(variables.data.userId, variables.data.date)
+      })
+      queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
     }
   })
 }
