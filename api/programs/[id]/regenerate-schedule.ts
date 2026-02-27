@@ -15,8 +15,7 @@ import {
   buildSystemPrompt,
   AI_PROGRAM_SCHEMA,
   type AIProgramResponse,
-  type TrainingDate,
-  type AIMethod
+  type TrainingDate
 } from "../../_lib/openai.js"
 
 // Day name to JS weekday mapping

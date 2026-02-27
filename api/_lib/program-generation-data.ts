@@ -11,7 +11,6 @@ import {
 } from "./field-mappings.js"
 import {
   listAllMethods,
-  listAllGoals,
   listAllDays,
   listAllMindsetCategories,
   listAllOvertuigingen,
