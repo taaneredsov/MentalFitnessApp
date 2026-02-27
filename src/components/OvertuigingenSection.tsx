@@ -3,12 +3,12 @@ import { useTranslation } from "react-i18next"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { AddOvertuigingDialog } from "@/components/AddOvertuigingDialog"
-import { useOvertuigingen, useOvertuigingUsage, usePersoonlijkeOvertuigingen, useCompleteOvertuiging, useUpdatePersoonlijkeOvertuiging, useProgram, useOvertuigingsByGoals, useMindsetCategories } from "@/hooks/queries"
+import { useOvertuigingen, useOvertuigingUsage, usePersoonlijkeOvertuigingen, useCompleteOvertuiging, useUpdatePersoonlijkeOvertuiging, useDeletePersoonlijkeOvertuiging, useUpdateProgram, useProgram, useOvertuigingsByGoals, useMindsetCategories } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
 import type { OvertuigingUsageMap } from "@/types/program"
-import { Lightbulb, Plus, Star, Check, ChevronDown } from "lucide-react"
+import { Lightbulb, Plus, Star, Check, ChevronDown, X } from "lucide-react"
 
 interface OvertuigingenSectionProps {
   programId: string
@@ -61,6 +61,8 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
 
   const completeOvertuigingMutation = useCompleteOvertuiging()
   const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()
+  const deletePersoonlijkeMutation = useDeletePersoonlijkeOvertuiging()
+  const updateProgramMutation = useUpdateProgram()
 
   const [recentlyCompleted, setRecentlyCompleted] = useState<string | null>(null)
   const [showAddDialog, setShowAddDialog] = useState(false)
@@ -135,6 +137,22 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
         setRecentlyCompleted(null)
       }
     })
+  }
+
+  const handleRemoveFromProgram = (overtuigingId: string) => {
+    if (!accessToken || !programId) return
+    const currentIds = program?.overtuigingen || []
+    const updated = currentIds.filter(id => id !== overtuigingId)
+    updateProgramMutation.mutate({
+      id: programId,
+      data: { overtuigingen: updated },
+      accessToken
+    })
+  }
+
+  const handleDeletePersoonlijke = (id: string) => {
+    if (!accessToken) return
+    deletePersoonlijkeMutation.mutate({ id, accessToken })
   }
 
   const hasItems = programOvertuigingen.length > 0 || activePersoonlijke.length > 0
@@ -229,6 +247,14 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                       </span>
                     )}
                     <button
+                      onClick={() => handleRemoveFromProgram(overtuiging.id)}
+                      disabled={updateProgramMutation.isPending}
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-destructive transition-colors"
+                      aria-label="Overtuiging verwijderen uit lijst"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
+                    <button
                       onClick={() => handleComplete(overtuiging.id)}
                       disabled={completeOvertuigingMutation.isPending}
                       className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-gray-200 text-gray-400 hover:bg-gray-300"
@@ -301,6 +327,14 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                         +{POINTS.overtuiging}
                       </span>
                     )}
+                    <button
+                      onClick={() => handleDeletePersoonlijke(item.id)}
+                      disabled={deletePersoonlijkeMutation.isPending}
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center text-muted-foreground/40 hover:text-destructive transition-colors"
+                      aria-label="Persoonlijke overtuiging verwijderen"
+                    >
+                      <X className="h-5 w-5" />
+                    </button>
                     <button
                       onClick={() => handleCompletePersoonlijke(item.id)}
                       disabled={updatePersoonlijkeMutation.isPending}

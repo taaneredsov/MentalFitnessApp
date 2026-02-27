@@ -87,7 +87,7 @@ export const fallbackTranslations: Record<string, Record<string, string>> = {
     "wizard.generating.optimizing": "We optimaliseren je programma...",
     "wizard.generating.almostDone": "Bijna klaar...",
     "wizard.review.title": "Controleer je programma",
-    "wizard.review.subtitle": "Bekijk je schema hieronder en klik op <strong>Bevestig Programma</strong> om te starten.",
+    "wizard.review.subtitle": "Bekijk je schema hieronder en klik op <strong>Bevestig Programma</strong> (helemaal onderaan) om te starten.",
     "wizard.review.summary": "Overzicht",
     "wizard.review.saving": "Bezig met opslaan...",
     "wizard.review.confirm": "Bevestig Programma",

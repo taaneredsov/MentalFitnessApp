@@ -287,7 +287,8 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
                 onKeyDown={handleKeyDown}
                 className="border-0 px-2 py-2 h-auto text-sm focus-visible:ring-0 shadow-none w-full"
               />
-              <div className="flex gap-1">
+              <div className="flex items-center gap-1 flex-wrap">
+                <span className="text-xs text-muted-foreground mr-1">Planning (optioneel):</span>
                 {DAY_CHIPS.map(({ key, label }) => (
                   <button
                     key={key}

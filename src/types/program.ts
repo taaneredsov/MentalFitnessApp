@@ -89,6 +89,7 @@ export interface Method {
   linkedGoalIds?: string[]  // Linked record IDs to Goals
   photo?: string
   media?: string[]  // Linked record IDs to Media table
+  pointsValue?: number  // Points awarded for completing (1-10, default 5)
 }
 
 export interface MethodDetail extends Method {

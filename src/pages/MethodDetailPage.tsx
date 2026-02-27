@@ -384,6 +384,7 @@ export function MethodDetailPage() {
         methodName={method.name}
         onSubmit={handleSubmitFeedback}
         onSkip={handleSkipFeedback}
+        pointsAwarded={method.pointsValue ?? 5}
       />
 
       {/* Reward Toast */}

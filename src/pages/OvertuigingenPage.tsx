@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from "react"
-import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging, useCreatePersoonlijkeOvertuiging } from "@/hooks/queries"
+import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging, useCreatePersoonlijkeOvertuiging, useDeletePersoonlijkeOvertuiging } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import type { OvertuigingUsageMap, MindsetCategory } from "@/types/program"
-import { Loader2, Search, X, Lightbulb, Check, Star, ChevronDown, Plus } from "lucide-react"
+import { Loader2, Search, X, Lightbulb, Check, Star, ChevronDown, Plus, Trash2 } from "lucide-react"
 
 const EXCLUDED_SYSTEM_CATEGORY_NAME = "mijn eigen overtuigingen"
 const PERSONAL_CATEGORY_ID = "__personal__"
@@ -18,7 +18,8 @@ function OvertuigingCard({
   completed,
   onComplete,
   isPending,
-  recentlyCompleted
+  recentlyCompleted,
+  onDelete
 }: {
   title: string
   categoryName?: string
@@ -26,6 +27,7 @@ function OvertuigingCard({
   onComplete: () => void
   isPending: boolean
   recentlyCompleted: boolean
+  onDelete?: () => void
 }) {
   return (
     <Card className="overflow-hidden">
@@ -52,13 +54,22 @@ function OvertuigingCard({
           )}
         </div>
 
-        {/* Check button + points */}
-        <div className="flex items-center gap-2 shrink-0">
+        {/* Actions */}
+        <div className="flex items-center gap-1.5 shrink-0">
           {recentlyCompleted && (
             <span className="flex items-center gap-0.5 text-xs font-medium text-primary animate-in fade-in zoom-in duration-300">
               <Star className="h-3 w-3" />
               +{POINTS.overtuiging}
             </span>
+          )}
+          {onDelete && !completed && (
+            <button
+              onClick={onDelete}
+              className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+              aria-label="Overtuiging verwijderen"
+            >
+              <Trash2 className="h-4 w-4" />
+            </button>
           )}
           <button
             onClick={onComplete}
@@ -97,6 +108,7 @@ export function OvertuigingenPage() {
   const completeOvertuigingMutation = useCompleteOvertuiging()
   const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()
   const createPersoonlijkeMutation = useCreatePersoonlijkeOvertuiging()
+  const deletePersoonlijkeMutation = useDeletePersoonlijkeOvertuiging()
 
   const isLoading = overtuigingenLoading || categoriesLoading || persoonlijkeLoading
   const error = overtuigingenError
@@ -145,6 +157,11 @@ export function OvertuigingenPage() {
         setRecentlyCompletedId(null)
       }
     })
+  }
+
+  const handleDeletePersoonlijke = (id: string) => {
+    if (!accessToken) return
+    deletePersoonlijkeMutation.mutate({ id, accessToken })
   }
 
   const excludedCategoryIds = useMemo(() => {
@@ -407,6 +424,7 @@ export function OvertuigingenPage() {
               onComplete={() => handleCompletePersoonlijke(item.id)}
               isPending={updatePersoonlijkeMutation.isPending}
               recentlyCompleted={recentlyCompletedId === `personal:${item.id}`}
+              onDelete={() => handleDeletePersoonlijke(item.id)}
             />
           ))}
 
