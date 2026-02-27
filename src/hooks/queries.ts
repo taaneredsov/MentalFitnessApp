@@ -233,6 +233,8 @@ export function useExtendProgram(programId: string) {
 export function useRecordMethodUsage() {
   const queryClient = useQueryClient()
 
+  const rewardsKey = queryKeys.rewards
+
   return useMutation({
     mutationFn: ({
       data,
@@ -241,6 +243,18 @@ export function useRecordMethodUsage() {
       data: { userId: string; methodId: string; programId?: string; remark?: string }
       accessToken: string
     }) => api.methodUsage.create(data, accessToken),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: rewardsKey })
+      const previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
+      if (previousRewards) {
+        queryClient.setQueryData<UserRewards>(rewardsKey, {
+          ...previousRewards,
+          mentalFitnessScore: (previousRewards.mentalFitnessScore ?? 0) + 5,
+          totalPoints: (previousRewards.totalPoints ?? 0) + 5
+        })
+      }
+      return { previousRewards }
+    },
     onSuccess: (_data, variables) => {
       // Invalidate method usage for the program (if provided)
       if (variables.data.programId) {
@@ -250,10 +264,17 @@ export function useRecordMethodUsage() {
       }
       // Invalidate programs list so homepage shows updated progress
       queryClient.invalidateQueries({ queryKey: ["programs"] })
+      queryClient.invalidateQueries({ queryKey: rewardsKey })
     },
-    onError: (error) => {
+    onError: (error, _variables, context) => {
+      if (context?.previousRewards) {
+        queryClient.setQueryData(rewardsKey, context.previousRewards)
+      }
       console.error("Failed to record method usage:", error)
       toast.error("Kon methodegebruik niet opslaan")
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: rewardsKey })
     }
   })
 }
