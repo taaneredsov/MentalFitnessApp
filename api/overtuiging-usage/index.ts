@@ -43,7 +43,8 @@ async function handlePost(req: Request, res: Response, tokenUserId: string) {
 
   const existing = await findOvertuigingUsage(body.userId, body.overtuigingId)
   if (existing) {
-    return sendError(res, "Overtuiging already completed", 400)
+    // Idempotent — return success so the UI can update correctly
+    return sendSuccess(res, { id: existing.id, pointsAwarded: 0 })
   }
 
   const created = await createOvertuigingUsage({
