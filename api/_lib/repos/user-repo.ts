@@ -27,6 +27,7 @@ export interface UserRewardStats {
   user: PgUser
   habitCount: number
   methodCount: number
+  methodPointsSum: number
   personalGoalCount: number
   overtuigingCount: number
   habitDaysCount: number
@@ -307,6 +308,7 @@ export async function getUserRewardsData(userId: string): Promise<{
   user: PgUser
   habitCount: number
   methodCount: number
+  methodPointsSum: number
   personalGoalCount: number
   overtuigingCount: number
 } | null> {
@@ -316,6 +318,7 @@ export async function getUserRewardsData(userId: string): Promise<{
     user: stats.user,
     habitCount: stats.habitCount,
     methodCount: stats.methodCount,
+    methodPointsSum: stats.methodPointsSum,
     personalGoalCount: stats.personalGoalCount,
     overtuigingCount: stats.overtuigingCount
   }
@@ -327,7 +330,16 @@ export async function getUserRewardStats(userId: string): Promise<UserRewardStat
 
   const [habits, methods, goals, overtuigingen, habitDays, programsCompleted] = await Promise.all([
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM goede_gewoontes_usage_pg WHERE user_id = $1`, [userId]),
-    dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM method_usage_pg WHERE user_id = $1`, [userId]),
+    dbQuery<{ count: string; points_sum: string }>(
+      `SELECT COUNT(*) as count,
+              COALESCE(SUM(
+                COALESCE((SELECT (payload->>'fldcyKMc8Q02H2QGN')::int
+                          FROM reference_methods_pg rm
+                          WHERE rm.id = mu.method_id), 5)
+              ), 0) as points_sum
+       FROM method_usage_pg mu WHERE mu.user_id = $1`,
+      [userId]
+    ),
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM personal_goal_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM overtuiging_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string }>(`SELECT COUNT(DISTINCT usage_date) as count FROM goede_gewoontes_usage_pg WHERE user_id = $1`, [userId]),
@@ -344,6 +356,7 @@ export async function getUserRewardStats(userId: string): Promise<UserRewardStat
     user,
     habitCount: Number(habits.rows[0]?.count || 0),
     methodCount: Number(methods.rows[0]?.count || 0),
+    methodPointsSum: Number(methods.rows[0]?.points_sum || 0),
     personalGoalCount: Number(goals.rows[0]?.count || 0),
     overtuigingCount: Number(overtuigingen.rows[0]?.count || 0),
     habitDaysCount: Number(habitDays.rows[0]?.count || 0),

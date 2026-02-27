@@ -81,6 +81,7 @@ const BADGE_CHECKS = {
 
 interface RewardCounts {
   methodCount: number
+  methodPointsSum: number
   habitCount: number
   personalGoalCount: number
   overtuigingCount: number
@@ -227,7 +228,7 @@ function calculateBonusAward(input: {
 }
 
 function toBaseTotalPoints(counts: RewardCounts): number {
-  return (counts.methodCount * 10) + (counts.habitCount * 5) + (counts.personalGoalCount * 5)
+  return (counts.methodPointsSum) + (counts.habitCount * 5) + (counts.personalGoalCount * 5)
 }
 
 function parseBadgesField(value: unknown): string[] {
@@ -315,6 +316,7 @@ async function getAirtableRewardStateAndCounts(userId: string): Promise<{ state:
     state,
     counts: {
       methodCount,
+      methodPointsSum: methodCount * 10,
       habitCount,
       personalGoalCount,
       overtuigingCount,
@@ -501,7 +503,7 @@ async function awardPostgres(input: AwardRewardInput): Promise<AwardRewardResult
     milestone
   })
 
-  const mentalFitnessScore = stats.methodCount * 10 + nextState.bonusPoints
+  const mentalFitnessScore = stats.methodPointsSum + nextState.bonusPoints
   const personalGoalsScore = stats.personalGoalCount * 5
   const goodHabitsScore = stats.habitCount * 5
   const totalPoints = mentalFitnessScore + personalGoalsScore + goodHabitsScore

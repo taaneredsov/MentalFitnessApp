@@ -69,7 +69,7 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
     return sendError(res, "User not found", 404)
   }
 
-  const { user, habitCount, methodCount, personalGoalCount, overtuigingCount: _overtuigingCount } = data
+  const { user, habitCount, methodCount, methodPointsSum, personalGoalCount, overtuigingCount: _overtuigingCount } = data
 
   let badges: unknown[] = []
   try {
@@ -85,14 +85,14 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
   const useStored = hasStoredScores || !hasActivity
 
   const rewards: Record<string, unknown> = {
-    totalPoints: useStored ? user.totalPoints : (methodCount * 10) + (personalGoalCount * 5) + (habitCount * 5) + user.bonusPoints,
+    totalPoints: useStored ? user.totalPoints : (methodPointsSum) + (personalGoalCount * 5) + (habitCount * 5) + user.bonusPoints,
     bonusPoints: user.bonusPoints,
     currentStreak: user.currentStreak,
     longestStreak: user.longestStreak,
     lastActiveDate: user.lastActiveDate,
     badges,
     level: user.level,
-    mentalFitnessScore: useStored ? user.mentalFitnessScore : methodCount * 10 + user.bonusPoints,
+    mentalFitnessScore: useStored ? user.mentalFitnessScore : methodPointsSum + user.bonusPoints,
     personalGoalsScore: useStored ? user.personalGoalsScore : personalGoalCount * 5,
     goodHabitsScore: useStored ? user.goodHabitsScore : habitCount * 5
   }
