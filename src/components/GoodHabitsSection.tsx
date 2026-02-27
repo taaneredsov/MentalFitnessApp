@@ -44,7 +44,7 @@ export function GoodHabitsSection() {
     } else {
       // Show points animation
       setRecentlyCompleted(habitId)
-      setTimeout(() => setRecentlyCompleted(null), 2000)
+      setTimeout(() => setRecentlyCompleted(null), 3000)
 
       // Complete the habit - React Query handles optimistic update
       recordHabitMutation.mutate({

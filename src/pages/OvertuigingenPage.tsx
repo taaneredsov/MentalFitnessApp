@@ -111,7 +111,7 @@ export function OvertuigingenPage() {
     if (isCompleted(overtuigingId)) return
 
     setRecentlyCompletedId(`system:${overtuigingId}`)
-    setTimeout(() => setRecentlyCompletedId(null), 2000)
+    setTimeout(() => setRecentlyCompletedId(null), 3000)
 
     completeOvertuigingMutation.mutate({
       data: {
@@ -131,7 +131,7 @@ export function OvertuigingenPage() {
     if (!accessToken) return
 
     setRecentlyCompletedId(`personal:${id}`)
-    setTimeout(() => setRecentlyCompletedId(null), 2000)
+    setTimeout(() => setRecentlyCompletedId(null), 3000)
 
     updatePersoonlijkeMutation.mutate({
       id,

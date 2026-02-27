@@ -51,7 +51,7 @@ export function PersonalGoalsSection({ showManageLink = true }: PersonalGoalsSec
 
     // Show points animation
     setRecentlyCompleted(goalId)
-    setTimeout(() => setRecentlyCompleted(null), 2000)
+    setTimeout(() => setRecentlyCompleted(null), 3000)
 
     // Complete the goal
     completeGoalMutation.mutate({

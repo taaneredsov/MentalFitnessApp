@@ -313,7 +313,7 @@ export function HomePage() {
   const completeGoalInActivity = (goalId: string) => {
     if (!user?.id || !accessToken) return
     setRecentlyCompletedGoal(goalId)
-    setTimeout(() => setRecentlyCompletedGoal(null), 2000)
+    setTimeout(() => setRecentlyCompletedGoal(null), 3000)
     completeGoalMutation.mutate({
       data: { userId: user.id, personalGoalId: goalId, date: today },
       accessToken

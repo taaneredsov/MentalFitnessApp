@@ -103,7 +103,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     if (isCompleted(overtuigingId)) return
 
     setRecentlyCompleted(overtuigingId)
-    setTimeout(() => setRecentlyCompleted(null), 2000)
+    setTimeout(() => setRecentlyCompleted(null), 3000)
 
     completeOvertuigingMutation.mutate({
       data: {
@@ -124,7 +124,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     if (!accessToken) return
 
     setRecentlyCompleted(id)
-    setTimeout(() => setRecentlyCompleted(null), 2000)
+    setTimeout(() => setRecentlyCompleted(null), 3000)
 
     updatePersoonlijkeMutation.mutate({
       id,
