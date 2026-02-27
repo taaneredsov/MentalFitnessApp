@@ -1,11 +1,17 @@
 import type { Goal, Day, Method } from "@/types/program"
 
+export interface CustomOvertuiging {
+  tempId: string
+  name: string
+}
+
 export interface WizardState {
   step: number
   startDate: string
   duration: string
   goals: string[]
   overtuigingen: string[]
+  customOvertuigingen: CustomOvertuiging[]
   daysOfWeek: string[]
   methods: string[]
   notes: string

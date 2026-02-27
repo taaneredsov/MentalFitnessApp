@@ -712,9 +712,35 @@ export function useUpdatePersoonlijkeOvertuiging() {
       data: UpdatePersoonlijkeOvertuigingData
       accessToken: string
     }) => api.persoonlijkeOvertuigingen.update(id, data, accessToken),
-    onSuccess: () => {
+    onMutate: async (variables) => {
+      // Optimistic update for rewards when completing
+      if (variables.data.status === "Afgerond") {
+        const rewardsKey = queryKeys.rewards
+        await queryClient.cancelQueries({ queryKey: rewardsKey })
+        const previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
+        if (previousRewards) {
+          queryClient.setQueryData<UserRewards>(rewardsKey, {
+            ...previousRewards,
+            mentalFitnessScore: previousRewards.mentalFitnessScore + 1,
+            totalPoints: previousRewards.totalPoints + 1
+          })
+        }
+        return { previousRewards, rewardsKey }
+      }
+      return {}
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousRewards !== undefined) {
+        queryClient.setQueryData(context.rewardsKey, context.previousRewards)
+      }
+    },
+    onSuccess: (_data, variables) => {
       if (user?.id) {
         queryClient.invalidateQueries({ queryKey: queryKeys.persoonlijkeOvertuigingen(user.id) })
+      }
+      // Reconcile rewards with server after completion
+      if (variables.data.status === "Afgerond") {
+        queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
       }
     }
   })

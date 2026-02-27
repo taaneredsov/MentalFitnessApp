@@ -28,30 +28,27 @@ The rewards system motivates users through points, levels, badges, streaks, and 
 ### Point Values
 
 | Activity | Points |
-|----------|--------|
-| Complete a method | 10 |
+|-|-|
+| Complete a method | Variable (1-10, from Airtable "Punten waarde" field) |
 | Complete a habit | 5 |
-| Complete a personal goal | 10 |
-| Session bonus (all methods in session) | 5 |
-| Habit day bonus (all habits in day) | 5 |
-| 7-day streak | 50 |
-| 30-day streak | 200 |
+| Complete a personal goal | 5 |
+| Complete an overtuiging | 1 |
+| 7-day streak | 25 |
+| 21-day streak | 75 |
 | Complete program | 100 |
-| 25% milestone | 25 |
-| 50% milestone | 50 |
-| 75% milestone | 75 |
-| 100% milestone | 100 |
 
 ### Points Calculation
 
-Total points are calculated by an Airtable formula:
+Total points are calculated from Postgres counts:
 
 ```
-(5 x habit usage count) + (10 x method usage count) + (10 x personal goal usage count) + {Bonus Punten}
+totalPoints = sum(method points) + (personalGoalCount * 5) + (habitCount * 5) + bonusPoints
 ```
 
-- **Habit/Method/Personal Goal points:** Automatically counted from linked records
-- **Bonus points:** Milestones, streaks, and special achievements stored separately
+- **Method points:** Variable per method (1-10), summed from `method_usage_pg` joined with method's `pointsValue`
+- **Habit/Personal Goal points:** Fixed per completion (5 each)
+- **Overtuiging points:** 1 point per completion
+- **Bonus points:** Streak bonuses stored in user's `bonusPoints` field
 
 ### Split Scores
 
@@ -59,13 +56,13 @@ The system calculates three separate scores displayed as widgets on the home pag
 
 #### Mental Fitness Score
 ```
-mentalFitnessScore = (# completed methods × 10) + bonusPoints
+mentalFitnessScore = sum(method pointsValues) + bonusPoints
 ```
-Includes program methods and milestone/streak bonuses.
+Includes program methods (variable points per method) and streak bonuses.
 
 #### Personal Goals Score
 ```
-personalGoalsScore = # personal goal completions × 10
+personalGoalsScore = # personal goal completions × 5
 ```
 Tracks user-defined custom goals.
 
@@ -80,17 +77,17 @@ Daily habits from "Goede gewoontes" goal.
 Users progress through 10 levels based on total points:
 
 | Level | Title | Points Required |
-|-------|-------|-----------------|
+|-|-|-|
 | 1 | Beginner | 0 |
 | 2 | Ontdekker | 50 |
-| 3 | Beoefenaar | 150 |
-| 4 | Doorzetter | 350 |
-| 5 | Expert | 600 |
-| 6 | Meester | 1,000 |
-| 7 | Kampioen | 1,500 |
-| 8 | Legende | 2,500 |
-| 9 | Goeroe | 4,000 |
-| 10 | Mentale Atleet | 6,000 |
+| 3 | Beoefenaar | 125 |
+| 4 | Doorzetter | 250 |
+| 5 | Gevorderde | 400 |
+| 6 | Expert | 600 |
+| 7 | Kampioen | 850 |
+| 8 | Meester | 1,150 |
+| 9 | Legende | 1,500 |
+| 10 | Mentale Atleet | 2,000 |
 
 ### Level Calculation
 
@@ -118,38 +115,34 @@ Badges are awarded for specific achievements.
 
 ### Badge Categories
 
-#### Progress Badges
+Badges are organized in 3 tiers of difficulty.
 
-| Badge ID | Name | Description | Requirement |
-|----------|------|-------------|-------------|
-| eerste_sessie | Eerste Sessie | Complete first method | 1 method |
-| vijf_methodes | Op Dreef | Complete 5 methods | 5 methods |
-| twintig_methodes | Doorgewinterd | Complete 20 methods | 20 methods |
-| eerste_programma | Programma Afgerond | Complete first program | 1 program |
+#### Tier 1: Eerste Stappen
 
-#### Program Milestone Badges
+| Badge ID | Name | Description |
+|-|-|-|
+| eerste_sessie | Eerste Sessie | Voltooi je eerste methode |
+| eerste_streak | Eerste Streak | 3 opeenvolgende sessies op tijd |
+| eerste_week | Eerste Week | Alle sessies voltooid in week 1 |
+| goede_start | Goede Start | Log je eerste gewoonte of persoonlijk doel |
 
-| Badge ID | Name | Description | Requirement |
-|----------|------|-------------|-------------|
-| kwart_programma | Kwart Klaar | 25% program completion | 25% milestone |
-| half_programma | Halverwege | 50% program completion | 50% milestone |
-| driekwart_programma | Bijna Daar | 75% program completion | 75% milestone |
+#### Tier 2: Consistentie
 
-#### Streak Badges
+| Badge ID | Name | Description |
+|-|-|-|
+| op_dreef | Op Dreef | 21 opeenvolgende sessies op tijd |
+| tweede_programma | Tweede Programma | Start een 2e programma |
+| drie_maanden | Drie Maanden | 3 maanden actief |
+| veelzijdig | Veelzijdig | Methode + gewoonte + doel in een week |
 
-| Badge ID | Name | Description | Requirement |
-|----------|------|-------------|-------------|
-| week_streak | Week Warrior | 7 days active | 7-day streak |
-| twee_weken_streak | Constante Kracht | 14 days active | 14-day streak |
-| maand_streak | Maand Meester | 30 days active | 30-day streak |
+#### Tier 3: Mentale Atleet
 
-#### Habit Badges
-
-| Badge ID | Name | Description | Requirement |
-|----------|------|-------------|-------------|
-| goede_start | Goede Start | First habit completed | 1 habit |
-| dagelijkse_held | Dagelijkse Held | All habits in one day | All daily habits |
-| week_gewoontes | Gewoonte Guru | 7 days with all habits | 7 full days |
+| Badge ID | Name | Description |
+|-|-|-|
+| programma_voltooid | Programma Voltooid | Rond een volledig programma af |
+| zes_maanden | Zes Maanden | 6 maanden actief |
+| jaar_actief | Jaar Actief | 12 maanden actief |
+| mentale_atleet | Mentale Atleet | Bereik niveau 8 |
 
 ### Badge Storage
 
@@ -212,8 +205,8 @@ function calculateStreak(lastActiveDate: string | null, today: string) {
 
 ### Streak Bonuses
 
-- **7-day streak:** 50 bonus points
-- **30-day streak:** 200 bonus points
+- **7-day streak:** 25 bonus points
+- **21-day streak:** 75 bonus points
 
 Bonuses are only awarded once when first reaching the milestone.
 

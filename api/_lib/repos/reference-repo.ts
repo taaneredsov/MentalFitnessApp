@@ -17,7 +17,7 @@ import {
 
 export async function listAllMethods(): Promise<Record<string, unknown>[]> {
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
-    `SELECT id, payload FROM reference_methods_pg`
+    `SELECT id, payload FROM reference_methods_pg ORDER BY (payload->>'_syncOrder')::int`
   )
   return result.rows.map(row => transformMethod({ id: row.id, fields: row.payload }))
 }
@@ -74,7 +74,7 @@ export async function getGoalByName(name: string): Promise<{ id: string; name: s
 
 export async function listAllGoals(): Promise<Record<string, unknown>[]> {
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
-    `SELECT id, payload FROM reference_goals_pg`
+    `SELECT id, payload FROM reference_goals_pg ORDER BY (payload->>'_syncOrder')::int`
   )
   return result.rows.map(row => transformGoal({ id: row.id, fields: row.payload }))
 }
@@ -93,7 +93,7 @@ export async function listAllDays(): Promise<Record<string, unknown>[]> {
 export async function lookupGoalsByIds(ids: string[]): Promise<Record<string, unknown>[]> {
   if (ids.length === 0) return []
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
-    `SELECT id, payload FROM reference_goals_pg WHERE id = ANY($1::text[])`,
+    `SELECT id, payload FROM reference_goals_pg WHERE id = ANY($1::text[]) ORDER BY (payload->>'_syncOrder')::int`,
     [ids]
   )
   return result.rows.map(row => transformGoal({ id: row.id, fields: row.payload }))
@@ -102,7 +102,7 @@ export async function lookupGoalsByIds(ids: string[]): Promise<Record<string, un
 export async function lookupMethodsByIds(ids: string[]): Promise<Record<string, unknown>[]> {
   if (ids.length === 0) return []
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
-    `SELECT id, payload FROM reference_methods_pg WHERE id = ANY($1::text[])`,
+    `SELECT id, payload FROM reference_methods_pg WHERE id = ANY($1::text[]) ORDER BY (payload->>'_syncOrder')::int`,
     [ids]
   )
   return result.rows.map(row => transformMethod({ id: row.id, fields: row.payload }))
@@ -139,7 +139,7 @@ export async function lookupOvertuigingenByIds(ids: string[]): Promise<Record<st
 
 export async function listAllMindsetCategories(): Promise<Record<string, unknown>[]> {
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
-    `SELECT id, payload FROM reference_mindset_categories_pg`
+    `SELECT id, payload FROM reference_mindset_categories_pg ORDER BY (payload->>'_syncOrder')::int`
   )
   return result.rows.map(row => transformMindsetCategory({ id: row.id, fields: row.payload }))
 }
@@ -229,7 +229,7 @@ export async function listAllExperienceLevels(): Promise<Record<string, unknown>
 
 export async function listAllGoedeGewoontes(): Promise<Record<string, unknown>[]> {
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
-    `SELECT id, payload FROM reference_goede_gewoontes_pg`
+    `SELECT id, payload FROM reference_goede_gewoontes_pg ORDER BY (payload->>'_syncOrder')::int`
   )
   return result.rows.map(row => transformGoedeGewoonte({ id: row.id, fields: row.payload }))
 }
@@ -237,7 +237,7 @@ export async function listAllGoedeGewoontes(): Promise<Record<string, unknown>[]
 export async function lookupGoedeGewoontesByIds(ids: string[]): Promise<Record<string, unknown>[]> {
   if (ids.length === 0) return []
   const result = await dbQuery<{ id: string; payload: Record<string, unknown> }>(
-    `SELECT id, payload FROM reference_goede_gewoontes_pg WHERE id = ANY($1::text[])`,
+    `SELECT id, payload FROM reference_goede_gewoontes_pg WHERE id = ANY($1::text[]) ORDER BY (payload->>'_syncOrder')::int`,
     [ids]
   )
   return result.rows.map(row => transformGoedeGewoonte({ id: row.id, fields: row.payload }))

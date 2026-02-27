@@ -37,7 +37,7 @@ export function MethodPicker({
     // Split into recommended and other
     // Note: We don't have linkedGoalIds in the Method type for frontend,
     // so we'll just sort alphabetically for now
-    return filtered.sort((a, b) => a.name.localeCompare(b.name))
+    return filtered
   }, [availableMethods, search])
 
   const handleSelect = (method: Method) => {

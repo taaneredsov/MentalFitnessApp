@@ -86,6 +86,7 @@ Password: testpassword123
   - [Rewards](./features/rewards.md) - Gamification system
   - [Score Widgets](./features/score-widgets.md) - Split score display (3 widgets)
   - [Header Display](./features/header-points-display.md) - Streak-only header
+  - [Airtable View Ordering](./features/airtable-view-ordering.md) - View-based display order for reference data
 - **[Deployment Guide](./deployment/hetzner.md)** - Production deployment on Hetzner
 
 ## Project Structure

@@ -1,6 +1,7 @@
-import { useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
 import { Button } from "@/components/ui/button"
-import { Check, Loader2 } from "lucide-react"
+import { Input } from "@/components/ui/input"
+import { Check, Loader2, Plus, X } from "lucide-react"
 import { useTranslation } from "react-i18next"
 import { useOvertuigingsByGoals } from "@/hooks/queries"
 import type { StepProps } from "./types"
@@ -8,6 +9,7 @@ import type { StepProps } from "./types"
 export function OvertuigingenStep({ state, updateState, onNext, onBack }: StepProps) {
   const { t } = useTranslation()
   const { data: overtuigingen = [], isLoading } = useOvertuigingsByGoals(state.goals)
+  const [customInput, setCustomInput] = useState("")
 
   // Sort by order
   const sorted = useMemo(() => {
@@ -29,6 +31,24 @@ export function OvertuigingenStep({ state, updateState, onNext, onBack }: StepPr
     updateState({ overtuigingen: newSelection })
   }
 
+  const addCustom = () => {
+    const trimmed = customInput.trim()
+    if (!trimmed || trimmed.length > 200) return
+    updateState({
+      customOvertuigingen: [
+        ...state.customOvertuigingen,
+        { tempId: crypto.randomUUID(), name: trimmed }
+      ]
+    })
+    setCustomInput("")
+  }
+
+  const removeCustom = (tempId: string) => {
+    updateState({
+      customOvertuigingen: state.customOvertuigingen.filter(c => c.tempId !== tempId)
+    })
+  }
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-48">
@@ -44,48 +64,97 @@ export function OvertuigingenStep({ state, updateState, onNext, onBack }: StepPr
           {t("wizard.overtuigingen.selectPrompt")}
         </p>
 
-        {sorted.length === 0 ? (
+        {sorted.length === 0 && state.customOvertuigingen.length === 0 ? (
           <p className="text-sm text-muted-foreground italic">
             {t("wizard.overtuigingen.noResults")}
           </p>
         ) : (
-          <>
-            <div className="space-y-2">
-              {sorted.map(overtuiging => {
-                const isSelected = state.overtuigingen.includes(overtuiging.id)
-                return (
-                  <button
-                    key={overtuiging.id}
-                    onClick={() => toggleOvertuiging(overtuiging.id)}
-                    className={`w-full text-left p-4 rounded-lg border transition-colors bg-background ${
-                      isSelected
-                        ? "border-primary bg-primary/5"
-                        : "border-border hover:border-primary/50"
-                    }`}
-                  >
-                    <div className="flex items-start gap-3">
-                      <div
-                        className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center ${
-                          isSelected
-                            ? "bg-primary border-primary text-primary-foreground"
-                            : "border-muted-foreground"
-                        }`}
-                      >
-                        {isSelected && <Check className="h-3 w-3" />}
-                      </div>
-                      <div>
-                        <p className="font-medium">{overtuiging.name}</p>
-                      </div>
+          <div className="space-y-2">
+            {sorted.map(overtuiging => {
+              const isSelected = state.overtuigingen.includes(overtuiging.id)
+              return (
+                <button
+                  key={overtuiging.id}
+                  onClick={() => toggleOvertuiging(overtuiging.id)}
+                  className={`w-full text-left p-4 rounded-lg border transition-colors bg-background ${
+                    isSelected
+                      ? "border-primary bg-primary/5"
+                      : "border-border hover:border-primary/50"
+                  }`}
+                >
+                  <div className="flex items-start gap-3">
+                    <div
+                      className={`flex-shrink-0 w-5 h-5 rounded border flex items-center justify-center ${
+                        isSelected
+                          ? "bg-primary border-primary text-primary-foreground"
+                          : "border-muted-foreground"
+                      }`}
+                    >
+                      {isSelected && <Check className="h-3 w-3" />}
                     </div>
-                  </button>
-                )
-              })}
-            </div>
-            <p className="text-xs text-muted-foreground mt-3">
-              {t("wizard.overtuigingen.addLater")}
-            </p>
-          </>
+                    <div>
+                      <p className="font-medium">{overtuiging.name}</p>
+                    </div>
+                  </div>
+                </button>
+              )
+            })}
+
+            {/* Custom overtuigingen */}
+            {state.customOvertuigingen.map(custom => (
+              <div
+                key={custom.tempId}
+                className="w-full p-4 rounded-lg border border-primary bg-primary/5"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="flex-shrink-0 w-5 h-5 rounded bg-primary border-primary text-primary-foreground flex items-center justify-center">
+                    <Check className="h-3 w-3" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">{custom.name}</p>
+                      <span className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary shrink-0">
+                        {t("wizard.overtuigingen.custom")}
+                      </span>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive shrink-0"
+                    onClick={() => removeCustom(custom.tempId)}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
+
+        {/* Inline custom input */}
+        <div className="flex gap-2 mt-3">
+          <Input
+            value={customInput}
+            onChange={e => setCustomInput(e.target.value)}
+            placeholder={t("wizard.overtuigingen.customPlaceholder")}
+            maxLength={200}
+            onKeyDown={e => {
+              if (e.key === "Enter") {
+                e.preventDefault()
+                addCustom()
+              }
+            }}
+          />
+          <Button
+            size="icon"
+            variant="outline"
+            onClick={addCustom}
+            disabled={!customInput.trim()}
+          >
+            <Plus className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
 
       {/* Sticky navigation */}

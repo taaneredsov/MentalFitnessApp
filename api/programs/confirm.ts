@@ -3,6 +3,7 @@ import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-u
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import { dbQuery } from "../_lib/db/client.js"
 import { createProgram, toApiProgram } from "../_lib/repos/program-repo.js"
+import { create as createPersoonlijkeOvertuiging } from "../_lib/repos/persoonlijke-overtuigingen-repo.js"
 import { updateUserGoedeGewoontes } from "../_lib/repos/user-repo.js"
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 
@@ -179,6 +180,19 @@ export default async function handler(req: Request, res: Response) {
 
     // Create schedule records in Postgres
     await createScheduleInPostgres(program.id, body.goals, body.editedSchedule)
+
+    // Create custom overtuigingen
+    if (body.customOvertuigingen && Array.isArray(body.customOvertuigingen)) {
+      for (const name of body.customOvertuigingen) {
+        if (typeof name === "string" && name.trim().length > 0 && name.length <= 200) {
+          await createPersoonlijkeOvertuiging({
+            userId: body.userId,
+            name: name.trim(),
+            programId: program.id
+          })
+        }
+      }
+    }
 
     // Save AI-selected goede gewoontes to user record
     if (body.selectedGoedeGewoontes && Array.isArray(body.selectedGoedeGewoontes) && body.selectedGoedeGewoontes.length > 0) {

@@ -59,10 +59,19 @@ export interface AIPreviewResult {
   }>
 }
 
+export interface CustomOvertuiging {
+  tempId: string
+  name: string
+}
+
 export interface ScheduleReviewProps {
   preview: AIPreviewResult
   editedSchedule: AIScheduleDay[]
   onScheduleChange: (schedule: AIScheduleDay[]) => void
+  selectedOvertuigingen: string[]
+  onOvertuigingenChange: (ids: string[]) => void
+  customOvertuigingen: CustomOvertuiging[]
+  onCustomOvertuigingenChange: (items: CustomOvertuiging[]) => void
   onConfirm: () => void
   onBack: () => void
   isConfirming: boolean

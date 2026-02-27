@@ -1,12 +1,12 @@
 import { useState, useMemo, useCallback } from "react"
-import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging } from "@/hooks/queries"
+import { useOvertuigingen, useMindsetCategories, useAllOvertuigingUsage, useCompleteOvertuiging, usePersoonlijkeOvertuigingen, useUpdatePersoonlijkeOvertuiging, useCreatePersoonlijkeOvertuiging } from "@/hooks/queries"
 import { useAuth } from "@/contexts/AuthContext"
 import { getTodayDate } from "@/lib/rewards-utils"
 import { POINTS } from "@/types/rewards"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import type { OvertuigingUsageMap, MindsetCategory } from "@/types/program"
-import { Loader2, Search, X, Lightbulb, Check, Star, ChevronDown } from "lucide-react"
+import { Loader2, Search, X, Lightbulb, Check, Star, ChevronDown, Plus } from "lucide-react"
 
 const EXCLUDED_SYSTEM_CATEGORY_NAME = "mijn eigen overtuigingen"
 const PERSONAL_CATEGORY_ID = "__personal__"
@@ -92,8 +92,11 @@ export function OvertuigingenPage() {
   const { data: usageMap = {} as OvertuigingUsageMap } = useAllOvertuigingUsage()
   const { data: persoonlijkeOvertuigingen = [], isLoading: persoonlijkeLoading, error: persoonlijkeError } = usePersoonlijkeOvertuigingen()
 
+  const [newOvertuigingName, setNewOvertuigingName] = useState("")
+
   const completeOvertuigingMutation = useCompleteOvertuiging()
   const updatePersoonlijkeMutation = useUpdatePersoonlijkeOvertuiging()
+  const createPersoonlijkeMutation = useCreatePersoonlijkeOvertuiging()
 
   const isLoading = overtuigingenLoading || categoriesLoading || persoonlijkeLoading
   const error = overtuigingenError
@@ -183,16 +186,16 @@ export function OvertuigingenPage() {
 
     const systemCategories = categories
       .filter(cat => !excludedCategoryIds.has(cat.id) && usedSystemCategoryIds.has(cat.id))
-      .sort((a: MindsetCategory, b: MindsetCategory) => a.name.localeCompare(b.name))
+      .sort((a: MindsetCategory, b: MindsetCategory) => (a.order ?? 0) - (b.order ?? 0))
 
     if (persoonlijkeOvertuigingen.length > 0) {
-      return [...systemCategories, {
+      return [{
         id: PERSONAL_CATEGORY_ID,
         name: PERSONAL_CATEGORY_NAME,
         overtuigingIds: [],
         goalIds: [],
-        order: Number.MAX_SAFE_INTEGER
-      }]
+        order: -1
+      }, ...systemCategories]
     }
 
     return systemCategories
@@ -254,6 +257,19 @@ export function OvertuigingenPage() {
   const completedOvertuigingen = useMemo(() => {
     return filteredSystemOvertuigingen.filter(o => isCompleted(o.id))
   }, [filteredSystemOvertuigingen, isCompleted])
+
+  const showAddInput = !selectedCategoryId || selectedCategoryId === PERSONAL_CATEGORY_ID
+
+  const handleAddOvertuiging = () => {
+    const trimmed = newOvertuigingName.trim()
+    if (!trimmed || !accessToken) return
+    createPersoonlijkeMutation.mutate({
+      data: { name: trimmed },
+      accessToken
+    }, {
+      onSuccess: () => setNewOvertuigingName("")
+    })
+  }
 
   const totalFilteredCount = filteredSystemOvertuigingen.length + filteredPersoonlijkeOvertuigingen.length
 
@@ -326,6 +342,31 @@ export function OvertuigingenPage() {
               {category.name}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* Inline input for adding eigen overtuigingen */}
+      {showAddInput && (
+        <div className="flex gap-2">
+          <Input
+            type="text"
+            placeholder="Nieuwe eigen overtuiging..."
+            value={newOvertuigingName}
+            onChange={(e) => setNewOvertuigingName(e.target.value.slice(0, 200))}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAddOvertuiging() }}
+            className="flex-1"
+          />
+          <button
+            onClick={handleAddOvertuiging}
+            disabled={!newOvertuigingName.trim() || createPersoonlijkeMutation.isPending}
+            className="shrink-0 w-10 h-10 rounded-lg bg-primary text-primary-foreground flex items-center justify-center disabled:opacity-50 transition-colors"
+            aria-label="Overtuiging toevoegen"
+          >
+            {createPersoonlijkeMutation.isPending
+              ? <Loader2 className="h-4 w-4 animate-spin" />
+              : <Plus className="h-5 w-5" />
+            }
+          </button>
         </div>
       )}
 

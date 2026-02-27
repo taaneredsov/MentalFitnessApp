@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
 import {
   ArrowLeft,
   Check,
@@ -38,6 +39,10 @@ export function ScheduleReview({
   preview,
   editedSchedule,
   onScheduleChange,
+  selectedOvertuigingen,
+  onOvertuigingenChange,
+  customOvertuigingen,
+  onCustomOvertuigingenChange,
   onConfirm,
   onBack,
   isConfirming
@@ -45,6 +50,7 @@ export function ScheduleReview({
   const { t } = useTranslation()
   const [pickerOpen, setPickerOpen] = useState(false)
   const [editingDayIndex, setEditingDayIndex] = useState<number | null>(null)
+  const [customInput, setCustomInput] = useState("")
 
   const { weeklySessionTime, recommendations, programSummary, programName, availableMethods, selectedGoals, suggestedOvertuigingen } = preview
 
@@ -141,27 +147,82 @@ export function ScheduleReview({
         </Card>
 
         {/* Overtuigingen */}
-        {suggestedOvertuigingen && suggestedOvertuigingen.length > 0 && (
-          <div className="space-y-2">
-            <div className="flex items-center gap-2">
-              <Lightbulb className="w-4 h-4 text-amber-500" />
-              <h4 className="text-sm font-medium">{t("overtuigingen.title")}</h4>
-            </div>
+        <div className="space-y-2">
+          <div className="flex items-center gap-2">
+            <Lightbulb className="w-4 h-4 text-amber-500" />
+            <h4 className="text-sm font-medium">{t("overtuigingen.title")}</h4>
+          </div>
+          {(selectedOvertuigingen.length > 0 || customOvertuigingen.length > 0) && (
             <div className="flex flex-wrap gap-2">
-              {suggestedOvertuigingen.map(o => (
+              {suggestedOvertuigingen?.filter(o => selectedOvertuigingen.includes(o.id)).map(o => (
                 <span
                   key={o.id}
-                  className="px-3 py-1 text-sm rounded-full bg-amber-50 text-amber-700"
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-amber-50 text-amber-700"
                 >
                   {o.name}
+                  <button
+                    onClick={() => onOvertuigingenChange(selectedOvertuigingen.filter(id => id !== o.id))}
+                    className="hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
+                </span>
+              ))}
+              {customOvertuigingen.map(c => (
+                <span
+                  key={c.tempId}
+                  className="inline-flex items-center gap-1 px-3 py-1 text-sm rounded-full bg-amber-50 text-amber-700"
+                >
+                  {c.name}
+                  <button
+                    onClick={() => onCustomOvertuigingenChange(customOvertuigingen.filter(x => x.tempId !== c.tempId))}
+                    className="hover:text-destructive"
+                  >
+                    <X className="h-3 w-3" />
+                  </button>
                 </span>
               ))}
             </div>
-            <p className="text-xs text-muted-foreground">
-              {t("overtuigingen.adjustLater")}
-            </p>
+          )}
+          <div className="flex gap-2">
+            <Input
+              value={customInput}
+              onChange={e => setCustomInput(e.target.value)}
+              placeholder={t("wizard.overtuigingen.customPlaceholder")}
+              maxLength={200}
+              className="h-8 text-sm"
+              onKeyDown={e => {
+                if (e.key === "Enter") {
+                  e.preventDefault()
+                  const trimmed = customInput.trim()
+                  if (!trimmed) return
+                  onCustomOvertuigingenChange([
+                    ...customOvertuigingen,
+                    { tempId: crypto.randomUUID(), name: trimmed }
+                  ])
+                  setCustomInput("")
+                }
+              }}
+            />
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 px-2"
+              disabled={!customInput.trim()}
+              onClick={() => {
+                const trimmed = customInput.trim()
+                if (!trimmed) return
+                onCustomOvertuigingenChange([
+                  ...customOvertuigingen,
+                  { tempId: crypto.randomUUID(), name: trimmed }
+                ])
+                setCustomInput("")
+              }}
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
           </div>
-        )}
+        </div>
 
         {/* Program Summary */}
         {programSummary && (

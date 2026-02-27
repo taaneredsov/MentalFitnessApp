@@ -171,7 +171,7 @@ export async function upsertUserFromAirtable(record: {
   }
 
   // Slow path: email exists under a different Airtable record ID.
-  // Re-key the user row within a transaction so FK references stay intact.
+  // Re-key within a transaction: insert new user, move children, delete old.
   return withDbTransaction(async (client) => {
     // Find the existing row by email to get the old id
     const existing = await client.query<Record<string, unknown>>(
@@ -182,17 +182,41 @@ export async function upsertUserFromAirtable(record: {
     const newId = record.id
 
     if (oldId !== newId) {
-      // Re-key: update all child tables, then update the parent row's id
+      // 1. Temporarily clear email on old row to avoid unique constraint
+      await client.query(
+        `UPDATE users_pg SET email = id || '__rekey__' WHERE id = $1`,
+        [oldId]
+      )
+
+      // 2. Insert new user row (newId now exists for FK references)
+      await client.query(
+        `INSERT INTO users_pg (
+          id, name, email, role, language_code, password_hash, last_login,
+          bonus_points, badges, level, status, updated_at
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+        params
+      )
+
+      // 3. Move all child records from oldId → newId (FK satisfied)
       for (const table of USER_CHILD_TABLES) {
         await client.query(
           `UPDATE ${table} SET user_id = $1 WHERE user_id = $2`,
           [newId, oldId]
         )
       }
-      await client.query(`UPDATE users_pg SET id = $1 WHERE id = $2`, [newId, oldId])
+
+      // 4. Delete old user row (no children reference it anymore)
+      await client.query(`DELETE FROM users_pg WHERE id = $1`, [oldId])
+
+      // Return the newly inserted row
+      const result = await client.query<Record<string, unknown>>(
+        `SELECT * FROM users_pg WHERE id = $1`,
+        [newId]
+      )
+      return mapUserRow(result.rows[0])
     }
 
-    // Now update the row's fields
+    // Same id, just update fields
     const result = await client.query<Record<string, unknown>>(
       `UPDATE users_pg
        SET name = $2,

@@ -256,6 +256,7 @@ export interface AIConfirmRequest {
   programSummary?: string
   programName?: string
   overtuigingen?: string[]
+  customOvertuigingen?: string[]
   selectedGoedeGewoontes?: Array<{
     goedeGewoonteId: string
     goedeGewoonteName: string

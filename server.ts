@@ -43,6 +43,13 @@ app.use((_req: express.Request, res: express.Response, next: express.NextFunctio
   next()
 })
 
+// Prevent browser HTTP caching of API responses — ensures React Query
+// refetches always hit the server instead of getting stale cached data
+app.use("/api", (_req: express.Request, res: express.Response, next: express.NextFunction) => {
+  res.setHeader("Cache-Control", "no-store")
+  next()
+})
+
 // Dynamically import and register API routes
 async function setupRoutes() {
   // Auth routes

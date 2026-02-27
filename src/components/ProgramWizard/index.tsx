@@ -28,6 +28,7 @@ const initialState: WizardState = {
   duration: "",
   goals: [],
   overtuigingen: [],
+  customOvertuigingen: [],
   daysOfWeek: [],
   methods: [],
   notes: "",
@@ -187,6 +188,14 @@ export function ProgramWizard({ onComplete, onCancel }: ProgramWizardProps) {
         },
         accessToken
       )
+
+      // Create custom overtuigingen
+      for (const custom of state.customOvertuigingen) {
+        await api.persoonlijkeOvertuigingen.create(
+          { name: custom.name, programId: state.programId },
+          accessToken
+        )
+      }
 
       // Invalidate queries so homepage and other pages show fresh data
       queryClient.invalidateQueries({ queryKey: ["programs"] })

@@ -11,7 +11,7 @@ import { AIInputForm } from "./AIInputForm"
 import { GeneratingAnimation } from "./GeneratingAnimation"
 import { ScheduleReview } from "./ScheduleReview"
 import { ProgramResult } from "./ProgramResult"
-import type { AIWizardState, AIWizardPhase, AIGenerateResult, AIPreviewResult, AIScheduleDay } from "./types"
+import type { AIWizardState, AIWizardPhase, AIGenerateResult, AIPreviewResult, AIScheduleDay, CustomOvertuiging } from "./types"
 
 interface AIProgramWizardProps {
   onComplete: (programId: string) => void
@@ -34,6 +34,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
   const [phase, setPhase] = useState<AIWizardPhase>("input")
   const [preview, setPreview] = useState<AIPreviewResult | null>(null)
   const [editedSchedule, setEditedSchedule] = useState<AIScheduleDay[]>([])
+  const [selectedOvertuigingen, setSelectedOvertuigingen] = useState<string[]>([])
+  const [customOvertuigingen, setCustomOvertuigingen] = useState<CustomOvertuiging[]>([])
   const [result, setResult] = useState<AIGenerateResult | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -73,6 +75,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
 
       setPreview(response)
       setEditedSchedule(response.aiSchedule) // Initialize with AI-generated schedule
+      setSelectedOvertuigingen(response.suggestedOvertuigingen?.map(o => o.id) || [])
+      setCustomOvertuigingen([])
       setPhase("review")
     } catch (err) {
       console.error("Failed to generate preview:", err)
@@ -97,7 +101,6 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
     setError(null)
 
     try {
-      const overtuigingen = preview.suggestedOvertuigingen?.map(o => o.id) || []
       const selectedGoedeGewoontes = preview.suggestedGoedeGewoontes?.map(g => ({
         goedeGewoonteId: g.id,
         goedeGewoonteName: g.name,
@@ -113,7 +116,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
           editedSchedule,
           programSummary: preview.programSummary,
           programName: preview.programName,
-          overtuigingen,
+          overtuigingen: selectedOvertuigingen,
+          customOvertuigingen: customOvertuigingen.map(c => c.name),
           selectedGoedeGewoontes
         },
         accessToken
@@ -142,6 +146,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
   const handleBackToInput = () => {
     setPreview(null)
     setEditedSchedule([])
+    setSelectedOvertuigingen([])
+    setCustomOvertuigingen([])
     setPhase("input")
   }
 
@@ -155,6 +161,8 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
     setState(initialState)
     setPreview(null)
     setEditedSchedule([])
+    setSelectedOvertuigingen([])
+    setCustomOvertuigingen([])
     setResult(null)
     setError(null)
     setPhase("input")
@@ -225,6 +233,10 @@ export function AIProgramWizard({ onComplete, onCancel }: AIProgramWizardProps) 
             preview={preview}
             editedSchedule={editedSchedule}
             onScheduleChange={setEditedSchedule}
+            selectedOvertuigingen={selectedOvertuigingen}
+            onOvertuigingenChange={setSelectedOvertuigingen}
+            customOvertuigingen={customOvertuigingen}
+            onCustomOvertuigingenChange={setCustomOvertuigingen}
             onConfirm={handleConfirm}
             onBack={handleBackToInput}
             isConfirming={false}

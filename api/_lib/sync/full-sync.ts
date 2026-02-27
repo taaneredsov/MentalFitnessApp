@@ -26,19 +26,24 @@ interface FullSyncCounts {
 
 async function syncReferenceTable(
   tableId: string,
-  targetTable: "reference_methods_pg" | "reference_goals_pg" | "reference_days_pg" | "reference_overtuigingen_pg" | "reference_mindset_categories_pg" | "reference_companies_pg" | "reference_program_prompts_pg" | "reference_experience_levels_pg" | "reference_goede_gewoontes_pg"
+  targetTable: "reference_methods_pg" | "reference_goals_pg" | "reference_days_pg" | "reference_overtuigingen_pg" | "reference_mindset_categories_pg" | "reference_companies_pg" | "reference_program_prompts_pg" | "reference_experience_levels_pg" | "reference_goede_gewoontes_pg",
+  viewName?: string
 ): Promise<number> {
-  const records = await base(tableId).select({ returnFieldsByFieldId: true }).all()
+  const selectOpts: Record<string, unknown> = { returnFieldsByFieldId: true }
+  if (viewName) selectOpts.view = viewName
+  const records = await base(tableId).select(selectOpts).all()
   const seenIds = new Set<string>()
   let count = 0
-  for (const record of records) {
+  for (let index = 0; index < records.length; index++) {
+    const record = records[index]
     seenIds.add(record.id)
+    const payload = { ...(record.fields || {}), _syncOrder: index }
     await dbQuery(
       `INSERT INTO ${targetTable} (id, payload, updated_at)
        VALUES ($1, $2::jsonb, NOW())
        ON CONFLICT (id)
        DO UPDATE SET payload = EXCLUDED.payload, updated_at = NOW()`,
-      [record.id, JSON.stringify(record.fields || {})]
+      [record.id, JSON.stringify(payload)]
     )
     count += 1
   }
@@ -65,15 +70,15 @@ export async function syncReferenceDataFromAirtable(): Promise<{
   experienceLevels: number
   goedeGewoontes: number
 }> {
-  const methods = await syncReferenceTable(tables.methods, "reference_methods_pg")
-  const goals = await syncReferenceTable(tables.goals, "reference_goals_pg")
+  const methods = await syncReferenceTable(tables.methods, "reference_methods_pg", "App")
+  const goals = await syncReferenceTable(tables.goals, "reference_goals_pg", "App")
   const days = await syncReferenceTable(tables.daysOfWeek, "reference_days_pg")
   const companies = await syncReferenceTable(tables.companies, "reference_companies_pg")
-  const overtuigingen = await syncReferenceTable(tables.overtuigingen, "reference_overtuigingen_pg")
+  const overtuigingen = await syncReferenceTable(tables.overtuigingen, "reference_overtuigingen_pg", "App")
   const mindsetCategories = await syncReferenceTable(tables.mindsetCategories, "reference_mindset_categories_pg")
   const programPrompts = await syncReferenceTable(tables.programPrompts, "reference_program_prompts_pg")
   const experienceLevels = await syncReferenceTable(tables.experienceLevels, "reference_experience_levels_pg")
-  const goedeGewoontes = await syncReferenceTable(tables.goedeGewoontes, "reference_goede_gewoontes_pg")
+  const goedeGewoontes = await syncReferenceTable(tables.goedeGewoontes, "reference_goede_gewoontes_pg", "App")
   return { methods, goals, days, companies, overtuigingen, mindsetCategories, programPrompts, experienceLevels, goedeGewoontes }
 }
 

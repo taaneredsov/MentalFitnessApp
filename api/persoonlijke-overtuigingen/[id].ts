@@ -3,6 +3,7 @@ import { z } from "zod"
 import { sendSuccess, sendError, handleApiError, parseBody } from "../_lib/api-utils.js"
 import { requireAuth, AuthError } from "../_lib/auth.js"
 import { update as updatePO, deleteById as deletePO } from "../_lib/repos/persoonlijke-overtuigingen-repo.js"
+import { awardRewardActivity } from "../_lib/rewards/engine.js"
 
 const updateSchema = z.object({
   name: z.string().min(1, "Name is required").max(200, "Name too long").optional(),
@@ -32,6 +33,20 @@ async function handlePatch(req: Request, res: Response, id: string, userId: stri
   }
 
   console.log("[persoonlijke-overtuigingen] Updated (postgres):", id, "fields:", Object.keys(updates))
+
+  // Award points when completing a persoonlijke overtuiging
+  if (body.status === "Afgerond") {
+    try {
+      await awardRewardActivity({
+        userId,
+        activityType: "overtuiging",
+        activityDate: updates.completedDate || undefined
+      })
+    } catch (err) {
+      console.error("[persoonlijke-overtuigingen] awardRewardActivity failed:", err)
+    }
+  }
+
   return sendSuccess(res, result)
 }
 
