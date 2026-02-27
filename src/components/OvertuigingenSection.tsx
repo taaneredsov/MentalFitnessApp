@@ -82,9 +82,13 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     return allOvertuigingen.filter(o => ids.includes(o.id)).sort((a, b) => a.order - b.order)
   }, [program?.overtuigingen, allOvertuigingen])
 
-  // Active personal overtuigingen
+  // Split personal overtuigingen into active and completed
   const activePersoonlijke = useMemo(() => {
     return persoonlijke.filter(p => p.status === "Actief")
+  }, [persoonlijke])
+
+  const completedPersoonlijke = useMemo(() => {
+    return persoonlijke.filter(p => p.status === "Afgerond")
   }, [persoonlijke])
 
   const isCompleted = useCallback((overtuigingId: string): boolean => {
@@ -155,7 +159,8 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
     deletePersoonlijkeMutation.mutate({ id, accessToken })
   }
 
-  const hasItems = programOvertuigingen.length > 0 || activePersoonlijke.length > 0
+  const totalCompleted = completedOvertuigingen.length + completedPersoonlijke.length
+  const hasItems = programOvertuigingen.length > 0 || activePersoonlijke.length > 0 || completedPersoonlijke.length > 0
 
   if (!isLoading && !hasItems) {
     return (
@@ -267,46 +272,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
               </div>
             ))}
 
-            {/* All completed message */}
-            {activeOvertuigingen.length === 0 && activePersoonlijke.length === 0 && completedOvertuigingen.length > 0 && (
-              <p className="text-muted-foreground text-center text-sm py-2">
-                {t("overtuigingen.allCompleted")}
-              </p>
-            )}
-
-            {/* Completed overtuigingen — collapsible */}
-            {completedOvertuigingen.length > 0 && (
-              <>
-                <button
-                  onClick={() => setShowCompleted(!showCompleted)}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
-                >
-                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showCompleted ? "rotate-180" : ""}`} />
-                  Voltooid ({completedOvertuigingen.length})
-                </button>
-                {showCompleted && completedOvertuigingen.map(overtuiging => (
-                  <div
-                    key={overtuiging.id}
-                    className="w-full p-4 rounded-2xl bg-muted/30 opacity-70"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
-                        <Lightbulb className="h-6 w-6 text-[#00978A]" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="font-semibold text-base break-words whitespace-normal">{overtuiging.name}</p>
-                        <span className="text-xs text-[#007D72] font-medium">Voltooid</span>
-                      </div>
-                      <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-[#00978A] text-white">
-                        <Check className="h-5 w-5" />
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </>
-            )}
-
-            {/* Personal overtuigingen */}
+            {/* Active personal overtuigingen — before completed section */}
             {activePersoonlijke.map(item => (
               <div
                 key={item.id}
@@ -347,6 +313,68 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                 </div>
               </div>
             ))}
+
+            {/* All completed message */}
+            {activeOvertuigingen.length === 0 && activePersoonlijke.length === 0 && totalCompleted > 0 && (
+              <p className="text-muted-foreground text-center text-sm py-2">
+                {t("overtuigingen.allCompleted")}
+              </p>
+            )}
+
+            {/* Completed overtuigingen — collapsible (system + personal) */}
+            {totalCompleted > 0 && (
+              <>
+                <button
+                  onClick={() => setShowCompleted(!showCompleted)}
+                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors py-1"
+                >
+                  <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${showCompleted ? "rotate-180" : ""}`} />
+                  Voltooid ({totalCompleted})
+                </button>
+                {showCompleted && (
+                  <>
+                    {completedOvertuigingen.map(overtuiging => (
+                      <div
+                        key={overtuiging.id}
+                        className="w-full p-4 rounded-2xl bg-muted/30 opacity-70"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
+                            <Lightbulb className="h-6 w-6 text-[#00978A]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base break-words whitespace-normal">{overtuiging.name}</p>
+                            <span className="text-xs text-[#007D72] font-medium">Voltooid</span>
+                          </div>
+                          <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-[#00978A] text-white">
+                            <Check className="h-5 w-5" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    {completedPersoonlijke.map(item => (
+                      <div
+                        key={item.id}
+                        className="w-full p-4 rounded-2xl bg-muted/30 opacity-70"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className="flex-shrink-0 w-12 h-12 rounded-full bg-[#00978A]/15 flex items-center justify-center">
+                            <Lightbulb className="h-6 w-6 text-[#00978A]" />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-base break-words whitespace-normal">{item.name}</p>
+                            <span className="text-xs text-[#007D72] font-medium">Persoonlijk — Voltooid</span>
+                          </div>
+                          <div className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center bg-[#00978A] text-white">
+                            <Check className="h-5 w-5" />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
+              </>
+            )}
           </>
         )}
       </CardContent>

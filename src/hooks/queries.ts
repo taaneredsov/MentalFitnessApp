@@ -608,15 +608,15 @@ export function useCompletePersonalGoal() {
           total: data.totalCount
         }
       }))
-      // Invalidate rewards to reconcile with server (POST has completed, server data is fresh)
-      queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+      // Force refetch rewards to get authoritative server score
+      queryClient.refetchQueries({ queryKey: queryKeys.rewards })
     },
     onSettled: (_data, _error, variables) => {
       // Safety net: force refetch to ensure UI is always in sync
       queryClient.invalidateQueries({
         queryKey: queryKeys.personalGoalUsage(variables.data.userId, variables.data.date)
       })
-      queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+      queryClient.refetchQueries({ queryKey: queryKeys.rewards })
     }
   })
 }
@@ -798,8 +798,8 @@ export function useCompleteOvertuiging() {
       }
       // Invalidate all overtuiging usage (for mindset page)
       queryClient.invalidateQueries({ queryKey: queryKeys.allOvertuigingUsage })
-      // Invalidate rewards to reconcile optimistic update with server
-      queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+      // Force refetch rewards to get authoritative server score
+      queryClient.refetchQueries({ queryKey: queryKeys.rewards })
     }
   })
 }
