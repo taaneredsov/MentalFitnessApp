@@ -103,22 +103,22 @@ export function InstallPrompt({ variant = "default" }: InstallPromptProps) {
   }
 
   const cardClassName = variant === "prominent"
-    ? "mb-4 border-primary/30 bg-primary/5 shadow-md"
+    ? "mb-4 border-border bg-muted/50"
     : "mx-4 mb-4 border-primary/20 bg-primary/5"
 
   // Android/Chrome prompt
   if (deferredPrompt) {
     return (
       <Card className={cardClassName}>
-        <CardContent className="pt-4">
+        <CardContent className={variant === "prominent" ? "pt-3 pb-3" : "pt-4"}>
           <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary/10 p-2">
-              <Download className="h-5 w-5 text-primary" />
+            <div className={`rounded-full p-2 ${variant === "prominent" ? "bg-muted" : "bg-primary/10"}`}>
+              <Download className={`h-4 w-4 ${variant === "prominent" ? "text-muted-foreground" : "text-primary"}`} />
             </div>
             <div className="flex-1">
               {variant === "prominent" ? (
                 <>
-                  <p className="font-semibold text-primary">TIP</p>
+                  <p className="text-sm font-medium text-muted-foreground">Tip</p>
                   <p className="text-sm text-muted-foreground">
                     Voeg eerst de app toe aan je startscherm, en log dan in. Je blijft dan ingelogd.
                   </p>
@@ -144,10 +144,10 @@ export function InstallPrompt({ variant = "default" }: InstallPromptProps) {
             )}
           </div>
           <div className="mt-3 flex gap-2">
-            <Button onClick={handleInstallClick} className={variant === "prominent" ? "flex-1" : ""}>
+            <Button onClick={handleInstallClick} className={variant === "prominent" ? "flex-1" : ""} size={variant === "prominent" ? "sm" : "default"}>
               {variant === "prominent" ? "Installeer op startscherm" : "Installeren"}
             </Button>
-            <Button variant="ghost" onClick={handleDismiss}>
+            <Button variant="ghost" onClick={handleDismiss} size={variant === "prominent" ? "sm" : "default"}>
               {variant === "prominent" ? "Overslaan" : "Later"}
             </Button>
           </div>
@@ -162,15 +162,15 @@ export function InstallPrompt({ variant = "default" }: InstallPromptProps) {
 
     return (
       <Card className={cardClassName}>
-        <CardContent className="pt-4">
+        <CardContent className={variant === "prominent" ? "pt-3 pb-3" : "pt-4"}>
           <div className="flex items-start gap-3">
-            <div className="rounded-full bg-primary/10 p-2">
-              <Download className="h-5 w-5 text-primary" />
+            <div className={`rounded-full p-2 ${variant === "prominent" ? "bg-muted" : "bg-primary/10"}`}>
+              <Download className={`h-4 w-4 ${variant === "prominent" ? "text-muted-foreground" : "text-primary"}`} />
             </div>
             <div className="flex-1">
               {variant === "prominent" ? (
                 <>
-                  <p className="font-semibold text-primary">TIP</p>
+                  <p className="text-sm font-medium text-muted-foreground">Tip</p>
                   <p className="text-sm text-muted-foreground">
                     Voeg eerst de app toe aan je startscherm, en log dan in. Je blijft dan ingelogd.
                   </p>

@@ -111,7 +111,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-4 bg-background">
+    <div className="min-h-screen flex flex-col items-center justify-center px-5 bg-background">
       <div className="w-full max-w-sm space-y-4">
         <InstallPrompt variant="prominent" />
         <Card className="w-full">
