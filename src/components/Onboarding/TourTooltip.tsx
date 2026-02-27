@@ -47,14 +47,16 @@ export function TourTooltip({
       }
     }
 
-    const tooltipHeight = 160 // Estimated tooltip height
+    const tooltipHeight = 200 // Estimated tooltip height
     const margin = 12
     const viewportHeight = window.innerHeight
     const viewportWidth = window.innerWidth
+    // Account for iOS safe area (home indicator) — buttons in that zone don't register taps
+    const safeAreaBottom = 40
 
     // Determine if we should show above or below
     const spaceAbove = targetRect.top
-    const spaceBelow = viewportHeight - targetRect.bottom
+    const spaceBelow = viewportHeight - targetRect.bottom - safeAreaBottom
     const showAbove = spaceBelow < tooltipHeight + margin && spaceAbove > spaceBelow
 
     // Calculate horizontal position (centered on target, clamped to viewport)

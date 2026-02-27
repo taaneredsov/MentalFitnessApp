@@ -123,6 +123,7 @@ export function toApiProgram(program: PgProgram): Record<string, unknown> {
     endDate: program.endDate,
     duration: program.duration,
     daysOfWeek: program.daysOfWeek,
+    frequency: Array.isArray(program.daysOfWeek) ? program.daysOfWeek.length : 0,
     goals: program.goals,
     methods: program.methods,
     notes: program.notes || undefined,
