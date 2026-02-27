@@ -12,7 +12,7 @@ const tabs = [
 
 export function BottomNav() {
   return (
-    <nav data-tour="navigation" className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-border pb-safe">
+    <nav data-tour="navigation" className="fixed bottom-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm shadow-[0_-1px_3px_rgba(0,0,0,0.05)] pb-safe">
       <div className="flex items-center justify-around h-16">
         {tabs.map(({ path, icon: Icon, label }) => (
           <NavLink
@@ -22,13 +22,13 @@ export function BottomNav() {
             className={({ isActive }) =>
               cn(
                 "flex flex-col items-center justify-center flex-1 h-full min-w-0 px-1",
-                "text-muted-foreground transition-colors",
+                "text-muted-foreground transition-all duration-200 active:scale-95",
                 isActive && "text-primary"
               )
             }
           >
             <Icon className="h-5 w-5 shrink-0" />
-            <span className="text-[10px] mt-1 whitespace-nowrap">{label}</span>
+            <span className="text-xs mt-1 whitespace-nowrap">{label}</span>
           </NavLink>
         ))}
       </div>

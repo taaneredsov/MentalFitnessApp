@@ -8,13 +8,13 @@ export function AppHeader() {
   const { logout } = useAuth()
 
   return (
-    <header className="sticky top-0 z-40 bg-white border-b border-border pt-safe">
-      <div className="flex items-center justify-between h-14 px-4">
+    <header className="sticky top-0 z-40 bg-white/95 backdrop-blur-sm shadow-sm pt-safe">
+      <div className="flex items-center justify-between h-16 px-5">
         <div className="flex items-center gap-2">
           <img src={appIcon} alt="Mental Fitness" className="h-8 w-8" />
           <div className="flex flex-col justify-center leading-tight">
             <h1 className="text-base font-semibold">Mental Fitness</h1>
-            <span className="text-[10px] text-muted-foreground">by Prana Mental Excellence</span>
+            <span className="text-xs text-muted-foreground">by Prana Mental Excellence</span>
           </div>
         </div>
         <div className="flex items-center gap-2">
