@@ -331,7 +331,7 @@ export function HomePage() {
   // Show blocking message if user tries to create program while having one running
   if (showOnboarding && userHasRunningProgram && currentRunningProgram) {
     return (
-      <div className="py-6 px-4 space-y-6">
+      <div className="px-5 py-6 space-y-6">
         <section>
           <h2 className="text-2xl font-bold mb-1">Welkom terug, {firstName}!</h2>
         </section>
@@ -371,7 +371,7 @@ export function HomePage() {
   // Show onboarding wizard for first-time users (after welcome screen)
   if (shouldShowOnboardingWizard) {
     return (
-      <div className="py-6 px-4 space-y-6">
+      <div className="px-5 py-6 space-y-6">
         <section>
           <h2 className="text-2xl font-bold mb-1">Welkom, {firstName}!</h2>
           <p className="text-muted-foreground">
@@ -389,7 +389,7 @@ export function HomePage() {
 
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
-      <div className="px-4 py-8 space-y-6">
+      <div className="px-5 py-6 space-y-6">
         <section>
           <h2 className="text-3xl font-bold mb-2">Hello, {firstName}!</h2>
           <p className="text-lg text-muted-foreground">

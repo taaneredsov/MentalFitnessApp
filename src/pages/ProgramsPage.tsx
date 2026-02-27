@@ -115,7 +115,7 @@ export function ProgramsPage() {
 
   if (error) {
     return (
-      <div className="px-4 py-6">
+      <div className="px-5 py-6">
         <p className="text-destructive">{error}</p>
       </div>
     )
@@ -129,7 +129,7 @@ export function ProgramsPage() {
 
   return (
     <PullToRefreshWrapper onRefresh={handleRefresh}>
-      <div className="px-4 py-6 space-y-6">
+      <div className="px-5 py-6 space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <h2 className="text-2xl font-bold">Programma's</h2>
           <Button onClick={() => setShowWizard(true)} className="w-full sm:w-auto">
