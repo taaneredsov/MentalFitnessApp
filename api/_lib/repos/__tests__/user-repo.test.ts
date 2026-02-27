@@ -139,19 +139,22 @@ describe("getUserRewardsData", () => {
   it("returns user with counts when user exists", async () => {
     // First call: findUserById
     mockDbQuery.mockResolvedValueOnce({ rows: [fakeUserRow], rowCount: 1, command: "", oid: 0, fields: [] })
-    // Next 6 calls: COUNT queries for habits, methods, goals, overtuigingen, habit days, programs completed
+    // Next 8 calls: habits, methods (with points_sum), goals, overtuigingen, habit days, programs completed, months active, programs started
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "5" }], rowCount: 1, command: "", oid: 0, fields: [] })
-    mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "10" }], rowCount: 1, command: "", oid: 0, fields: [] })
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "10", points_sum: "42" }], rowCount: 1, command: "", oid: 0, fields: [] })
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "3" }], rowCount: 1, command: "", oid: 0, fields: [] })
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "2" }], rowCount: 1, command: "", oid: 0, fields: [] })
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "4" }], rowCount: 1, command: "", oid: 0, fields: [] })
     mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "1" }], rowCount: 1, command: "", oid: 0, fields: [] })
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "6" }], rowCount: 1, command: "", oid: 0, fields: [] })
+    mockDbQuery.mockResolvedValueOnce({ rows: [{ count: "3" }], rowCount: 1, command: "", oid: 0, fields: [] })
 
     const data = await getUserRewardsData("rec123")
     expect(data).not.toBeNull()
     expect(data!.user.id).toBe("rec123")
     expect(data!.habitCount).toBe(5)
     expect(data!.methodCount).toBe(10)
+    expect(data!.methodPointsSum).toBe(42)
     expect(data!.personalGoalCount).toBe(3)
     expect(data!.overtuigingCount).toBe(2)
   })

@@ -188,7 +188,7 @@ describe("useRecordHabitUsage", () => {
 
     // Start mutation
     result.current.mutate({
-      data: { userId: "user1", methodId: "newMethod", date: "2024-01-15" },
+      data: { userId: "user1", goedeGewoonteId: "newMethod", date: "2024-01-15" },
       accessToken: "test-token",
     })
 
@@ -267,7 +267,7 @@ describe("useRecordHabitUsage", () => {
     })
 
     await result.current.mutateAsync({
-      data: { userId: "user1", methodId: "newMethod", date: "2024-01-15" },
+      data: { userId: "user1", goedeGewoonteId: "newMethod", date: "2024-01-15" },
       accessToken: "test-token",
     })
 
@@ -294,7 +294,7 @@ describe("useDeleteHabitUsage", () => {
 
     await result.current.mutateAsync({
       userId: "user1",
-      methodId: "method1",
+      goedeGewoonteId: "method1",
       date: "2024-01-15",
       accessToken: "test-token",
     })
@@ -329,7 +329,7 @@ describe("useDeleteHabitUsage", () => {
     // Start deletion
     result.current.mutate({
       userId: "user1",
-      methodId: "method1",
+      goedeGewoonteId: "method1",
       date: "2024-01-15",
       accessToken: "test-token",
     })
@@ -363,7 +363,7 @@ describe("useDeleteHabitUsage", () => {
     try {
       await result.current.mutateAsync({
         userId: "user1",
-        methodId: "method1",
+        goedeGewoonteId: "method1",
         date: "2024-01-15",
         accessToken: "test-token",
       })

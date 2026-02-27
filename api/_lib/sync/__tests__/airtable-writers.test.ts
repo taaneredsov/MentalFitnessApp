@@ -31,6 +31,10 @@ vi.mock("../../db/id-utils.js", () => ({
   isAirtableRecordId: vi.fn()
 }))
 
+vi.mock("../../db/client.js", () => ({
+  dbQuery: vi.fn().mockResolvedValue({ rows: [], rowCount: 0 })
+}))
+
 vi.mock("../../field-mappings.js", () => ({
   PROGRAM_FIELDS: {
     user: "fldUser",
@@ -220,7 +224,9 @@ describe("writeOutboxEventToAirtable - upsert", () => {
 
   describe("personal_goal_usage", () => {
     it("creates new personal goal usage when no existing airtable id", async () => {
-      mockFindAirtableId.mockResolvedValue(null)
+      // First call: findAirtableId("personal_goal_usage", ...) → null (no existing record)
+      // Second call: findAirtableId("personal_goal", ...) → "recGoal1" (resolve the goal link)
+      mockFindAirtableId.mockResolvedValueOnce(null).mockResolvedValueOnce("recGoal1")
       mockCreate.mockResolvedValueOnce({ id: "recNewPGU" })
 
       await writeOutboxEventToAirtable({

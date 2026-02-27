@@ -86,7 +86,7 @@ describe("upsertPersonalGoal", () => {
 
     expect(mockDbQuery).toHaveBeenCalledWith(
       expect.stringContaining("ON CONFLICT (id)"),
-      ["goal-1", "rec123", "Exercise daily", "At least 30 min", true]
+      ["goal-1", "rec123", "Exercise daily", "At least 30 min", true, null, "Actief"]
     )
   })
 })

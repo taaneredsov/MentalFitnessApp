@@ -240,6 +240,7 @@ describe("transformMethod", () => {
       linkedGoalIds: ["recGoal1", "recGoal2"],
       photo: "https://example.com/photo-large.jpg",
       media: ["recMedia1"],
+      pointsValue: 5,
     })
   })
 
