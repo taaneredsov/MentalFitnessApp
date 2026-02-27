@@ -441,7 +441,7 @@ export function OvertuigingenPage() {
               categoryName={categoryNameMap.get(overtuiging.id)}
               completed={false}
               onComplete={() => handleComplete(overtuiging.id)}
-              isPending={completeOvertuigingMutation.isPending}
+              isPending={false}
               recentlyCompleted={recentlyCompletedId === `system:${overtuiging.id}`}
               onAddToProgram={runningProgram && !programOvertuigingIds.has(overtuiging.id) ? () => handleAddToProgram(overtuiging.id) : undefined}
             />
@@ -455,7 +455,7 @@ export function OvertuigingenPage() {
               categoryName={PERSONAL_CATEGORY_NAME}
               completed={false}
               onComplete={() => handleCompletePersoonlijke(item.id)}
-              isPending={updatePersoonlijkeMutation.isPending}
+              isPending={false}
               recentlyCompleted={recentlyCompletedId === `personal:${item.id}`}
               onDelete={() => handleDeletePersoonlijke(item.id)}
             />

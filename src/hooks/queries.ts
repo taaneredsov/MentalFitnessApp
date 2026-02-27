@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { toast } from "sonner"
 import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
-import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData } from "@/types/program"
+import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData, OvertuigingUsageMap, PersoonlijkeOvertuiging } from "@/types/program"
 import type { AwardRequest, UserRewards } from "@/types/rewards"
 import type { ReminderMode } from "@/types/notifications"
 import { useAuth } from "@/contexts/AuthContext"
@@ -713,11 +713,25 @@ export function useUpdatePersoonlijkeOvertuiging() {
       accessToken: string
     }) => api.persoonlijkeOvertuigingen.update(id, data, accessToken),
     onMutate: async (variables) => {
+      // Optimistic update for persoonlijke overtuigingen list
+      let previousList: PersoonlijkeOvertuiging[] | undefined
+      const listKey = user?.id ? queryKeys.persoonlijkeOvertuigingen(user.id) : undefined
+      if (listKey) {
+        await queryClient.cancelQueries({ queryKey: listKey })
+        previousList = queryClient.getQueryData<PersoonlijkeOvertuiging[]>(listKey)
+        if (previousList) {
+          queryClient.setQueryData<PersoonlijkeOvertuiging[]>(listKey, previousList.map(item =>
+            item.id === variables.id ? { ...item, ...variables.data } : item
+          ))
+        }
+      }
+
       // Optimistic update for rewards when completing
+      let previousRewards: UserRewards | undefined
+      const rewardsKey = queryKeys.rewards
       if (variables.data.status === "Afgerond") {
-        const rewardsKey = queryKeys.rewards
         await queryClient.cancelQueries({ queryKey: rewardsKey })
-        const previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
+        previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
         if (previousRewards) {
           queryClient.setQueryData<UserRewards>(rewardsKey, {
             ...previousRewards,
@@ -725,22 +739,24 @@ export function useUpdatePersoonlijkeOvertuiging() {
             totalPoints: previousRewards.totalPoints + 1
           })
         }
-        return { previousRewards, rewardsKey }
       }
-      return {}
+      return { previousRewards, rewardsKey, previousList, listKey }
     },
     onError: (_error, _variables, context) => {
       if (context?.previousRewards !== undefined) {
         queryClient.setQueryData(context.rewardsKey, context.previousRewards)
       }
+      if (context?.listKey && context?.previousList !== undefined) {
+        queryClient.setQueryData(context.listKey, context.previousList)
+      }
+      toast.error("Kon de overtuiging niet bijwerken")
     },
     onSuccess: (_data, variables) => {
       if (user?.id) {
         queryClient.invalidateQueries({ queryKey: queryKeys.persoonlijkeOvertuigingen(user.id) })
       }
-      // Reconcile rewards with server after completion
       if (variables.data.status === "Afgerond") {
-        queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
+        queryClient.refetchQueries({ queryKey: queryKeys.rewards })
       }
     }
   })
@@ -772,8 +788,8 @@ export function useCompleteOvertuiging() {
       data: { userId: string; overtuigingId: string; programId?: string; date: string }
       accessToken: string
     }) => api.overtuigingUsage.create(data, accessToken),
-    // Optimistic update for rewards score
-    onMutate: async () => {
+    // Optimistic update for rewards score + usage map
+    onMutate: async (variables) => {
       const rewardsKey = queryKeys.rewards
       await queryClient.cancelQueries({ queryKey: rewardsKey })
       const previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
@@ -784,21 +800,51 @@ export function useCompleteOvertuiging() {
           totalPoints: previousRewards.totalPoints + 1
         })
       }
-      return { previousRewards, rewardsKey }
+
+      // Optimistic update for usage map — immediately shows overtuiging as completed
+      let previousUsage: OvertuigingUsageMap | undefined
+      let usageKey: readonly string[] | undefined
+      if (variables.data.programId) {
+        usageKey = queryKeys.overtuigingUsage(variables.data.programId)
+        await queryClient.cancelQueries({ queryKey: usageKey })
+        previousUsage = queryClient.getQueryData<OvertuigingUsageMap>(usageKey)
+        queryClient.setQueryData<OvertuigingUsageMap>(usageKey, {
+          ...(previousUsage || {}),
+          [variables.data.overtuigingId]: { completed: true }
+        })
+      }
+
+      // Also optimistically update allOvertuigingUsage for mindset page
+      const allUsageKey = queryKeys.allOvertuigingUsage
+      await queryClient.cancelQueries({ queryKey: allUsageKey })
+      const previousAllUsage = queryClient.getQueryData<OvertuigingUsageMap>(allUsageKey)
+      if (previousAllUsage) {
+        queryClient.setQueryData<OvertuigingUsageMap>(allUsageKey, {
+          ...previousAllUsage,
+          [variables.data.overtuigingId]: { completed: true }
+        })
+      }
+
+      return { previousRewards, rewardsKey, previousUsage, usageKey, previousAllUsage }
     },
     onError: (_error, _variables, context) => {
       if (context?.previousRewards !== undefined) {
         queryClient.setQueryData(context.rewardsKey, context.previousRewards)
       }
+      if (context?.usageKey && context?.previousUsage !== undefined) {
+        queryClient.setQueryData(context.usageKey, context.previousUsage)
+      }
+      if (context?.previousAllUsage !== undefined) {
+        queryClient.setQueryData(queryKeys.allOvertuigingUsage, context.previousAllUsage)
+      }
+      toast.error("Kon de overtuiging niet voltooien")
     },
     onSuccess: (_data, variables) => {
-      // Invalidate overtuiging usage for the program (if applicable)
+      // Reconcile with server — refetch to get authoritative data
       if (variables.data.programId) {
         queryClient.invalidateQueries({ queryKey: queryKeys.overtuigingUsage(variables.data.programId) })
       }
-      // Invalidate all overtuiging usage (for mindset page)
       queryClient.invalidateQueries({ queryKey: queryKeys.allOvertuigingUsage })
-      // Force refetch rewards to get authoritative server score
       queryClient.refetchQueries({ queryKey: queryKeys.rewards })
     }
   })

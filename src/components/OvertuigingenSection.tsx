@@ -261,8 +261,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                     </button>
                     <button
                       onClick={() => handleComplete(overtuiging.id)}
-                      disabled={completeOvertuigingMutation.isPending}
-                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-gray-200 text-gray-400 hover:bg-gray-300"
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 bg-gray-200 text-gray-400 hover:bg-gray-300"
                       aria-label="Overtuiging voltooien"
                     >
                       <Check className="h-5 w-5" />
@@ -303,8 +302,7 @@ export function OvertuigingenSection({ programId, showManageLink = true }: Overt
                     </button>
                     <button
                       onClick={() => handleCompletePersoonlijke(item.id)}
-                      disabled={updatePersoonlijkeMutation.isPending}
-                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 disabled:opacity-50 bg-gray-200 text-gray-400 hover:bg-gray-300"
+                      className="flex-shrink-0 w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-95 bg-gray-200 text-gray-400 hover:bg-gray-300"
                       aria-label="Overtuiging afvinken"
                     >
                       <Check className="h-5 w-5" />
