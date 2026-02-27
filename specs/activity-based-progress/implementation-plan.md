@@ -309,6 +309,16 @@ Consider generating Programmaplanning for legacy programs to enable progress tra
 
 ---
 
+## Program-Aligned Streaks (2026-02-27)
+
+Progress tracking via Programmaplanning completion also feeds the reward system's streak logic:
+- Streaks count **consecutive on-time completions** of scheduled Programmaplanning sessions
+- A session is "on time" when completed on or before its scheduled date
+- Missing a scheduled session resets the streak to 0
+- This is NOT daily calendar-based; a 3x/week program only requires those 3 sessions to maintain the streak
+
+The `getSessionProgress()` utility and the streak calculation both operate on the same Programmaplanning completion data.
+
 ## Verification
 
 1. Create a program with AI-generated schedule (Programmaplanning records)

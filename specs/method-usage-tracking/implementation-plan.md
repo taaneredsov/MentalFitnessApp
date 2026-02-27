@@ -285,6 +285,14 @@ Existing Method Usage records linked to Programs could be:
 
 ---
 
+## Reward Awarding Integration (2026-02-27)
+
+Method usage now triggers reward awarding as part of the recording flow:
+- After a method usage record is successfully created, the handler calls `awardRewardActivity`
+- The reward amount is read from the method record's `points_value` field (`Punten waarde` / `fldcyKMc8Q02H2QGN`), range 1-10
+- This replaces the previous flat 10-point award
+- On failure, `pointsAwarded` returns 0 (silent failure) so the usage recording still succeeds
+
 ## Summary of Changes from Original Implementation
 
 | Component | Original | Updated |

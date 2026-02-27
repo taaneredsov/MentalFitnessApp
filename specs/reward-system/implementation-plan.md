@@ -1,5 +1,17 @@
 # Implementation Plan: Reward System
 
+## Redesign (2026-02-27)
+
+Key implementation changes:
+- **Variable method points**: Read `points_value` from method record (`Punten waarde` / `fldcyKMc8Q02H2QGN`), range 1-10
+- **Method usage handler**: Now awards points via `awardRewardActivity`, reading `points_value` from the method record
+- **Overtuiging**: +1 bonus point to total (not a separate dimension)
+- **12 journey-based badges** in 3 tiers (Eerste Stappen, Consistentie, Mentale Atleet)
+- **Program-aligned streaks**: Count consecutive on-time Programmaplanning completions
+- **No 90-day score wipe**: Only streaks reset
+- **Recalibrated LEVELS**: Top is 2000 pts (was 6000)
+- **Silent failure**: `pointsAwarded` returns 0 on award failure
+
 ## Overview
 
 Implement a gamification system with points, levels, streaks, and badges to increase user engagement in the Mental Fitness PWA.
@@ -68,11 +80,11 @@ level: "fldXXX"
 **POST /api/rewards/award endpoint:**
 ```typescript
 // Request body:
-{ activityType: "method" | "habit" | "program", activityId?: string }
+{ activityType: "method" | "habit" | "personalGoal" | "overtuiging" | "program", activityId?: string }
 
 // Response:
 {
-  pointsAwarded: 10,
+  pointsAwarded: 5,       // Variable for methods (1-10), fixed for others; returns 0 on failure (silent failure)
   newTotal: 350,
   streakUpdated: true,
   currentStreak: 13,
@@ -81,6 +93,8 @@ level: "fldXXX"
   level: 4
 }
 ```
+
+> **Silent failure**: On award failure, `pointsAwarded` returns 0 instead of throwing. The caller can check for 0 to detect issues.
 
 ---
 
@@ -120,26 +134,25 @@ export interface AwardResult {
 }
 
 export const POINTS = {
-  method: 10,
-  methodBonus: 5,      // All session methods
+  method: "variable",   // 1-10 pts, read from `Punten waarde` field (fldcyKMc8Q02H2QGN)
+  overtuiging: 1,       // +1 bonus to total
   habit: 5,
-  habitBonus: 5,       // All daily habits
-  program: 100,
+  personalGoal: 5,
   streak7: 50,
   streak30: 200
 } as const
 
 export const LEVELS = [
   { points: 0, name: "Beginner" },
-  { points: 50, name: "Ontdekker" },
-  { points: 150, name: "Beoefenaar" },
-  { points: 350, name: "Doorzetter" },
-  { points: 600, name: "Expert" },
-  { points: 1000, name: "Meester" },
-  { points: 1500, name: "Kampioen" },
-  { points: 2500, name: "Legende" },
-  { points: 4000, name: "Goeroe" },
-  { points: 6000, name: "Mentale Atleet" }
+  { points: 30, name: "Ontdekker" },
+  { points: 80, name: "Beoefenaar" },
+  { points: 160, name: "Doorzetter" },
+  { points: 300, name: "Expert" },
+  { points: 500, name: "Meester" },
+  { points: 800, name: "Kampioen" },
+  { points: 1200, name: "Legende" },
+  { points: 1600, name: "Goeroe" },
+  { points: 2000, name: "Mentale Atleet" }
 ] as const
 
 export interface Badge {
@@ -149,17 +162,25 @@ export interface Badge {
   icon: string
 }
 
+// 12 journey-based badges in 3 tiers
 export const BADGES: Record<string, Badge> = {
+  // Tier 1: Eerste Stappen (First Steps)
   eerste_sessie: { id: "eerste_sessie", name: "Eerste Stap", description: "Eerste methode voltooid", icon: "🌱" },
-  vijf_methodes: { id: "vijf_methodes", name: "Op Weg", description: "5 methodes voltooid", icon: "🚶" },
-  twintig_methodes: { id: "twintig_methodes", name: "Doorzetter", description: "20 methodes voltooid", icon: "🏃" },
-  eerste_programma: { id: "eerste_programma", name: "Programma Compleet", description: "Eerste programma afgerond", icon: "🎯" },
-  week_streak: { id: "week_streak", name: "Week Warrior", description: "7 dagen op rij actief", icon: "🔥" },
-  twee_weken_streak: { id: "twee_weken_streak", name: "Constante Kracht", description: "14 dagen op rij actief", icon: "💪" },
-  maand_streak: { id: "maand_streak", name: "Maand Meester", description: "30 dagen op rij actief", icon: "👑" },
   goede_start: { id: "goede_start", name: "Goede Start", description: "Eerste gewoonte voltooid", icon: "✨" },
+  eerste_doel: { id: "eerste_doel", name: "Doelgericht", description: "Eerste persoonlijk doel voltooid", icon: "🎯" },
+  eerste_programma: { id: "eerste_programma", name: "Programma Compleet", description: "Eerste programma afgerond", icon: "📋" },
+
+  // Tier 2: Consistentie (Consistency)
+  vijf_methodes: { id: "vijf_methodes", name: "Op Weg", description: "5 methodes voltooid", icon: "🚶" },
+  week_streak: { id: "week_streak", name: "Week Warrior", description: "7 sessies op rij voltooid", icon: "🔥" },
+  twee_weken_streak: { id: "twee_weken_streak", name: "Constante Kracht", description: "14 sessies op rij voltooid", icon: "💪" },
   dagelijkse_held: { id: "dagelijkse_held", name: "Dagelijkse Held", description: "Alle gewoontes op één dag", icon: "🦸" },
-  week_gewoontes: { id: "week_gewoontes", name: "Gewoonte Goeroe", description: "7 dagen alle gewoontes", icon: "🧘" }
+
+  // Tier 3: Mentale Atleet (Mental Athlete)
+  twintig_methodes: { id: "twintig_methodes", name: "Doorzetter", description: "20 methodes voltooid", icon: "🏃" },
+  maand_streak: { id: "maand_streak", name: "Maand Meester", description: "30 sessies op rij voltooid", icon: "👑" },
+  week_gewoontes: { id: "week_gewoontes", name: "Gewoonte Goeroe", description: "7 dagen alle gewoontes", icon: "🧘" },
+  mentale_atleet: { id: "mentale_atleet", name: "Mentale Atleet", description: "Niveau 10 bereikt", icon: "🏆" }
 }
 ```
 
@@ -168,7 +189,8 @@ export const BADGES: Record<string, Badge> = {
 export function calculateLevel(points: number): number
 export function getLevelInfo(level: number): { name: string; minPoints: number; maxPoints: number }
 export function getPointsToNextLevel(points: number): { current: number; needed: number; progress: number }
-export function calculateStreak(lastActiveDate: string | null, today: string, currentStreak: number): { newStreak: number; updated: boolean }
+export function calculateStreak(lastCompletionDate: string | null, scheduledDate: string, currentStreak: number): { newStreak: number; updated: boolean }
+// Note: Streaks are program-aligned — they count consecutive on-time Programmaplanning completions, not daily calendar activity
 ```
 
 ---
@@ -252,9 +274,10 @@ Integrate rewards into existing flows.
 **MethodDetailPage flow:**
 1. User completes method (existing flow)
 2. After `recordMethodUsage` succeeds
-3. Call `awardPoints({ activityType: 'method', activityId: methodId })`
-4. Show RewardToast with result
-5. Invalidate rewards query
+3. Method usage handler calls `awardRewardActivity`, reading `points_value` from the method record
+4. Points awarded = method's `Punten waarde` value (1-10 pts, field `fldcyKMc8Q02H2QGN`)
+5. Show RewardToast with result
+6. Invalidate rewards query
 
 **GoodHabitsSection integration:**
 1. On habit toggle → call habit-usage API (Phase 5)

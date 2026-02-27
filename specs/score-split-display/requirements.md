@@ -1,5 +1,14 @@
 # Requirements: Score Split Display
 
+## Redesign (2026-02-27)
+
+Key changes from original spec:
+- **Mental Fitness**: Now sum of method `points_value` (variable 1-10 per method, from `Punten waarde` field), replacing flat 10 pts per method
+- **Personal Goals**: count * 5 (unchanged)
+- **Good Habits**: count * 5 (unchanged)
+- **Mindset (overtuiging)**: +1 bonus point added to total score; NOT displayed as a separate fourth dimension/widget
+- **No 90-day inactivity reset** on Mental Fitness score (points never expire)
+
 ## Overview
 
 Split the gamification score into **3 separate categories** displayed as distinct widgets on the HomePage. This provides users with clearer insight into their progress across different domains and prevents a high score in one area from masking lack of progress in another.
@@ -15,14 +24,13 @@ Split the gamification score into **3 separate categories** displayed as distinc
 
 ### 1. Mental Fitness Score
 - Points earned from completing **program methods**
-- 10 points per method completion
-- Bonus points for milestones (25%, 50%, 75%, 100%)
+- Variable points per method: 1-10 pts based on `points_value` from method record (`Punten waarde` / `fldcyKMc8Q02H2QGN`)
 - Tracked per-program and cumulatively
-- **Resets after 3 months of inactivity** (like physical fitness)
+- Cumulative (never resets, no 90-day wipe)
 
 ### 2. Personal Goals Score
 - Points earned from completing **personal goals**
-- 10 points per completion
+- 5 points per completion
 - Can complete same goal multiple times (daily)
 - Cumulative (never resets)
 
@@ -31,6 +39,11 @@ Split the gamification score into **3 separate categories** displayed as distinc
 - 5 points per habit completion
 - Daily completions
 - Cumulative (never resets)
+
+### Mindset (Overtuiging) — Not a Separate Widget
+- Completing an overtuiging adds +1 bonus point to the **total** score
+- This is NOT displayed as a separate fourth category/widget
+- The bonus is folded into the overall total shown in the header
 
 ## Functional Requirements
 
@@ -50,9 +63,10 @@ Split the gamification score into **3 separate categories** displayed as distinc
 - Update `Total Points` formula to sum all three
 
 ### FR-3: Score Calculation
-- Mental Fitness: Sum of all program method completions + milestones
-- Personal Goals: Count of personal goal completions × 10
-- Good Habits: Count of habit completions × 5
+- Mental Fitness: Sum of each method's `points_value` (1-10 per method, from Airtable `Punten waarde` field)
+- Personal Goals: Count of personal goal completions * 5
+- Good Habits: Count of habit completions * 5
+- Overtuiging: +1 bonus to total (not a separate category)
 
 ## Acceptance Criteria
 

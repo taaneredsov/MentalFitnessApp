@@ -154,6 +154,16 @@ interface ProgramDetail extends Program {
 | **mental-fitness-programs** | Displays Programmaplanning schedule with completion status |
 | **activity-based-progress** | Calculates progress from completed Programmaplanning count |
 
+## Program-Aligned Streaks (2026-02-27)
+
+Progress is tracked via Programmaplanning completion. **Streaks count consecutive on-time completions** of scheduled Programmaplanning sessions:
+- A streak increments when a user completes a scheduled session on or before its planned date
+- A streak resets to 0 when a scheduled session is missed (date passes without completion)
+- Streaks are program-aligned, not daily calendar-based
+- This means users with a 3x/week program maintain streaks by completing those 3 sessions on time, not by being active every single day
+
+This streak model ties directly into the reward system's streak tracking and bonus points.
+
 ## Migration Notes
 
 If existing programs were using `weeks × frequency` calculation:

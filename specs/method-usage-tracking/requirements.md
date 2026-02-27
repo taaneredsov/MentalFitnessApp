@@ -86,6 +86,14 @@ When navigating to a method from a program's schedule:
 - [ ] When clicking a method from Methods tab (no program context), no Programmaplanning link is set
 - [ ] Progress calculation in activity-based-progress uses completed Programmaplanning count
 
+## Reward Awarding on Method Usage (2026-02-27)
+
+When a method usage is recorded, the method usage handler now triggers reward awarding:
+- The handler calls `awardRewardActivity` after successfully recording the usage
+- Points awarded are read from the method record's `points_value` field (`Punten waarde` / Airtable field ID: `fldcyKMc8Q02H2QGN`)
+- Point values range from 1-10 per method (variable, not flat)
+- On award failure, `pointsAwarded` returns 0 (silent failure) instead of throwing
+
 ## Dependencies
 
 - Existing MethodDetailPage with MediaPlayer component

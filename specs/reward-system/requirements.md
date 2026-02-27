@@ -1,5 +1,17 @@
 # Requirements: Reward System
 
+## Redesign (2026-02-27)
+
+Key changes from original spec:
+- **Variable method points**: Methods now award 1-10 pts based on `Punten waarde` field (Airtable field ID: `fldcyKMc8Q02H2QGN`), replacing flat 10 pts
+- **Overtuiging bonus**: Completing an overtuiging adds +1 bonus point to total (not a separate scoring dimension)
+- **Journey-based badges**: 12 badges in 3 tiers (Eerste Stappen, Consistentie, Mentale Atleet) replacing the old 10-badge set
+- **Program-aligned streaks**: Streaks track consecutive on-time Programmaplanning completions, not daily calendar activity
+- **No 90-day score wipe**: Points never expire; only streak resets on missed scheduled session
+- **Recalibrated levels**: Top level is 2000 pts (was 6000)
+- **Silent failure fix**: `pointsAwarded` returns 0 on award failure instead of throwing
+- **Method usage handler**: Now awards points via `awardRewardActivity` reading `points_value` from the method record
+
 ## Overview
 
 Implement a gamification system to increase user engagement and retention in the Mental Fitness PWA. Users earn points, levels, streaks, and badges for completing activities.
@@ -20,8 +32,8 @@ Implement a gamification system to increase user engagement and retention in the
 
 ### Streaks
 - As a user, I want to see my current streak so I'm motivated to maintain it
-- As a user, I want streak milestone rewards (7 days, 30 days) to celebrate consistency
-- As a user, I want my streak to count both program methods AND good habits
+- As a user, I want streak milestone rewards (7 sessions, 30 sessions) to celebrate consistency
+- As a user, I want my streak to track consecutive on-time Programmaplanning completions (program-aligned)
 
 ### Levels
 - As a user, I want to level up as I accumulate points to show my progress
@@ -41,28 +53,33 @@ Implement a gamification system to increase user engagement and retention in the
 ## Acceptance Criteria
 
 ### Points System
-- [ ] Users earn 10 points per method completed
-- [ ] Users earn 5 bonus points for completing all methods in a session
+- [ ] Users earn variable points per method (1-10 pts, read from `Punten waarde` / `fldcyKMc8Q02H2QGN`)
+- [ ] Overtuiging completion awards +1 bonus point to total
 - [ ] Users earn 5 points per good habit completed
-- [ ] Users earn 5 bonus points for completing all habits in a day
+- [ ] Users earn 5 points per personal goal completed
 - [ ] Points persist in Airtable (not localStorage)
 - [ ] Points display in header updates after each activity
+- [ ] Points never expire (no 90-day wipe)
 
 ### Streak System
-- [ ] Streak increments when user completes any activity on consecutive days
-- [ ] Streak resets to 1 if user misses a day
+- [ ] Streak increments when user completes a scheduled Programmaplanning on time
+- [ ] Streak resets to 0 if user misses a scheduled session
+- [ ] Streaks are program-aligned (not daily calendar-based)
 - [ ] Longest streak is tracked separately and never decreases
-- [ ] 7-day streak awards 50 bonus points
-- [ ] 30-day streak awards 200 bonus points
+- [ ] 7-session streak awards 50 bonus points
+- [ ] 30-session streak awards 200 bonus points
 
 ### Level System
-- [ ] 10 levels with increasing point thresholds
+- [ ] 10 levels with recalibrated thresholds (top level at 2000 pts, not 6000)
 - [ ] Level titles in Dutch (Beginner → Mentale Atleet)
 - [ ] Account page shows circular progress toward next level
 - [ ] Level-up triggers celebration animation
 
 ### Badge System
-- [ ] Initial set of ~10 badges across categories (progress, streaks, habits)
+- [ ] 12 journey-based badges in 3 tiers:
+  - **Eerste Stappen** (first steps): early milestones
+  - **Consistentie** (consistency): sustained engagement
+  - **Mentale Atleet** (mental athlete): mastery achievements
 - [ ] Badges stored as JSON array in user record
 - [ ] Badge grid shows earned (colored) vs locked (greyed)
 - [ ] Toast notification when badge unlocked

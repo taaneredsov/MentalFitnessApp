@@ -39,7 +39,7 @@ Status meanings:
 | `pull-to-refresh` | active |
 | `push-notifications` | active |
 | `react-query-caching` | active |
-| `reward-system` | active |
+| `reward-system` | active - redesigning |
 | `schedule-progress-indicators` | active |
 | `score-split-display` | active |
 | `user-nuke` | active |

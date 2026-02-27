@@ -1,5 +1,14 @@
 # Implementation Plan: Score Split Display
 
+## Redesign (2026-02-27)
+
+Key implementation changes:
+- **Mental Fitness score** = sum of method `points_value` (variable 1-10, from `Punten waarde` / `fldcyKMc8Q02H2QGN`), not flat 10
+- **Personal Goals score** = count * 5 (unchanged)
+- **Good Habits score** = count * 5 (unchanged)
+- **Overtuiging** = +1 bonus to total, not a separate widget/dimension
+- **No 90-day Mental Fitness reset** removed from design
+
 ## Overview
 
 Implement three separate score categories (Mental Fitness, Personal Goals, Good Habits) displayed as widgets on the HomePage, with corresponding Airtable schema updates.
@@ -48,9 +57,10 @@ Update reward tracking to use the new separate score fields.
 ### Tasks
 
 - [ ] Update `transformUserRewards` to include separate scores
-- [ ] Update method completion to add to Mental Fitness Score
-- [ ] Update personal goal completion to add to Personal Goals Score
-- [ ] Update habit completion to add to Good Habits Score
+- [ ] Update method completion to add method's `points_value` (1-10) to Mental Fitness Score
+- [ ] Update personal goal completion to add 5 pts to Personal Goals Score
+- [ ] Update habit completion to add 5 pts to Good Habits Score
+- [ ] Update overtuiging completion to add +1 bonus to total (not a separate score field)
 - [ ] Add types for split scores
 
 ### Technical Details
@@ -71,13 +81,16 @@ export function transformUserRewards(record) {
 ```
 
 **File: `api/method-usage/index.ts`** (or rewards endpoint)
-- When method is completed, increment `mentalFitnessScore` instead of generic points
+- When method is completed, increment `mentalFitnessScore` by method's `points_value` (1-10, from `Punten waarde` / `fldcyKMc8Q02H2QGN`)
 
 **File: `api/personal-goal-usage/index.ts`**
-- When goal is completed, increment `personalGoalsScore` instead of `bonusPoints`
+- When goal is completed, increment `personalGoalsScore` by 5
 
 **File: `api/habit-usage/index.ts`**
-- When habit is completed, increment `goodHabitsScore` instead of `bonusPoints`
+- When habit is completed, increment `goodHabitsScore` by 5
+
+**File: `api/overtuiging-usage/index.ts`**
+- When overtuiging is completed, add +1 to total points (bonus, not a separate score field)
 
 ## Phase 3: Frontend Types & API Client
 
