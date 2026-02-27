@@ -102,7 +102,7 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
 
   const counts = await countGoalUsageForUserGoalDate(body.userId, body.personalGoalId, body.date)
 
-  let pointsAwarded = POINTS.personalGoal
+  let pointsAwarded: number = POINTS.personalGoal
   try {
     await awardRewardActivity({
       userId: body.userId,
@@ -211,7 +211,7 @@ async function handlePostAirtable(req: Request, res: Response, tokenUserId: stri
     if (recordDate === body.date) todayCount += 1
   })
 
-  let pointsAwarded = POINTS.personalGoal
+  let pointsAwarded: number = POINTS.personalGoal
   try {
     await awardRewardActivity({
       userId: body.userId,

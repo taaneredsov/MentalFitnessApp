@@ -32,9 +32,9 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   const programOvertuigingen = allOvertuigingen.filter(o => program.overtuigingen?.includes(o.id))
 
   // Personal goals state
-  const [showGoalsSection, setShowGoalsSection] = useState(false)
   const [personalGoals, setPersonalGoals] = useState<{ name: string; scheduleDays: string[] }[]>([])
   const [newGoalInput, setNewGoalInput] = useState("")
+  const [newGoalSchedule, setNewGoalSchedule] = useState<string[]>([])
   const [savingGoals, setSavingGoals] = useState(false)
 
   // Preload homepage data while user reviews the result
@@ -102,8 +102,9 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
   const handleAddGoal = () => {
     const trimmed = newGoalInput.trim()
     if (trimmed && !personalGoals.some(g => g.name === trimmed)) {
-      setPersonalGoals([...personalGoals, { name: trimmed, scheduleDays: [] }])
+      setPersonalGoals([...personalGoals, { name: trimmed, scheduleDays: [...newGoalSchedule] }])
       setNewGoalInput("")
+      setNewGoalSchedule([])
     }
   }
 
@@ -111,14 +112,16 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
     setPersonalGoals(personalGoals.filter((_, i) => i !== index))
   }
 
-  const handleToggleDay = (goalIndex: number, day: string) => {
-    setPersonalGoals(prev => prev.map((g, i) => {
-      if (i !== goalIndex) return g
-      const days = g.scheduleDays.includes(day)
-        ? g.scheduleDays.filter(d => d !== day)
-        : [...g.scheduleDays, day]
-      return { ...g, scheduleDays: days }
-    }))
+  const toggleNewGoalDay = (day: string) => {
+    setNewGoalSchedule(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
+    )
+  }
+
+  const formatScheduleDays = (days: string[]) => {
+    if (days.length === 0) return t("personalGoals.noSchedule", "Geen planning")
+    if (days.length === 7) return t("personalGoals.everyDay", "Elke dag")
+    return days.map(d => DAY_CHIPS.find(c => c.key === d)?.label ?? d).join(", ")
   }
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -244,90 +247,74 @@ export function ProgramResult({ result, onViewProgram, onCreateNew }: ProgramRes
               <span className="text-xs text-muted-foreground ml-auto">{t("personalGoals.optional")}</span>
             </div>
           </CardHeader>
-          <CardContent>
-            {!showGoalsSection ? (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {t("personalGoals.addPrompt")}
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => setShowGoalsSection(true)}
-                    className="flex-1"
-                  >
-                    <Plus className="mr-2 h-4 w-4" />
-                    {t("personalGoals.addButton")}
-                  </Button>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                <p className="text-sm text-muted-foreground">
-                  {t("personalGoals.examplesPrompt")}
-                </p>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              {t("personalGoals.examplesPrompt")}
+            </p>
 
-                {/* Added goals list */}
-                {personalGoals.length > 0 && (
-                  <div className="space-y-2">
-                    {personalGoals.map((goal, index) => (
-                      <div
-                        key={index}
-                        className="bg-white rounded-lg px-3 py-2 border space-y-2"
-                      >
-                        <div className="flex items-center gap-2">
-                          <Target className="w-4 h-4 text-orange-500 shrink-0" />
-                          <span className="text-sm flex-1">{goal.name}</span>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            className="h-6 w-6 p-0"
-                            onClick={() => handleRemoveGoal(index)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
-                        <div className="flex flex-wrap gap-1 pl-6">
-                          {DAY_CHIPS.map(({ key, label }) => (
-                            <button
-                              key={key}
-                              type="button"
-                              onClick={() => handleToggleDay(index, key)}
-                              className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
-                                goal.scheduleDays.includes(key)
-                                  ? "bg-orange-500 text-white border-orange-500"
-                                  : "bg-white text-muted-foreground border-gray-200 hover:border-orange-300"
-                              }`}
-                            >
-                              {label}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
+            {/* Confirmed goals */}
+            {personalGoals.length > 0 && (
+              <div className="space-y-2">
+                {personalGoals.map((goal, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 bg-green-50 rounded-lg px-3 py-2 border border-green-200"
+                  >
+                    <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-sm font-medium">{goal.name}</span>
+                      <p className="text-xs text-muted-foreground">{formatScheduleDays(goal.scheduleDays)}</p>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-6 w-6 p-0 shrink-0"
+                      onClick={() => handleRemoveGoal(index)}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
                   </div>
-                )}
-
-                {/* Add new goal input */}
-                <div className="flex gap-2">
-                  <Input
-                    placeholder={t("personalGoals.inputPlaceholder")}
-                    value={newGoalInput}
-                    onChange={(e) => setNewGoalInput(e.target.value)}
-                    onKeyDown={handleKeyDown}
-                    className="flex-1"
-                  />
-                  <Button
-                    size="sm"
-                    onClick={handleAddGoal}
-                    disabled={!newGoalInput.trim()}
-                  >
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+                ))}
               </div>
             )}
+
+            {/* Input area: text + schedule + add button */}
+            <div className="bg-white rounded-lg px-3 py-3 border space-y-3">
+              <Input
+                placeholder={t("personalGoals.inputPlaceholder")}
+                value={newGoalInput}
+                onChange={(e) => setNewGoalInput(e.target.value)}
+                onKeyDown={handleKeyDown}
+                className="border-0 p-0 h-auto text-sm focus-visible:ring-0 shadow-none"
+              />
+              <div className="flex items-center justify-between gap-2">
+                <div className="flex flex-wrap gap-1">
+                  {DAY_CHIPS.map(({ key, label }) => (
+                    <button
+                      key={key}
+                      type="button"
+                      onClick={() => toggleNewGoalDay(key)}
+                      className={`px-2 py-0.5 text-xs rounded-full border transition-colors ${
+                        newGoalSchedule.includes(key)
+                          ? "bg-orange-500 text-white border-orange-500"
+                          : "bg-white text-muted-foreground border-gray-200 hover:border-orange-300"
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  onClick={handleAddGoal}
+                  disabled={!newGoalInput.trim()}
+                  className="shrink-0"
+                >
+                  <Plus className="mr-1 h-4 w-4" />
+                  {t("personalGoals.add", "Toevoegen")}
+                </Button>
+              </div>
+            </div>
           </CardContent>
         </Card>
 

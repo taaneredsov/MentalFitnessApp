@@ -64,7 +64,7 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
 
   const { user, habitCount, methodCount, methodPointsSum, personalGoalCount, overtuigingCount: _overtuigingCount } = data
 
-  let badges: unknown[] = []
+  let badges: string[] = []
   try {
     badges = JSON.parse(user.badges)
   } catch {

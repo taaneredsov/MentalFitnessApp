@@ -7,10 +7,10 @@ import type { AwardRequest, UserRewards } from "@/types/rewards"
 import type { ReminderMode } from "@/types/notifications"
 import { useAuth } from "@/contexts/AuthContext"
 
-// Cache times matching server TTLs
-const CACHE_LONG = 30 * 60 * 1000   // 30 minutes
-const CACHE_MEDIUM = 5 * 60 * 1000  // 5 minutes
-const CACHE_SHORT = 60 * 1000       // 1 minute
+// Reference data (programs, methods, habits, goal definitions) changes rarely — cache 30 min.
+// Usage/interaction data uses staleTime: 0 (always refetch) or 10s (when optimistic updates
+// need protection from premature refetches overwriting onMutate cache updates).
+const CACHE_LONG = 30 * 60 * 1000   // 30 minutes — reference data only
 
 export function useGoals() {
   return useQuery({
@@ -73,7 +73,7 @@ export function useNotificationPreferences() {
     queryKey: queryKeys.notificationPreferences(user?.id || ""),
     queryFn: () => api.notifications.getPreferences(accessToken!),
     enabled: !!user?.id && !!accessToken,
-    staleTime: CACHE_SHORT
+    staleTime: 0
   })
 }
 
@@ -84,7 +84,7 @@ export function usePrograms(userId: string | undefined) {
     queryKey: queryKeys.programs(userId!),
     queryFn: () => api.programs.list(accessToken!),
     enabled: !!userId && !!accessToken,
-    staleTime: CACHE_MEDIUM
+    staleTime: 0
   })
 }
 
@@ -95,7 +95,7 @@ export function useProgram(id: string) {
     queryKey: queryKeys.program(id),
     queryFn: () => api.programs.get(id, accessToken!),
     enabled: !!id && !!accessToken,
-    staleTime: CACHE_MEDIUM
+    staleTime: 0
   })
 }
 
@@ -106,7 +106,7 @@ export function useMethodUsage(programId: string, limit = 2) {
     queryKey: queryKeys.methodUsage(programId),
     queryFn: () => api.methodUsage.byProgram(programId, limit, accessToken!),
     enabled: !!programId && !!accessToken,
-    staleTime: CACHE_SHORT
+    staleTime: 0
   })
 }
 
@@ -288,7 +288,7 @@ export function useUserRewards() {
     queryKey: queryKeys.rewards,
     queryFn: () => api.rewards.get(accessToken!),
     enabled: !!accessToken,
-    staleTime: CACHE_SHORT
+    staleTime: 0
   })
 }
 
@@ -342,7 +342,7 @@ export function useHabitUsage(userId: string | undefined, date: string) {
     queryKey: queryKeys.habitUsage(userId || "", date),
     queryFn: () => api.habitUsage.get(userId!, date, accessToken!),
     enabled: !!userId && !!accessToken && !!date,
-    staleTime: CACHE_SHORT
+    staleTime: 0
   })
 }
 
@@ -455,7 +455,7 @@ export function usePersonalGoals() {
     queryKey: queryKeys.personalGoals(user?.id || ""),
     queryFn: () => api.personalGoals.list(accessToken!),
     enabled: !!user?.id && !!accessToken,
-    staleTime: CACHE_MEDIUM
+    staleTime: 0
   })
 }
 
@@ -466,7 +466,7 @@ export function useCompletedPersonalGoals() {
     queryKey: queryKeys.completedPersonalGoals(user?.id || ""),
     queryFn: () => api.personalGoals.list(accessToken!, { include: "voltooid" }),
     enabled: !!user?.id && !!accessToken,
-    staleTime: CACHE_MEDIUM
+    staleTime: 0
   })
 }
 
@@ -477,7 +477,7 @@ export function usePersonalGoalUsage(userId: string | undefined, date: string) {
     queryKey: queryKeys.personalGoalUsage(userId || "", date),
     queryFn: () => api.personalGoalUsage.get(userId!, date, accessToken!),
     enabled: !!userId && !!accessToken && !!date,
-    staleTime: CACHE_SHORT
+    staleTime: 10_000  // 10s — prevents refetch from overwriting onMutate optimistic data
   })
 }
 
@@ -598,12 +598,17 @@ export function useCompletePersonalGoal() {
       console.error("Failed to complete personal goal:", error)
       toast.error("Kon persoonlijk doel niet registreren")
     },
-    onSuccess: (_data, variables) => {
-      // Invalidate to reconcile optimistic update with server
-      queryClient.invalidateQueries({
-        queryKey: queryKeys.personalGoalUsage(variables.data.userId, variables.data.date)
-      })
-      // Invalidate rewards cache to reflect point changes
+    onSuccess: (data, variables) => {
+      // Set authoritative counts from POST response (immune to race conditions)
+      const queryKey = queryKeys.personalGoalUsage(variables.data.userId, variables.data.date)
+      queryClient.setQueryData<GoalCounts>(queryKey, (old = {}) => ({
+        ...old,
+        [variables.data.personalGoalId]: {
+          today: data.todayCount,
+          total: data.totalCount
+        }
+      }))
+      // Invalidate rewards to reconcile with server (POST has completed, server data is fresh)
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
     }
   })
@@ -645,7 +650,7 @@ export function useOvertuigingUsage(programId: string) {
     queryKey: queryKeys.overtuigingUsage(programId),
     queryFn: () => api.overtuigingUsage.get(programId, accessToken!),
     enabled: !!programId && !!accessToken,
-    staleTime: CACHE_SHORT
+    staleTime: 0
   })
 }
 
@@ -656,7 +661,7 @@ export function useAllOvertuigingUsage() {
     queryKey: queryKeys.allOvertuigingUsage,
     queryFn: () => api.overtuigingUsage.getAll(accessToken!),
     enabled: !!accessToken,
-    staleTime: CACHE_SHORT
+    staleTime: 0
   })
 }
 
@@ -667,7 +672,7 @@ export function usePersoonlijkeOvertuigingen() {
     queryKey: queryKeys.persoonlijkeOvertuigingen(user?.id || ""),
     queryFn: () => api.persoonlijkeOvertuigingen.list(accessToken!),
     enabled: !!user?.id && !!accessToken,
-    staleTime: CACHE_MEDIUM
+    staleTime: 0
   })
 }
 
