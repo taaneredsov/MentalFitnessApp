@@ -17,7 +17,7 @@ export async function listByUser(userId: string): Promise<Record<string, unknown
   const result = await dbQuery<Record<string, unknown>>(
     `SELECT id, user_id, name, program_id, status, completed_date, created_at
      FROM persoonlijke_overtuigingen_pg
-     WHERE user_id = $1 AND status = 'Actief'
+     WHERE user_id = $1 AND status != 'Verwijderd'
      ORDER BY created_at ASC`,
     [userId]
   )
