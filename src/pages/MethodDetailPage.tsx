@@ -13,7 +13,6 @@ import { RewardToast } from "@/components/rewards"
 import { useMediaProgress } from "@/hooks/useMediaProgress"
 import type { MediaItem } from "@/types/program"
 import type { AwardResponse } from "@/types/rewards"
-import { POINTS } from "@/types/rewards"
 import Markdown from "react-markdown"
 import { Loader2, ArrowLeft, Clock, Volume2, Video, CheckCircle } from "lucide-react"
 
@@ -202,8 +201,8 @@ export function MethodDetailPage() {
           })
           setRewardToast({
             ...awardResult,
-            // Method base points (10) + any extra bonus returned by /rewards/award (e.g. streak bonus)
-            pointsAwarded: POINTS.method + awardResult.pointsAwarded
+            // Points awarded by the backend (variable method points + any streak bonus)
+            pointsAwarded: awardResult.pointsAwarded
           })
 
           // Check for program milestone after method completion

@@ -14,8 +14,8 @@ export interface UserRewards {
   goodHabitsScore: number
   // Inactivity detection (75-89 days inactive)
   inactivityWarning?: { daysInactive: number; daysUntilReset: number }
-  // Score was reset due to 90+ days inactivity
-  scoreReset?: boolean
+  // Streak was reset due to 90+ days inactivity (scores/badges/level stay)
+  streakReset?: boolean
 }
 
 /**
@@ -48,20 +48,15 @@ export interface AwardRequest {
  * Point values for each activity type
  */
 export const POINTS = {
-  method: 10,
-  sessionBonus: 5,
+  // Method points are variable (1-10, from Airtable "Punten waarde")
+  // No fixed method constant — read from method record
   habit: 5,
-  habitDayBonus: 5,
-  personalGoal: 5,   // Bonus points for completing a personal goal
-  overtuiging: 1,    // Bonus point for completing an overtuiging level
-  streakWeek: 50,
-  streakMonth: 200,
-  program: 100,
-  // Program milestones
-  milestone25: 25,
-  milestone50: 50,
-  milestone75: 75,
-  milestone100: 100
+  personalGoal: 5,
+  overtuiging: 1,
+  // Streak bonuses (program-aligned)
+  streak7: 25,
+  streak21: 75,
+  programComplete: 100
 } as const
 
 /**
@@ -70,14 +65,14 @@ export const POINTS = {
 export const LEVELS = [
   { level: 1, points: 0, title: "Beginner" },
   { level: 2, points: 50, title: "Ontdekker" },
-  { level: 3, points: 150, title: "Beoefenaar" },
-  { level: 4, points: 350, title: "Doorzetter" },
-  { level: 5, points: 600, title: "Expert" },
-  { level: 6, points: 1000, title: "Meester" },
-  { level: 7, points: 1500, title: "Kampioen" },
-  { level: 8, points: 2500, title: "Legende" },
-  { level: 9, points: 4000, title: "Goeroe" },
-  { level: 10, points: 6000, title: "Mentale Atleet" }
+  { level: 3, points: 125, title: "Beoefenaar" },
+  { level: 4, points: 250, title: "Doorzetter" },
+  { level: 5, points: 400, title: "Gevorderde" },
+  { level: 6, points: 600, title: "Expert" },
+  { level: 7, points: 850, title: "Kampioen" },
+  { level: 8, points: 1150, title: "Meester" },
+  { level: 9, points: 1500, title: "Legende" },
+  { level: 10, points: 2000, title: "Mentale Atleet" }
 ] as const
 
 export type LevelInfo = (typeof LEVELS)[number]
@@ -86,88 +81,21 @@ export type LevelInfo = (typeof LEVELS)[number]
  * Badge definitions with metadata
  */
 export const BADGES = {
-  // Progress badges
-  eerste_sessie: {
-    id: "eerste_sessie",
-    name: "Eerste Sessie",
-    description: "Voltooi je eerste methode",
-    icon: "star"
-  },
-  vijf_methodes: {
-    id: "vijf_methodes",
-    name: "Op Dreef",
-    description: "Voltooi 5 methodes",
-    icon: "zap"
-  },
-  twintig_methodes: {
-    id: "twintig_methodes",
-    name: "Doorgewinterd",
-    description: "Voltooi 20 methodes",
-    icon: "trophy"
-  },
-  eerste_programma: {
-    id: "eerste_programma",
-    name: "Programma Afgerond",
-    description: "Rond je eerste programma af",
-    icon: "award"
-  },
-  // Program milestone badges
-  kwart_programma: {
-    id: "kwart_programma",
-    name: "Kwart Klaar",
-    description: "25% van een programma voltooid",
-    icon: "seedling"
-  },
-  half_programma: {
-    id: "half_programma",
-    name: "Halverwege",
-    description: "50% van een programma voltooid",
-    icon: "star"
-  },
-  driekwart_programma: {
-    id: "driekwart_programma",
-    name: "Bijna Daar",
-    description: "75% van een programma voltooid",
-    icon: "flame"
-  },
-  // Streak badges
-  week_streak: {
-    id: "week_streak",
-    name: "Week Warrior",
-    description: "7 dagen op rij actief",
-    icon: "flame"
-  },
-  twee_weken_streak: {
-    id: "twee_weken_streak",
-    name: "Constante Kracht",
-    description: "14 dagen op rij actief",
-    icon: "flame"
-  },
-  maand_streak: {
-    id: "maand_streak",
-    name: "Maand Meester",
-    description: "30 dagen op rij actief",
-    icon: "flame"
-  },
-  // Habit badges
-  goede_start: {
-    id: "goede_start",
-    name: "Goede Start",
-    description: "Voltooi je eerste gewoonte",
-    icon: "heart"
-  },
-  dagelijkse_held: {
-    id: "dagelijkse_held",
-    name: "Dagelijkse Held",
-    description: "Voltooi alle gewoontes op een dag",
-    icon: "check-circle"
-  },
-  week_gewoontes: {
-    id: "week_gewoontes",
-    name: "Gewoonte Guru",
-    description: "7 dagen alle gewoontes voltooid",
-    icon: "crown"
-  }
+  // Tier 1: Eerste Stappen
+  eerste_sessie: { id: "eerste_sessie", name: "Eerste Sessie", description: "Voltooi je eerste methode", icon: "star", tier: 1 },
+  eerste_streak: { id: "eerste_streak", name: "Eerste Streak", description: "3 opeenvolgende sessies op tijd", icon: "flame", tier: 1 },
+  eerste_week: { id: "eerste_week", name: "Eerste Week", description: "Alle sessies voltooid in week 1", icon: "calendar-check", tier: 1 },
+  goede_start: { id: "goede_start", name: "Goede Start", description: "Log je eerste gewoonte of persoonlijk doel", icon: "heart", tier: 1 },
+  // Tier 2: Consistentie
+  op_dreef: { id: "op_dreef", name: "Op Dreef", description: "21 opeenvolgende sessies op tijd", icon: "zap", tier: 2 },
+  tweede_programma: { id: "tweede_programma", name: "Tweede Programma", description: "Start een 2e programma", icon: "refresh-cw", tier: 2 },
+  drie_maanden: { id: "drie_maanden", name: "Drie Maanden", description: "3 maanden actief", icon: "clock", tier: 2 },
+  veelzijdig: { id: "veelzijdig", name: "Veelzijdig", description: "Methode + gewoonte + doel in één week", icon: "layers", tier: 2 },
+  // Tier 3: Mentale Atleet
+  programma_voltooid: { id: "programma_voltooid", name: "Programma Voltooid", description: "Rond een volledig programma af", icon: "trophy", tier: 3 },
+  zes_maanden: { id: "zes_maanden", name: "Zes Maanden", description: "6 maanden actief", icon: "shield", tier: 3 },
+  jaar_actief: { id: "jaar_actief", name: "Jaar Actief", description: "12 maanden actief", icon: "crown", tier: 3 },
+  mentale_atleet: { id: "mentale_atleet", name: "Mentale Atleet", description: "Bereik niveau 8", icon: "medal", tier: 3 }
 } as const
 
 export type BadgeId = keyof typeof BADGES

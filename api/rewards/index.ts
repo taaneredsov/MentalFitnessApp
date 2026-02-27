@@ -27,11 +27,12 @@ function applyStreakStaleCheck(rewards: Record<string, unknown>): void {
 }
 
 /**
- * Check inactivity and apply score reset (90+ days) or warning (75-89 days).
- * Returns { scoreReset, inactivityWarning } metadata to include in response.
+ * Check inactivity and apply streak reset (90+ days) or warning (75-89 days).
+ * After inactivity only the streak resets — scores, badges, and level stay forever.
+ * Returns { streakReset, inactivityWarning } metadata to include in response.
  */
 function checkInactivity(rewards: Record<string, unknown>): {
-  scoreReset?: boolean
+  streakReset?: boolean
   inactivityWarning?: { daysInactive: number; daysUntilReset: number }
 } {
   const lastActiveDate = normalizeDateString(rewards.lastActiveDate as string | null | undefined)
@@ -41,17 +42,9 @@ function checkInactivity(rewards: Record<string, unknown>): {
   if (daysInactive === null || daysInactive < INACTIVITY_WARNING_DAYS) return {}
 
   if (daysInactive >= INACTIVITY_RESET_DAYS) {
-    // Apply score reset in-place
-    rewards.totalPoints = 0
-    rewards.bonusPoints = 0
-    rewards.badges = []
-    rewards.level = 1
+    // Only reset streak — scores, badges, and level stay forever
     rewards.currentStreak = 0
-    rewards.longestStreak = 0
-    rewards.mentalFitnessScore = 0
-    rewards.personalGoalsScore = 0
-    rewards.goodHabitsScore = 0
-    return { scoreReset: true }
+    return { streakReset: true }
   }
 
   // Warning range: 75-89 days
@@ -101,20 +94,17 @@ async function handleGetPostgres(_req: Request, res: Response, userId: string) {
 
   const inactivityMeta = checkInactivity(rewards)
 
-  // Persist reset to Postgres so it doesn't re-trigger on next request
-  if (inactivityMeta.scoreReset) {
+  // Persist streak reset to Postgres so it doesn't re-trigger on next request
+  if (inactivityMeta.streakReset) {
     await updateUserRewardFields({
       userId,
-      bonusPoints: 0,
+      bonusPoints: user.bonusPoints,
       currentStreak: 0,
-      longestStreak: 0,
+      longestStreak: user.longestStreak,
       lastActiveDate: user.lastActiveDate,
-      badges: [],
-      level: 1,
-      totalPoints: 0,
-      mentalFitnessScore: 0,
-      personalGoalsScore: 0,
-      goodHabitsScore: 0
+      badges,
+      level: user.level,
+      // Don't reset scores — they stay forever
     })
   }
 
@@ -141,14 +131,11 @@ async function handleGetAirtable(_req: Request, res: Response, userId: string) {
 
   const inactivityMeta = checkInactivity(rewardsRecord)
 
-  // Persist reset to Airtable so it doesn't re-trigger on next request
-  if (inactivityMeta.scoreReset) {
+  // Persist streak reset to Airtable so it doesn't re-trigger on next request
+  if (inactivityMeta.streakReset) {
     await base(tables.users).update(userId, {
-      [USER_FIELDS.bonusPoints]: 0,
       [USER_FIELDS.currentStreak]: 0,
-      [USER_FIELDS.longestStreak]: 0,
-      [USER_FIELDS.badges]: JSON.stringify([]),
-      [USER_FIELDS.level]: 1
+      // Don't reset scores, badges, or level — they stay forever
     })
   }
 

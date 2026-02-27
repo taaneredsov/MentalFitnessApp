@@ -154,10 +154,7 @@ export function checkProgramMilestones(
  */
 export function getMilestoneBadgeId(milestone: MilestoneThreshold): string | null {
   switch (milestone) {
-    case 25: return "kwart_programma"
-    case 50: return "half_programma"
-    case 75: return "driekwart_programma"
-    case 100: return "eerste_programma"
+    case 100: return "programma_voltooid"
     default: return null
   }
 }

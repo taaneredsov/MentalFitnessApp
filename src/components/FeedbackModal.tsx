@@ -10,7 +10,6 @@ import {
 import { Button } from "@/components/ui/button"
 import { Textarea } from "@/components/ui/textarea"
 import { Loader2, Star } from "lucide-react"
-import { POINTS } from "@/types/rewards"
 
 interface FeedbackModalProps {
   isOpen: boolean
@@ -45,7 +44,7 @@ export function FeedbackModal({
     onSkip()
   }
 
-  const points = pointsAwarded ?? POINTS.method
+  const points = pointsAwarded ?? 0
 
   return (
     <Dialog open={isOpen}>

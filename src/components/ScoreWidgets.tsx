@@ -33,15 +33,15 @@ export function ScoreWidgets() {
   const { data: rewards, isLoading } = useUserRewards()
   const resetToastShown = useRef(false)
 
-  // Show a one-time toast when scores were just reset
+  // Show a one-time toast when streak was reset due to inactivity
   useEffect(() => {
-    if (rewards?.scoreReset && !resetToastShown.current) {
+    if (rewards?.streakReset && !resetToastShown.current) {
       resetToastShown.current = true
-      toast.info("Je scores zijn gereset na 3 maanden inactiviteit. Begin opnieuw!", {
+      toast.info("Je streak is gereset na 3 maanden inactiviteit. Je scores en badges blijven behouden!", {
         duration: 8000
       })
     }
-  }, [rewards?.scoreReset])
+  }, [rewards?.streakReset])
 
   if (isLoading) {
     return (
@@ -71,24 +71,24 @@ export function ScoreWidgets() {
                 Je bent al {rewards.inactivityWarning.daysInactive} dagen inactief
               </p>
               <p className="text-amber-700 dark:text-amber-400 mt-0.5">
-                Na {rewards.inactivityWarning.daysUntilReset} dagen worden je scores gereset. Begin vandaag weer!
+                Na {rewards.inactivityWarning.daysUntilReset} dagen wordt je streak gereset. Begin vandaag weer!
               </p>
             </div>
           </CardContent>
         </Card>
       )}
 
-      {/* Score reset banner */}
-      {rewards.scoreReset && (
+      {/* Streak reset banner */}
+      {rewards.streakReset && (
         <Card className="border-blue-300 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-700">
           <CardContent className="p-3 flex items-start gap-3">
             <RotateCcw className="h-5 w-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
             <div className="text-sm">
               <p className="font-medium text-blue-800 dark:text-blue-300">
-                Je scores zijn gereset
+                Je streak is gereset
               </p>
               <p className="text-blue-700 dark:text-blue-400 mt-0.5">
-                Na 3 maanden inactiviteit beginnen je punten opnieuw. Je account blijft actief.
+                Na 3 maanden inactiviteit is je streak gereset. Je scores, badges en level blijven behouden!
               </p>
             </div>
           </CardContent>
