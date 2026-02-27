@@ -102,6 +102,7 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
 
   const counts = await countGoalUsageForUserGoalDate(body.userId, body.personalGoalId, body.date)
 
+  let pointsAwarded = POINTS.personalGoal
   try {
     await awardRewardActivity({
       userId: body.userId,
@@ -110,12 +111,13 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
       forcePostgres: true
     })
   } catch (err) {
-    console.warn("[personal-goal-usage] awardRewardActivity failed (postgres):", err)
+    console.error("[personal-goal-usage] awardRewardActivity failed (postgres):", err)
+    pointsAwarded = 0
   }
 
   return sendSuccess(res, {
     id: usage.id,
-    pointsAwarded: POINTS.personalGoal,
+    pointsAwarded,
     todayCount: counts.todayCount,
     totalCount: counts.totalCount
   }, 201)
@@ -209,6 +211,7 @@ async function handlePostAirtable(req: Request, res: Response, tokenUserId: stri
     if (recordDate === body.date) todayCount += 1
   })
 
+  let pointsAwarded = POINTS.personalGoal
   try {
     await awardRewardActivity({
       userId: body.userId,
@@ -216,12 +219,13 @@ async function handlePostAirtable(req: Request, res: Response, tokenUserId: stri
       activityDate: body.date
     })
   } catch (err) {
-    console.warn("[personal-goal-usage] awardRewardActivity failed (airtable):", err)
+    console.error("[personal-goal-usage] awardRewardActivity failed (airtable):", err)
+    pointsAwarded = 0
   }
 
   return sendSuccess(res, {
     id: record.id,
-    pointsAwarded: POINTS.personalGoal,
+    pointsAwarded,
     todayCount,
     totalCount
   }, 201)

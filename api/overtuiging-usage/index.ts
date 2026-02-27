@@ -82,6 +82,7 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
     date: body.date
   })
 
+  let pointsAwarded = 1
   try {
     await awardRewardActivity({
       userId: body.userId,
@@ -90,7 +91,8 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
       forcePostgres: true
     })
   } catch (err) {
-    console.warn("[overtuiging-usage] awardRewardActivity failed (postgres):", err)
+    console.error("[overtuiging-usage] awardRewardActivity failed (postgres):", err)
+    pointsAwarded = 0
   }
 
   try {
@@ -110,7 +112,7 @@ async function handlePostPostgres(req: Request, res: Response, tokenUserId: stri
     console.warn("[overtuiging-usage] enqueueSyncEvent failed:", err)
   }
 
-  return sendSuccess(res, { id: created.id, pointsAwarded: 1 }, 201)
+  return sendSuccess(res, { id: created.id, pointsAwarded }, 201)
 }
 
 async function handleGetAirtable(req: Request, res: Response, tokenUserId: string) {

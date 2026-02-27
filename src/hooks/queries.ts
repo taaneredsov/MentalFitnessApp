@@ -3,7 +3,7 @@ import { toast } from "sonner"
 import { api } from "@/lib/api-client"
 import { queryKeys } from "@/lib/query-keys"
 import type { CreateProgramData, CreatePersonalGoalData, UpdatePersonalGoalData, UpdateProgrammaplanningData, CreatePersoonlijkeOvertuigingData, UpdatePersoonlijkeOvertuigingData } from "@/types/program"
-import type { AwardRequest } from "@/types/rewards"
+import type { AwardRequest, UserRewards } from "@/types/rewards"
 import type { ReminderMode } from "@/types/notifications"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -352,17 +352,32 @@ export function useRecordHabitUsage() {
         return [...old, variables.data.goedeGewoonteId]
       })
 
-      return { previousData, queryKey }
+      // Optimistic update for rewards score
+      const rewardsKey = queryKeys.rewards
+      await queryClient.cancelQueries({ queryKey: rewardsKey })
+      const previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
+      if (previousRewards) {
+        queryClient.setQueryData<UserRewards>(rewardsKey, {
+          ...previousRewards,
+          goodHabitsScore: previousRewards.goodHabitsScore + 5,
+          totalPoints: previousRewards.totalPoints + 5
+        })
+      }
+
+      return { previousData, queryKey, previousRewards, rewardsKey }
     },
     onError: (_error, _variables, context) => {
       // Rollback on error
       if (context?.previousData !== undefined) {
         queryClient.setQueryData(context.queryKey, context.previousData)
       }
+      if (context?.previousRewards !== undefined) {
+        queryClient.setQueryData(context.rewardsKey, context.previousRewards)
+      }
     },
     onSuccess: () => {
       // Don't invalidate habitUsage - optimistic update is correct and API GET has issues
-      // Only invalidate rewards cache to reflect point changes
+      // Invalidate rewards to reconcile optimistic update with server
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
     }
   })
@@ -537,12 +552,27 @@ export function useCompletePersonalGoal() {
         }
       })
 
-      return { previousData, queryKey }
+      // Optimistic update for rewards score
+      const rewardsKey = queryKeys.rewards
+      await queryClient.cancelQueries({ queryKey: rewardsKey })
+      const previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
+      if (previousRewards) {
+        queryClient.setQueryData<UserRewards>(rewardsKey, {
+          ...previousRewards,
+          personalGoalsScore: previousRewards.personalGoalsScore + 5,
+          totalPoints: previousRewards.totalPoints + 5
+        })
+      }
+
+      return { previousData, queryKey, previousRewards, rewardsKey }
     },
     onError: (error, _variables, context) => {
       // Rollback on error
       if (context?.previousData !== undefined) {
         queryClient.setQueryData(context.queryKey, context.previousData)
+      }
+      if (context?.previousRewards !== undefined) {
+        queryClient.setQueryData(context.rewardsKey, context.previousRewards)
       }
       console.error("Failed to complete personal goal:", error)
       toast.error("Kon persoonlijk doel niet registreren")
@@ -683,6 +713,25 @@ export function useCompleteOvertuiging() {
       data: { userId: string; overtuigingId: string; programId?: string; date: string }
       accessToken: string
     }) => api.overtuigingUsage.create(data, accessToken),
+    // Optimistic update for rewards score
+    onMutate: async () => {
+      const rewardsKey = queryKeys.rewards
+      await queryClient.cancelQueries({ queryKey: rewardsKey })
+      const previousRewards = queryClient.getQueryData<UserRewards>(rewardsKey)
+      if (previousRewards) {
+        queryClient.setQueryData<UserRewards>(rewardsKey, {
+          ...previousRewards,
+          mentalFitnessScore: previousRewards.mentalFitnessScore + 1,
+          totalPoints: previousRewards.totalPoints + 1
+        })
+      }
+      return { previousRewards, rewardsKey }
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousRewards !== undefined) {
+        queryClient.setQueryData(context.rewardsKey, context.previousRewards)
+      }
+    },
     onSuccess: (_data, variables) => {
       // Invalidate overtuiging usage for the program (if applicable)
       if (variables.data.programId) {
@@ -690,7 +739,7 @@ export function useCompleteOvertuiging() {
       }
       // Invalidate all overtuiging usage (for mindset page)
       queryClient.invalidateQueries({ queryKey: queryKeys.allOvertuigingUsage })
-      // Invalidate rewards cache to reflect point changes
+      // Invalidate rewards to reconcile optimistic update with server
       queryClient.invalidateQueries({ queryKey: queryKeys.rewards })
     }
   })
