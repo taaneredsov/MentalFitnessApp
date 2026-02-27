@@ -27,22 +27,15 @@ const REWARD_BACKEND_ENVS = [
 const LEVELS = [
   { level: 1, points: 0 },
   { level: 2, points: 50 },
-  { level: 3, points: 150 },
-  { level: 4, points: 350 },
-  { level: 5, points: 600 },
-  { level: 6, points: 1000 },
-  { level: 7, points: 1500 },
-  { level: 8, points: 2500 },
-  { level: 9, points: 4000 },
-  { level: 10, points: 6000 }
+  { level: 3, points: 125 },
+  { level: 4, points: 250 },
+  { level: 5, points: 400 },
+  { level: 6, points: 600 },
+  { level: 7, points: 850 },
+  { level: 8, points: 1150 },
+  { level: 9, points: 1500 },
+  { level: 10, points: 2000 }
 ] as const
-
-const MILESTONE_POINTS: Record<number, number> = {
-  25: 25,
-  50: 50,
-  75: 75,
-  100: 100
-}
 
 export type RewardActivityType =
   | "method"
@@ -54,30 +47,29 @@ export type RewardActivityType =
   | "overtuiging"
   | "personalGoal"
 
-interface RewardBadgeStats {
-  methodsCompleted: number
-  habitsCompleted: number
-  habitDaysCompleted: number
-  programsCompleted: number
-  longestStreak: number
-  milestonesReached: number[]
+interface BadgeCheckContext {
+  counts: RewardCounts
+  state: RewardState
+  nextLevel: number
 }
 
-const BADGE_CHECKS = {
-  eerste_sessie: { check: (stats: RewardBadgeStats) => stats.methodsCompleted >= 1 },
-  vijf_methodes: { check: (stats: RewardBadgeStats) => stats.methodsCompleted >= 5 },
-  twintig_methodes: { check: (stats: RewardBadgeStats) => stats.methodsCompleted >= 20 },
-  eerste_programma: { check: (stats: RewardBadgeStats) => stats.programsCompleted >= 1 || stats.milestonesReached.includes(100) },
-  kwart_programma: { check: (stats: RewardBadgeStats) => stats.milestonesReached.includes(25) },
-  half_programma: { check: (stats: RewardBadgeStats) => stats.milestonesReached.includes(50) },
-  driekwart_programma: { check: (stats: RewardBadgeStats) => stats.milestonesReached.includes(75) },
-  week_streak: { check: (stats: RewardBadgeStats) => stats.longestStreak >= 7 },
-  twee_weken_streak: { check: (stats: RewardBadgeStats) => stats.longestStreak >= 14 },
-  maand_streak: { check: (stats: RewardBadgeStats) => stats.longestStreak >= 30 },
-  goede_start: { check: (stats: RewardBadgeStats) => stats.habitsCompleted >= 1 },
-  dagelijkse_held: { check: (stats: RewardBadgeStats) => stats.habitDaysCompleted >= 1 },
-  week_gewoontes: { check: (stats: RewardBadgeStats) => stats.habitDaysCompleted >= 7 }
-} as const
+const BADGE_CHECKS: Record<string, { check: (ctx: BadgeCheckContext) => boolean }> = {
+  // Tier 1: Eerste Stappen
+  eerste_sessie: { check: (ctx) => ctx.counts.methodCount >= 1 },
+  eerste_streak: { check: (ctx) => ctx.state.currentStreak >= 3 },
+  eerste_week: { check: (ctx) => ctx.counts.methodCount >= 5 },
+  goede_start: { check: (ctx) => ctx.counts.habitCount >= 1 || ctx.counts.personalGoalCount >= 1 },
+  // Tier 2: Consistentie
+  op_dreef: { check: (ctx) => ctx.state.currentStreak >= 21 },
+  tweede_programma: { check: (ctx) => ctx.counts.programsStarted >= 2 },
+  drie_maanden: { check: (ctx) => ctx.counts.monthsActive >= 3 },
+  veelzijdig: { check: (ctx) => ctx.counts.habitCount >= 1 && ctx.counts.personalGoalCount >= 1 && ctx.counts.methodCount >= 1 },
+  // Tier 3: Mentale Atleet
+  programma_voltooid: { check: (ctx) => ctx.counts.programsCompleted >= 1 },
+  zes_maanden: { check: (ctx) => ctx.counts.monthsActive >= 6 },
+  jaar_actief: { check: (ctx) => ctx.counts.monthsActive >= 12 },
+  mentale_atleet: { check: (ctx) => ctx.nextLevel >= 8 }
+}
 
 interface RewardCounts {
   methodCount: number
@@ -87,6 +79,8 @@ interface RewardCounts {
   overtuigingCount: number
   habitDaysCount: number
   programsCompleted: number
+  monthsActive: number
+  programsStarted: number
 }
 
 interface RewardState {
@@ -128,10 +122,10 @@ function calculateLevel(points: number): number {
   return 1
 }
 
-function checkNewBadges(existingBadges: string[], stats: RewardBadgeStats): string[] {
+function checkNewBadges(existingBadges: string[], ctx: BadgeCheckContext): string[] {
   const added: string[] = []
   for (const [badgeId, badge] of Object.entries(BADGE_CHECKS)) {
-    if (!existingBadges.includes(badgeId) && badge.check(stats)) {
+    if (!existingBadges.includes(badgeId) && badge.check(ctx)) {
       added.push(badgeId)
     }
   }
@@ -209,19 +203,21 @@ function calculateBonusAward(input: {
 }): number {
   let awarded = 0
 
-  if (input.activityType === "programMilestone" && input.milestone) {
-    awarded += MILESTONE_POINTS[input.milestone] || 0
-  }
-
   if (input.activityType === "overtuiging") {
     awarded += 1
   }
 
-  if (input.newStreak === 7 && input.previousStreak < 7) {
-    awarded += 50
+  // Program completion bonus
+  if (input.activityType === "programMilestone" && input.milestone === 100) {
+    awarded += 100
   }
-  if (input.newStreak === 30 && input.previousStreak < 30) {
-    awarded += 200
+
+  // Streak bonuses (program-aligned)
+  if (input.newStreak >= 7 && input.previousStreak < 7) {
+    awarded += 25
+  }
+  if (input.newStreak >= 21 && input.previousStreak < 21) {
+    awarded += 75
   }
 
   return awarded
@@ -312,6 +308,24 @@ async function getAirtableRewardStateAndCounts(userId: string): Promise<{ state:
     return userField?.includes(userId) && status === "Afgewerkt"
   }).length
 
+  const monthsActive = new Set(
+    methodUsageRecords
+      .filter((record) => {
+        const field = (record.fields as Record<string, unknown>)[METHOD_USAGE_FIELDS.user] as string[] | undefined
+        return field?.includes(userId)
+      })
+      .map((record) => {
+        const date = normalizeDateString((record.fields as Record<string, unknown>)[METHOD_USAGE_FIELDS.usedAt] as string | undefined)
+        return date ? date.slice(0, 7) : null
+      })
+      .filter((v): v is string => !!v)
+  ).size
+
+  const programsStarted = programRecords.filter((record) => {
+    const userField = (record.fields as Record<string, unknown>)[PROGRAM_FIELDS.user] as string[] | undefined
+    return userField?.includes(userId)
+  }).length
+
   return {
     state,
     counts: {
@@ -321,7 +335,9 @@ async function getAirtableRewardStateAndCounts(userId: string): Promise<{ state:
       personalGoalCount,
       overtuigingCount,
       habitDaysCount: habitDays.size,
-      programsCompleted
+      programsCompleted,
+      monthsActive,
+      programsStarted
     }
   }
 }
@@ -418,20 +434,17 @@ function buildAwardResult(input: {
   const nextLevel = calculateLevel(newTotal)
   const levelUp = nextLevel > currentLevel
 
-  const milestonesReached = input.activityType === "programMilestone" && input.milestone
-    ? [input.milestone]
-    : []
-
-  const stats: RewardBadgeStats = {
-    methodsCompleted: input.counts.methodCount,
-    habitsCompleted: input.counts.habitCount,
-    habitDaysCompleted: input.counts.habitDaysCount,
-    programsCompleted: input.counts.programsCompleted,
-    longestStreak: streak.longestStreak,
-    milestonesReached
+  const badgeCtx: BadgeCheckContext = {
+    counts: input.counts,
+    state: {
+      ...input.state,
+      currentStreak: streak.currentStreak,
+      longestStreak: streak.longestStreak
+    },
+    nextLevel
   }
 
-  const newBadges = checkNewBadges(input.state.badges, stats)
+  const newBadges = checkNewBadges(input.state.badges, badgeCtx)
   const allBadges = [...input.state.badges, ...newBadges]
 
   const nextState: RewardState = {

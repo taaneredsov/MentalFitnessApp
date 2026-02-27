@@ -32,6 +32,8 @@ export interface UserRewardStats {
   overtuigingCount: number
   habitDaysCount: number
   programsCompleted: number
+  monthsActive: number
+  programsStarted: number
 }
 
 function mapUserRow(row: Record<string, unknown>): PgUser {
@@ -328,7 +330,7 @@ export async function getUserRewardStats(userId: string): Promise<UserRewardStat
   const user = await findUserById(userId)
   if (!user) return null
 
-  const [habits, methods, goals, overtuigingen, habitDays, programsCompleted] = await Promise.all([
+  const [habits, methods, goals, overtuigingen, habitDays, programsCompleted, monthsActiveResult, programsStartedResult] = await Promise.all([
     dbQuery<{ count: string }>(`SELECT COUNT(*) as count FROM goede_gewoontes_usage_pg WHERE user_id = $1`, [userId]),
     dbQuery<{ count: string; points_sum: string }>(
       `SELECT COUNT(*) as count,
@@ -349,6 +351,15 @@ export async function getUserRewardStats(userId: string): Promise<UserRewardStat
        WHERE user_id = $1
          AND status IN ('Afgewerkt', 'finished', 'Finished')`,
       [userId]
+    ),
+    dbQuery<{ count: string }>(
+      `SELECT COUNT(DISTINCT to_char(used_at, 'YYYY-MM')) as count
+       FROM method_usage_pg WHERE user_id = $1`,
+      [userId]
+    ),
+    dbQuery<{ count: string }>(
+      `SELECT COUNT(*) as count FROM programs_pg WHERE user_id = $1`,
+      [userId]
     )
   ])
 
@@ -360,7 +371,9 @@ export async function getUserRewardStats(userId: string): Promise<UserRewardStat
     personalGoalCount: Number(goals.rows[0]?.count || 0),
     overtuigingCount: Number(overtuigingen.rows[0]?.count || 0),
     habitDaysCount: Number(habitDays.rows[0]?.count || 0),
-    programsCompleted: Number(programsCompleted.rows[0]?.count || 0)
+    programsCompleted: Number(programsCompleted.rows[0]?.count || 0),
+    monthsActive: Number(monthsActiveResult.rows[0]?.count || 0),
+    programsStarted: Number(programsStartedResult.rows[0]?.count || 0)
   }
 }
 
