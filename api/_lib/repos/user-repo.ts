@@ -193,7 +193,19 @@ export async function upsertUserFromAirtable(record: {
         `INSERT INTO users_pg (
           id, name, email, role, language_code, password_hash, last_login,
           bonus_points, badges, level, status, updated_at
-        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())`,
+        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, NOW())
+        ON CONFLICT (id) DO UPDATE SET
+          name = EXCLUDED.name,
+          email = EXCLUDED.email,
+          role = EXCLUDED.role,
+          language_code = EXCLUDED.language_code,
+          password_hash = COALESCE(EXCLUDED.password_hash, users_pg.password_hash),
+          last_login = COALESCE(EXCLUDED.last_login, users_pg.last_login),
+          bonus_points = COALESCE(EXCLUDED.bonus_points, users_pg.bonus_points),
+          badges = COALESCE(EXCLUDED.badges, users_pg.badges),
+          level = COALESCE(EXCLUDED.level, users_pg.level),
+          status = EXCLUDED.status,
+          updated_at = NOW()`,
         params
       )
 

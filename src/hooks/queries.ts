@@ -288,7 +288,7 @@ export function useUserRewards() {
     queryKey: queryKeys.rewards,
     queryFn: () => api.rewards.get(accessToken!),
     enabled: !!accessToken,
-    staleTime: 0
+    staleTime: 10_000  // 10s — prevents refetch from overwriting onMutate optimistic data
   })
 }
 
