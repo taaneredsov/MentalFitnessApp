@@ -12,6 +12,7 @@ import { getUserByEmailWithReadThrough, toApiUserPayload } from "../_lib/sync/us
 import { enqueueSyncEvent } from "../_lib/sync/outbox.js"
 import { updateUserLastLogin } from "../_lib/repos/user-repo.js"
 import { isAirtableRecordId } from "../_lib/db/id-utils.js"
+import { storeMagicLinkCode } from "../_lib/repos/magic-link-repo.js"
 import type { AirtableRecord } from "../_lib/types.js"
 
 const loginSchema = z.object({
@@ -19,7 +20,7 @@ const loginSchema = z.object({
   password: z.string().min(1).optional()
 })
 
-async function sendSetupCodeToAirtableUser(userId: string, email: string): Promise<void> {
+async function sendSetupCodeToAirtableUser(userId: string, email: string): Promise<{ hashedCode: string; expiry: string }> {
   const code = generateSecureCode()
   const hashedCode = hashCode(code)
   const expiry = new Date(Date.now() + 15 * 60 * 1000).toISOString()
@@ -30,6 +31,7 @@ async function sendSetupCodeToAirtableUser(userId: string, email: string): Promi
   })
 
   await sendVerificationCodeEmail(email, code)
+  return { hashedCode, expiry }
 }
 
 async function loginViaPostgres(req: Request, res: Response, email: string, password?: string) {
@@ -47,7 +49,15 @@ async function loginViaPostgres(req: Request, res: Response, email: string, pass
       return sendError(res, "Password setup requires Airtable-managed users", 400)
     }
 
-    await sendSetupCodeToAirtableUser(user.id, user.email)
+    const { hashedCode, expiry } = await sendSetupCodeToAirtableUser(user.id, user.email)
+    // Also store in Postgres so set-password can find it
+    await storeMagicLinkCode({
+      userId: user.id,
+      email: user.email,
+      hashedToken: null,
+      hashedCode,
+      expiresAt: expiry
+    })
     return sendSuccess(res, {
       needsPasswordSetup: true,
       email: user.email

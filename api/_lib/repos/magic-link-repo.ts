@@ -13,7 +13,7 @@ interface MagicLinkCode {
 export async function storeMagicLinkCode(input: {
   userId: string
   email: string
-  hashedToken: string
+  hashedToken: string | null
   hashedCode: string
   expiresAt: string
 }): Promise<void> {
